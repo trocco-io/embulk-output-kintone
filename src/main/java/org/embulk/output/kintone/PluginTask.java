@@ -1,6 +1,5 @@
 package org.embulk.output.kintone;
 
-
 import com.google.common.base.Optional;
 import org.embulk.config.Config;
 import org.embulk.config.ConfigDefault;
@@ -9,7 +8,8 @@ import org.embulk.config.Task;
 import java.util.Map;
 
 public interface PluginTask
-        extends Task {
+        extends Task
+{
     @Config("domain")
     String getDomain();
 

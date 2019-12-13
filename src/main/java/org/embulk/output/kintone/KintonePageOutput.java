@@ -14,12 +14,10 @@ import org.embulk.spi.TransactionalPageOutput;
 
 import java.util.ArrayList;
 import java.util.HashMap;
-import java.util.List;
 
 public class KintonePageOutput
         implements TransactionalPageOutput
 {
-
     private PageReader pageReader;
     private PluginTask task;
     private Connection conn;
@@ -77,11 +75,14 @@ public class KintonePageOutput
         public void accept(T t);
     }
 
-    public void connect(final PluginTask task) {
+    public void connect(final PluginTask task)
+    {
         Auth kintoneAuth = new Auth();
         if (task.getUsername().isPresent() && task.getPassword().isPresent()) {
             kintoneAuth.setPasswordAuth(task.getUsername().get(), task.getPassword().get());
-        } else if (task.getToken().isPresent()) { kintoneAuth.setApiToken(task.getToken().get());
+        }
+        else if (task.getToken().isPresent()) {
+            kintoneAuth.setApiToken(task.getToken().get());
         }
 
         if (task.getBasicAuthUsername().isPresent() && task.getBasicAuthPassword().isPresent()) {
@@ -91,7 +92,8 @@ public class KintonePageOutput
 
         if (task.getGuestSpaceId().isPresent()) {
             this.conn = new Connection(task.getDomain(), kintoneAuth, task.getGuestSpaceId().or(-1));
-        } else {
+        }
+        else {
             this.conn = new Connection(task.getDomain(), kintoneAuth);
         }
     }

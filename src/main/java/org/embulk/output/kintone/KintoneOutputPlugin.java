@@ -1,7 +1,5 @@
 package org.embulk.output.kintone;
 
-import com.google.common.annotations.VisibleForTesting;
-
 import org.embulk.config.ConfigDiff;
 import org.embulk.config.ConfigSource;
 import org.embulk.config.TaskReport;
@@ -77,10 +75,5 @@ public class KintoneOutputPlugin
                         "mode is insert only.");
         }
         return new KintonePageOutput(task, schema);
-    }
-
-    @VisibleForTesting
-    protected KintoneClient getKintoneClient(){
-        return new KintoneClient();
     }
 }

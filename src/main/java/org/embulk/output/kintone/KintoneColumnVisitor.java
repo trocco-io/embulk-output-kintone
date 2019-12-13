@@ -2,22 +2,18 @@ package org.embulk.output.kintone;
 
 import com.cybozu.kintone.client.model.app.form.FieldType;
 import com.cybozu.kintone.client.model.record.field.FieldValue;
-import com.cybozu.kintone.client.module.record.Record;
 import org.embulk.spi.Column;
 import org.embulk.spi.ColumnVisitor;
 import org.embulk.spi.PageReader;
 import org.embulk.spi.time.Timestamp;
 
-import java.lang.reflect.Field;
 import java.text.SimpleDateFormat;
-import java.util.Date;
 import java.util.HashMap;
 import java.util.Map;
 
 public class KintoneColumnVisitor
         implements ColumnVisitor
 {
-
     private PageReader pageReader;
     private HashMap record;
     private Map<String, KintoneColumnOption> columnOptions;

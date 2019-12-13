@@ -8,7 +8,6 @@ import java.util.Locale;
 
 public enum KintoneMode
 {
-
     INSERT, UPDATE, UPSERT;
 
     @JsonCreator
