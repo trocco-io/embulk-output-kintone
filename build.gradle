@@ -80,7 +80,7 @@ Gem::Specification.new do |spec|
   spec.name          = "${project.name}"
   spec.version       = "${project.version}"
   spec.authors       = ["takeshi fujita"]
-  spec.summary       = %[Kintone output plugin for Embulk]
+  spec.summary       = %[kintone output plugin for Embulk]
   spec.description   = %[Dumps records to Kintone.]
   spec.email         = ["tksfjt1024@gmail.com"]
   spec.licenses      = ["MIT"]

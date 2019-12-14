@@ -6,20 +6,21 @@ import org.embulk.spi.Column;
 import org.embulk.spi.ColumnVisitor;
 import org.embulk.spi.PageReader;
 import org.embulk.spi.time.Timestamp;
+import org.embulk.spi.time.TimestampFormatter;
+import org.joda.time.DateTimeZone;
 
-import java.text.SimpleDateFormat;
 import java.util.HashMap;
-import java.util.Map;
+import java.util.List;
 
 public class KintoneColumnVisitor
         implements ColumnVisitor
 {
     private PageReader pageReader;
     private HashMap record;
-    private Map<String, KintoneColumnOption> columnOptions;
+    private List<KintoneColumnOption> columnOptions;
 
     public KintoneColumnVisitor(PageReader pageReader,
-                                Map<String, KintoneColumnOption> columnOptions)
+                                List<KintoneColumnOption> columnOptions)
     {
         this.pageReader = pageReader;
         this.columnOptions = columnOptions;
@@ -35,7 +36,7 @@ public class KintoneColumnVisitor
         if (value == null) {
             return;
         }
-        KintoneColumnOption option = columnOptions.get(column.getName());
+        KintoneColumnOption option = columnOptions.get(column.getIndex());
         if (option == null) {
             return;
         }
@@ -77,42 +78,33 @@ public class KintoneColumnVisitor
         if (value == null) {
             return;
         }
-        KintoneColumnOption option = columnOptions.get(column.getName());
+        KintoneColumnOption option = columnOptions.get(column.getIndex());
         if (option == null) {
             return;
         }
         FieldType fieldType = FieldType.valueOf(option.getType());
+        DateTimeZone timezone = DateTimeZone.forID("UTC");
 
         switch (fieldType) {
-            case DATE:
-                SimpleDateFormat sdf = new SimpleDateFormat("yyyy-MM-dd");
-                String date = sdf.format(value);
+            case DATE: {
+                String format = "%Y-%m-%d";
+                TimestampFormatter formatter = new TimestampFormatter(format, timezone);
+                String date = formatter.format(value);
                 setValue(column, date);
+                break;
+            }
+            case DATETIME: {
+                String format = "%Y-%m-%dT%H:%M:%SZ";
+                TimestampFormatter formatter = new TimestampFormatter(format, timezone);
+                String date = formatter.format(value);
+                setValue(column, date);
+                break;
+            }
+            default: {
+                setValue(column, value);
+                break;
+            }
         }
-//        Timestamp value = pageReader.getTimestamp(column);
-//        if (value == null) {
-//            return;
-//        }
-//        KintoneColumnOption option = columnOptions.get(column.getName());
-//        if (option == null) {
-//            return;
-//        }
-//
-//        FieldType fieldType = FieldType.valueOf(option.getType());
-//        Date date = new Date(value.toEpochMilli());
-//
-//        switch (fieldType) {
-//            case DATE:
-//                record.setDate(option.getFieldCode(), date);
-//                break;
-//            case DATETIME:
-//                record.setDateTime(option.getFieldCode(), date);
-//                break;
-//            default:
-//                SimpleDateFormat format = new SimpleDateFormat("yyyy-MM-dd\'T\'HH:mm:ss\'Z\'");
-//                Field field = new Field(option.getFieldCode(), fieldType, format.format(date));
-//                record.addField(option.getFieldCode(), field);
-//        }
     }
 
     @Override

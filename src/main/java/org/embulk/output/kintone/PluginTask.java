@@ -5,7 +5,7 @@ import org.embulk.config.Config;
 import org.embulk.config.ConfigDefault;
 import org.embulk.config.Task;
 
-import java.util.Map;
+import java.util.List;
 
 public interface PluginTask
         extends Task
@@ -42,7 +42,7 @@ public interface PluginTask
 
     @Config("column_options")
     @ConfigDefault("{}")
-    public Map<String, KintoneColumnOption> getColumnOptions();
+    public List<KintoneColumnOption> getColumnOptions();
 
     @Config("mode")
     @ConfigDefault("insert")
