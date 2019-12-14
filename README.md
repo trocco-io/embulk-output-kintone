@@ -1,27 +1,45 @@
-# Kintone output plugin for Embulk
+# kintone output plugin for Embulk
 
-TODO: Write short description here and build.gradle file.
+[![Build Status](https://travis-ci.org/trocco-io/embulk-output-kintone.svg?branch=master)](https://travis-ci.org/trocco-io/embulk-output-kintone)
 
 ## Overview
 
-* **Plugin type**: output
-* **Load all or nothing**: no
-* **Resume supported**: no
-* **Cleanup supported**: yes
+kintone output plugin for Embulk loads app records from kintone.
+embulk 0.9 is only supported due to the dependency of kintone-java-sdk 0.4.0, which requires java 8
+
+This plugin uses [cursor API](https://developer.kintone.io/hc/en-us/articles/360000280322). See the limitation on this page.
 
 ## Configuration
 
-- **option1**: description (integer, required)
-- **option2**: description (string, default: `"myvalue"`)
-- **option3**: description (string, default: `null`)
+- **domain**: kintone domain(FQDN) e.g. devfoo.cybozu.com (string, required)
+- **username**: kintone username (string, optional)
+- **password**: kintone password (string, optional)
+- **token**: kintone app token. Username and password or token must be configured. If all of them are provided, this plugin uses username and password (string, optional)
+- **app_id**: kintone app id (integer, required)
+- **basic_auth_username**:  kintone basic auth username Please see kintone basic auth [here](https://jp.cybozu.help/general/en/admin/list_security/list_ip_basic/basic_auth.html) (string, optional)
+- **basic_auth_password**:  kintone basic auth password (string, optional)
+- **guest_space_id**: kintone app belongs to guest space, guest space id is required. (integer, optional)
+- **mode**: kintone mode (string, required)
+- **column_options** (required)
+    - **field_code**: kintone field code (string, required)
+    - **type**: kintone field type (string, required)
 
 ## Example
 
 ```yaml
 out:
   type: kintone
-  option1: example1
-  option2: example2
+    domain: example.cybozu.com
+    username: username
+    password: password
+    app_id: 1
+    mode: insert
+    column_options:
+      - {field_code: "id", type: "NUMBER"}
+      - {field_code: "name", type: "SINGLE_LINE_TEXT"}
+      - {field_code: "num", type: "NUMBER"}
+      - {field_code: "date", type: "DATE"}
+      - {field_code: "datetime", type: "DATETIME"}
 ```
 
 
@@ -30,4 +48,9 @@ out:
 ```
 $ ./gradlew gem  # -t to watch change of files and rebuild continuously
 ```
-# embulk-output-kintone
+
+## Development
+```
+$ ./gradlew build
+$ ./gradlew test
+```
