@@ -37,10 +37,6 @@ public class KintoneColumnVisitor
             return;
         }
         KintoneColumnOption option = columnOptions.get(column.getIndex());
-        if (option == null) {
-            return;
-        }
-
         FieldValue fieldValue = new FieldValue();
         fieldValue.setType(FieldType.valueOf(option.getType()));
         fieldValue.setValue(String.valueOf(value));
@@ -83,18 +79,19 @@ public class KintoneColumnVisitor
             return;
         }
         FieldType fieldType = FieldType.valueOf(option.getType());
-        DateTimeZone timezone = DateTimeZone.forID("UTC");
 
         switch (fieldType) {
             case DATE: {
                 String format = "%Y-%m-%d";
+                DateTimeZone timezone = DateTimeZone.forID(option.getTimezone().get());
                 TimestampFormatter formatter = new TimestampFormatter(format, timezone);
                 String date = formatter.format(value);
                 setValue(column, date);
                 break;
             }
             case DATETIME: {
-                String format = "%Y-%m-%dT%H:%M:%SZ";
+                String format = "%Y-%m-%dT%H:%M:%S%z";
+                DateTimeZone timezone = DateTimeZone.forID("UTC");
                 TimestampFormatter formatter = new TimestampFormatter(format, timezone);
                 String date = formatter.format(value);
                 setValue(column, date);

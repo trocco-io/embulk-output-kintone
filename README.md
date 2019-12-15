@@ -21,8 +21,10 @@ This plugin uses [cursor API](https://developer.kintone.io/hc/en-us/articles/360
 - **guest_space_id**: kintone app belongs to guest space, guest space id is required. (integer, optional)
 - **mode**: kintone mode (string, required)
 - **column_options** (required)
-    - **field_code**: kintone field code (string, required)
-    - **type**: kintone field type (string, required)
+    - **field_code**: field code (string, required)
+    - **type**: field type (string, required)
+    - **timezone**: timezone to convert into `date` (string, default is `UTC`)
+    - **update_key**: update key (boolean, default is `false`)
 
 ## Example
 
