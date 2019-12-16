@@ -10,17 +10,17 @@ import org.embulk.spi.time.TimestampFormatter;
 import org.joda.time.DateTimeZone;
 
 import java.util.HashMap;
-import java.util.List;
+import java.util.Map;
 
 public class KintoneColumnVisitor
         implements ColumnVisitor
 {
     private PageReader pageReader;
     private HashMap record;
-    private List<KintoneColumnOption> columnOptions;
+    private Map<String, KintoneColumnOption> columnOptions;
 
     public KintoneColumnVisitor(PageReader pageReader,
-                                List<KintoneColumnOption> columnOptions)
+                                Map<String, KintoneColumnOption> columnOptions)
     {
         this.pageReader = pageReader;
         this.columnOptions = columnOptions;
@@ -36,7 +36,10 @@ public class KintoneColumnVisitor
         if (value == null) {
             return;
         }
-        KintoneColumnOption option = columnOptions.get(column.getIndex());
+        KintoneColumnOption option = columnOptions.get(column.getName());
+        if (option == null) {
+            return;
+        }
         FieldValue fieldValue = new FieldValue();
         fieldValue.setType(FieldType.valueOf(option.getType()));
         fieldValue.setValue(String.valueOf(value));
@@ -74,7 +77,7 @@ public class KintoneColumnVisitor
         if (value == null) {
             return;
         }
-        KintoneColumnOption option = columnOptions.get(column.getIndex());
+        KintoneColumnOption option = columnOptions.get(column.getName());
         if (option == null) {
             return;
         }

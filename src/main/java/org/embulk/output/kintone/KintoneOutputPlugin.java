@@ -53,7 +53,7 @@ public class KintoneOutputPlugin
         // validation
         switch (task.getMode()) {
             case INSERT:
-                Collection<KintoneColumnOption> options = task.getColumnOptions();
+                Collection<KintoneColumnOption> options = task.getColumnOptions().values();
                 for (KintoneColumnOption option : options) {
                     if (option.getUpdateKey()) {
                         throw new IllegalArgumentException(

@@ -18,7 +18,7 @@ embulk 0.9 is only supported due to the dependency of kintone-java-sdk 0.4.0, wh
 - **basic_auth_password**:  kintone basic auth password (string, optional)
 - **guest_space_id**: kintone app belongs to guest space, guest space id is required. (integer, optional)
 - **mode**: kintone mode (string, required)
-- **column_options** (required)
+- **column_options** advanced: a key-value pairs where key is a column name and value is options for the column.
     - **field_code**: field code (string, required)
     - **type**: field type (string, required)
     - **timezone**: timezone to convert into `date` (string, default is `UTC`)
@@ -35,11 +35,11 @@ out:
     app_id: 1
     mode: insert
     column_options:
-      - {field_code: "id", type: "NUMBER"}
-      - {field_code: "name", type: "SINGLE_LINE_TEXT"}
-      - {field_code: "num", type: "NUMBER"}
-      - {field_code: "date", type: "DATE"}
-      - {field_code: "datetime", type: "DATETIME"}
+      id: {field_code: "id", type: "NUMBER"}
+      name: {field_code: "name", type: "SINGLE_LINE_TEXT"}
+      number: {field_code: "num", type: "NUMBER"}
+      date: {field_code: "date", type: "DATE"}
+      date_time: {field_code: "datetime", type: "DATETIME"}
 ```
 
 
