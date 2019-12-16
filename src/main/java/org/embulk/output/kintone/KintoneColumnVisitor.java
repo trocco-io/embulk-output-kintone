@@ -31,43 +31,46 @@ public class KintoneColumnVisitor
         this.record = record;
     }
 
-    private void setValue(Column column, Object value)
+    private void setValue(Column column, Object value, FieldType type)
     {
         if (value == null) {
             return;
         }
+        FieldValue fieldValue = new FieldValue();
         KintoneColumnOption option = columnOptions.get(column.getName());
         if (option == null) {
-            return;
+            fieldValue.setType(type);
+            record.put(column.getName(), fieldValue);
         }
-        FieldValue fieldValue = new FieldValue();
-        fieldValue.setType(FieldType.valueOf(option.getType()));
+        else {
+            fieldValue.setType(FieldType.valueOf(option.getType()));
+            record.put(option.getFieldCode(), fieldValue);
+        }
         fieldValue.setValue(String.valueOf(value));
-        record.put(option.getFieldCode(), fieldValue);
     }
 
     @Override
     public void booleanColumn(Column column)
     {
-        setValue(column, pageReader.getBoolean(column));
+        setValue(column, pageReader.getBoolean(column), FieldType.NUMBER);
     }
 
     @Override
     public void longColumn(Column column)
     {
-        setValue(column, pageReader.getLong(column));
+        setValue(column, pageReader.getLong(column), FieldType.NUMBER);
     }
 
     @Override
     public void doubleColumn(Column column)
     {
-        setValue(column, pageReader.getDouble(column));
+        setValue(column, pageReader.getDouble(column), FieldType.NUMBER);
     }
 
     @Override
     public void stringColumn(Column column)
     {
-        setValue(column, pageReader.getString(column));
+        setValue(column, pageReader.getString(column), FieldType.SINGLE_LINE_TEXT);
     }
 
     @Override
@@ -89,7 +92,7 @@ public class KintoneColumnVisitor
                 DateTimeZone timezone = DateTimeZone.forID(option.getTimezone().get());
                 TimestampFormatter formatter = new TimestampFormatter(format, timezone);
                 String date = formatter.format(value);
-                setValue(column, date);
+                setValue(column, date, FieldType.DATE);
                 break;
             }
             case DATETIME: {
@@ -97,11 +100,11 @@ public class KintoneColumnVisitor
                 DateTimeZone timezone = DateTimeZone.forID("UTC");
                 TimestampFormatter formatter = new TimestampFormatter(format, timezone);
                 String date = formatter.format(value);
-                setValue(column, date);
+                setValue(column, date, FieldType.DATETIME);
                 break;
             }
             default: {
-                setValue(column, value);
+                setValue(column, value, fieldType);
                 break;
             }
         }
@@ -110,6 +113,6 @@ public class KintoneColumnVisitor
     @Override
     public void jsonColumn(Column column)
     {
-        setValue(column, pageReader.getJson(column));
+        setValue(column, pageReader.getJson(column), FieldType.SINGLE_LINE_TEXT);
     }
 }
