@@ -22,10 +22,6 @@ public class KintoneOutputPlugin
     {
         PluginTask task = config.loadConfig(PluginTask.class);
 
-        // retryable (idempotent) output:
-        // return resume(task.dump(), schema, taskCount, control);
-
-        // non-retryable (non-idempotent) output:
         control.run(task.dump());
         return Exec.newConfigDiff();
     }
@@ -50,7 +46,6 @@ public class KintoneOutputPlugin
     {
         PluginTask task = taskSource.loadTask(PluginTask.class);
 
-        // validation
         switch (task.getMode()) {
             case INSERT:
                 Collection<KintoneColumnOption> options = task.getColumnOptions().values();
@@ -61,15 +56,10 @@ public class KintoneOutputPlugin
                     }
                 }
                 break;
-//            case UPDATE:
-//                if (task.getColumnOptions().values().stream()
-//                        .filter(KintoneColumnOption::getUpdateKey).count() != 1) {
-//                    throw new IllegalArgumentException(
-//                            "when mode is update/upsert, require one update_key.");
-//                }
-//                break;
-//            case UPSERT:
-//                // TODO upsertPage
+            case UPDATE:
+                // TODO updatePage
+            case UPSERT:
+                // TODO upsertPage
             default:
                 throw new IllegalArgumentException(
                         "mode is insert only.");

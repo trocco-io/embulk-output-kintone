@@ -35,11 +35,10 @@ public class KintonePageOutput
             case INSERT:
                 insertPage(page);
                 break;
-//            case UPDATE:
-//                updatePage(page);
-//                break;
-//            case UPSERT:
-//                // TODO upsertPage
+            case UPDATE:
+                // TODO updatePage
+            case UPSERT:
+                // TODO upsertPage
             default:
                 throw new UnsupportedOperationException(
                         "kintone output plugin does not support update, upsert");
@@ -100,15 +99,8 @@ public class KintonePageOutput
 
     private void execute(Consumer<Connection> operation)
     {
-        try {
-            connect(task);
-            operation.accept(this.conn);
-        }
-        finally {
-            if (conn != null) {
-//                this.conn.close();
-            }
-        }
+        connect(task);
+        operation.accept(this.conn);
     }
 
     private void insertPage(final Page page)
@@ -141,39 +133,4 @@ public class KintonePageOutput
             }
         });
     }
-
-//    private void updatePage(final Page page)
-//    {
-//        execute(new Consumer<Connection>()
-//        {
-//            @Override
-//            public void accept(Connection conn)
-//            {
-//                try {
-//                    List<Record> records = new ArrayList<>();
-//                    pageReader.setPage(page);
-//                    KintoneColumnVisitor visitor = new KintoneColumnVisitor(pageReader,
-//                            task.getColumnOptions());
-//                    while (pageReader.nextRecord()) {
-//                        Record record = new Record();
-//                        visitor.setRecord(record);
-//                        for (Column column : pageReader.getSchema().getColumns()) {
-//                            column.visit(visitor);
-//                        }
-//                        records.add(record);
-//                        if (records.size() == 100) {
-//                            conn.updateByRecords(task.getAppId(), records);
-//                            records.clear();
-//                        }
-//                    }
-//                    if (records.size() > 0) {
-//                        conn.updateByRecords(task.getAppId(), records);
-//                    }
-//                }
-//                catch (DBException e) {
-//                    throw new RuntimeException("kintone throw exception", e);
-//                }
-//            }
-//        });
-//    }
 }
