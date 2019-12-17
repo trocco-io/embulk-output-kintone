@@ -31,84 +31,105 @@ public class KintoneColumnVisitor
         this.record = record;
     }
 
-    private void setValue(Column column, Object value, FieldType type)
+    private void setValue(String fieldCode, Object value, FieldType type)
     {
         if (value == null) {
             return;
         }
         FieldValue fieldValue = new FieldValue();
+        fieldValue.setType(type);
+        record.put(fieldCode, fieldValue);
+        fieldValue.setValue(String.valueOf(value));
+    }
+
+    private FieldType getType(Column column, FieldType defaultType)
+    {
         KintoneColumnOption option = columnOptions.get(column.getName());
         if (option == null) {
-            fieldValue.setType(type);
-            record.put(column.getName(), fieldValue);
+            return defaultType;
         }
         else {
-            fieldValue.setType(FieldType.valueOf(option.getType()));
-            record.put(option.getFieldCode(), fieldValue);
+            return FieldType.valueOf(option.getType());
         }
-        fieldValue.setValue(String.valueOf(value));
+    }
+
+    private String getFieldCode(Column column)
+    {
+        KintoneColumnOption option = columnOptions.get(column.getName());
+        if (option == null) {
+            return column.getName();
+        }
+        else {
+            return option.getFieldCode();
+        }
+    }
+
+    private DateTimeZone getTimezone(Column column)
+    {
+        KintoneColumnOption option = columnOptions.get(column.getName());
+        return DateTimeZone.forID(option.getTimezone().get());
     }
 
     @Override
     public void booleanColumn(Column column)
     {
-        setValue(column, pageReader.getBoolean(column), FieldType.NUMBER);
+        String fieldCode = getFieldCode(column);
+        FieldType type = getType(column, FieldType.NUMBER);
+        setValue(fieldCode, pageReader.getBoolean(column), type);
     }
 
     @Override
     public void longColumn(Column column)
     {
-        setValue(column, pageReader.getLong(column), FieldType.NUMBER);
+        String fieldCode = getFieldCode(column);
+        FieldType type = getType(column, FieldType.NUMBER);
+        setValue(fieldCode, pageReader.getLong(column), type);
     }
 
     @Override
     public void doubleColumn(Column column)
     {
-        setValue(column, pageReader.getDouble(column), FieldType.NUMBER);
+        String fieldCode = getFieldCode(column);
+        FieldType type = getType(column, FieldType.NUMBER);
+        setValue(fieldCode, pageReader.getDouble(column), type);
     }
 
     @Override
     public void stringColumn(Column column)
     {
-        setValue(column, pageReader.getString(column), FieldType.MULTI_LINE_TEXT);
+        String fieldCode = getFieldCode(column);
+        FieldType type = getType(column, FieldType.MULTI_LINE_TEXT);
+        setValue(fieldCode, pageReader.getString(column), type);
     }
 
     @Override
     public void timestampColumn(Column column)
     {
+        String fieldCode = getFieldCode(column);
+        FieldType type = getType(column, FieldType.DATETIME);
         Timestamp value = pageReader.getTimestamp(column);
         if (value == null) {
             return;
         }
-        KintoneColumnOption option = columnOptions.get(column.getName());
-        FieldType fieldType;
-        if (option == null) {
-            fieldType = FieldType.DATETIME;
-        }
-        else {
-            fieldType = FieldType.valueOf(option.getType());
-        }
-
-        switch (fieldType) {
+        switch (type) {
             case DATE: {
                 String format = "%Y-%m-%d";
-                DateTimeZone timezone = DateTimeZone.forID(option.getTimezone().get());
+                DateTimeZone timezone = getTimezone(column);
                 TimestampFormatter formatter = new TimestampFormatter(format, timezone);
                 String date = formatter.format(value);
-                setValue(column, date, fieldType);
+                setValue(fieldCode, date, type);
                 break;
             }
             case DATETIME: {
                 String format = "%Y-%m-%dT%H:%M:%S%z";
                 DateTimeZone timezone = DateTimeZone.forID("UTC");
                 TimestampFormatter formatter = new TimestampFormatter(format, timezone);
-                String datetime = formatter.format(value);
-                setValue(column, datetime, fieldType);
+                String dateTime = formatter.format(value);
+                setValue(fieldCode, dateTime, type);
                 break;
             }
             default: {
-                setValue(column, value, fieldType);
-                break;
+                setValue(fieldCode, value, type);
             }
         }
     }
@@ -116,6 +137,8 @@ public class KintoneColumnVisitor
     @Override
     public void jsonColumn(Column column)
     {
-        setValue(column, pageReader.getJson(column), FieldType.MULTI_LINE_TEXT);
+        String fieldCode = getFieldCode(column);
+        FieldType type = getType(column, FieldType.MULTI_LINE_TEXT);
+        setValue(fieldCode, pageReader.getJson(column), type);
     }
 }
