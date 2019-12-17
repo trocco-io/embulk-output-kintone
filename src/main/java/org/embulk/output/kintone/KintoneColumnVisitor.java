@@ -95,6 +95,7 @@ public class KintoneColumnVisitor
                 DateTimeZone timezone = DateTimeZone.forID(option.getTimezone().get());
                 TimestampFormatter formatter = new TimestampFormatter(format, timezone);
                 String date = formatter.format(value);
+                setValue(column, date, fieldType);
                 break;
             }
             case DATETIME: {
@@ -102,10 +103,14 @@ public class KintoneColumnVisitor
                 DateTimeZone timezone = DateTimeZone.forID("UTC");
                 TimestampFormatter formatter = new TimestampFormatter(format, timezone);
                 String date = formatter.format(value);
+                setValue(column, date, fieldType);
+                break;
+            }
+            default: {
+                setValue(column, value, fieldType);
                 break;
             }
         }
-        setValue(column, value, fieldType);
     }
 
     @Override
