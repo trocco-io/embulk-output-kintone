@@ -102,8 +102,8 @@ public class KintoneColumnVisitor
                 String format = "%Y-%m-%dT%H:%M:%S%z";
                 DateTimeZone timezone = DateTimeZone.forID("UTC");
                 TimestampFormatter formatter = new TimestampFormatter(format, timezone);
-                String date = formatter.format(value);
-                setValue(column, date, fieldType);
+                String datetime = formatter.format(value);
+                setValue(column, datetime, fieldType);
                 break;
             }
             default: {
