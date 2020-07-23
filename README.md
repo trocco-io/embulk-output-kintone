@@ -29,17 +29,17 @@ embulk 0.9 is only supported due to the dependency of kintone-java-sdk 0.4.0, wh
 ```yaml
 out:
   type: kintone
-    domain: example.cybozu.com
-    username: username
-    password: password
-    app_id: 1
-    mode: insert
-    column_options:
-      id: {field_code: "id", type: "NUMBER"}
-      name: {field_code: "name", type: "SINGLE_LINE_TEXT"}
-      number: {field_code: "num", type: "NUMBER"}
-      date: {field_code: "date", type: "DATE"}
-      date_time: {field_code: "datetime", type: "DATETIME"}
+  domain: example.cybozu.com
+  username: username
+  password: password
+  app_id: 1
+  mode: insert
+  column_options:
+    id: {field_code: "id", type: "NUMBER"}
+    name: {field_code: "name", type: "SINGLE_LINE_TEXT"}
+    number: {field_code: "num", type: "NUMBER"}
+    date: {field_code: "date", type: "DATE"}
+    date_time: {field_code: "datetime", type: "DATETIME"}
 ```
 
 
