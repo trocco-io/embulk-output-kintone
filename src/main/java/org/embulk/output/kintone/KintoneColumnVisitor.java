@@ -1,7 +1,12 @@
 package org.embulk.output.kintone;
 
-import com.cybozu.kintone.client.model.app.form.FieldType;
-import com.cybozu.kintone.client.model.record.field.FieldValue;
+import com.kintone.client.model.record.DateFieldValue;
+import com.kintone.client.model.record.DateTimeFieldValue;
+import com.kintone.client.model.record.FieldType;
+import com.kintone.client.model.record.FieldValue;
+import com.kintone.client.model.record.NumberFieldValue;
+import com.kintone.client.model.record.Record;
+import com.kintone.client.model.record.SingleLineTextFieldValue;
 import org.embulk.spi.Column;
 import org.embulk.spi.ColumnVisitor;
 import org.embulk.spi.PageReader;
@@ -9,14 +14,16 @@ import org.embulk.spi.time.Timestamp;
 import org.embulk.spi.time.TimestampFormatter;
 import org.joda.time.DateTimeZone;
 
-import java.util.HashMap;
+import java.math.BigDecimal;
+import java.time.LocalDate;
+import java.time.ZonedDateTime;
 import java.util.Map;
 
 public class KintoneColumnVisitor
         implements ColumnVisitor
 {
     private PageReader pageReader;
-    private HashMap record;
+    private Record record;
     private Map<String, KintoneColumnOption> columnOptions;
 
     public KintoneColumnVisitor(PageReader pageReader,
@@ -26,7 +33,7 @@ public class KintoneColumnVisitor
         this.columnOptions = columnOptions;
     }
 
-    public void setRecord(HashMap record)
+    public void setRecord(Record record)
     {
         this.record = record;
     }
@@ -36,10 +43,22 @@ public class KintoneColumnVisitor
         if (value == null) {
             return;
         }
-        FieldValue fieldValue = new FieldValue();
-        fieldValue.setType(type);
-        record.put(fieldCode, fieldValue);
-        fieldValue.setValue(String.valueOf(value));
+        String stringValue = String.valueOf(value);
+        FieldValue fieldValue = null;
+        switch (type) {
+            case NUMBER:
+                fieldValue = new NumberFieldValue(new BigDecimal(stringValue));
+                break;
+            case DATE:
+                fieldValue = new DateFieldValue(LocalDate.parse(stringValue));
+                break;
+            case DATETIME:
+                fieldValue = new DateTimeFieldValue(ZonedDateTime.parse(stringValue));
+                break;
+            default:
+                fieldValue = new SingleLineTextFieldValue(stringValue);
+        }
+        record.putField(fieldCode, fieldValue);
     }
 
     private FieldType getType(Column column, FieldType defaultType)
