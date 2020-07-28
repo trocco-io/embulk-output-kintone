@@ -45,10 +45,10 @@ public class KintoneOutputPlugin
     public TransactionalPageOutput open(TaskSource taskSource, Schema schema, int taskIndex)
     {
         PluginTask task = taskSource.loadTask(PluginTask.class);
+        Collection<KintoneColumnOption> options = task.getColumnOptions().values();
 
         switch (task.getMode()) {
             case INSERT:
-                Collection<KintoneColumnOption> options = task.getColumnOptions().values();
                 for (KintoneColumnOption option : options) {
                     if (option.getUpdateKey()) {
                         throw new IllegalArgumentException(
@@ -57,7 +57,21 @@ public class KintoneOutputPlugin
                 }
                 break;
             case UPDATE:
-                // TODO updatePage
+                boolean hasUpdateKey = false;
+                for (KintoneColumnOption option : options) {
+                    if (option.getUpdateKey()) {
+                        if (hasUpdateKey) {
+                            throw new IllegalArgumentException(
+                                    "when mode is update, only one column can have an update_key.");
+                        }
+                        hasUpdateKey = true;
+                    }
+                }
+                if (!hasUpdateKey) {
+                    throw new IllegalArgumentException(
+                            "when mode is update, require update_key.");
+                }
+                break;
             case UPSERT:
                 // TODO upsertPage
             default:

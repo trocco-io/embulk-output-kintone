@@ -2,6 +2,7 @@ package org.embulk.output.kintone;
 
 import com.cybozu.kintone.client.model.app.form.FieldType;
 import com.cybozu.kintone.client.model.record.field.FieldValue;
+import com.cybozu.kintone.client.model.record.RecordUpdateKey;
 import org.embulk.spi.Column;
 import org.embulk.spi.ColumnVisitor;
 import org.embulk.spi.PageReader;
@@ -16,7 +17,8 @@ public class KintoneColumnVisitor
         implements ColumnVisitor
 {
     private PageReader pageReader;
-    private HashMap record;
+    private HashMap<String, FieldValue> record;
+    private HashMap<String, String> updateKey;
     private Map<String, KintoneColumnOption> columnOptions;
 
     public KintoneColumnVisitor(PageReader pageReader,
@@ -26,20 +28,32 @@ public class KintoneColumnVisitor
         this.columnOptions = columnOptions;
     }
 
-    public void setRecord(HashMap record)
+    public void setRecord(HashMap<String, FieldValue> record)
     {
         this.record = record;
     }
 
-    private void setValue(String fieldCode, Object value, FieldType type)
+    public void setUpdateKey(HashMap<String, String> updateKey)
+    {
+        this.updateKey = updateKey;
+    }
+
+    private void setValue(String fieldCode, Object value, FieldType type, boolean isUpdateKey)
     {
         if (value == null) {
             return;
         }
-        FieldValue fieldValue = new FieldValue();
-        fieldValue.setType(type);
-        record.put(fieldCode, fieldValue);
-        fieldValue.setValue(String.valueOf(value));
+
+        if (isUpdateKey) {
+            updateKey.put("fieldCode", fieldCode);
+            updateKey.put("fieldValue", String.valueOf(value));
+        }
+        else {
+            FieldValue fieldValue = new FieldValue();
+            fieldValue.setType(type);
+            record.put(fieldCode, fieldValue);
+            fieldValue.setValue(String.valueOf(value));
+        }
     }
 
     private FieldType getType(Column column, FieldType defaultType)
@@ -70,12 +84,21 @@ public class KintoneColumnVisitor
         return DateTimeZone.forID(option.getTimezone().get());
     }
 
+    private boolean isUpdateKey(Column column)
+    {
+        KintoneColumnOption option = columnOptions.get(column.getName());
+        if (option == null) {
+            return false;
+        }
+        return option.getUpdateKey();
+    }
+
     @Override
     public void booleanColumn(Column column)
     {
         String fieldCode = getFieldCode(column);
         FieldType type = getType(column, FieldType.NUMBER);
-        setValue(fieldCode, pageReader.getBoolean(column), type);
+        setValue(fieldCode, pageReader.getBoolean(column), type, isUpdateKey(column));
     }
 
     @Override
@@ -83,7 +106,7 @@ public class KintoneColumnVisitor
     {
         String fieldCode = getFieldCode(column);
         FieldType type = getType(column, FieldType.NUMBER);
-        setValue(fieldCode, pageReader.getLong(column), type);
+        setValue(fieldCode, pageReader.getLong(column), type, isUpdateKey(column));
     }
 
     @Override
@@ -91,7 +114,7 @@ public class KintoneColumnVisitor
     {
         String fieldCode = getFieldCode(column);
         FieldType type = getType(column, FieldType.NUMBER);
-        setValue(fieldCode, pageReader.getDouble(column), type);
+        setValue(fieldCode, pageReader.getDouble(column), type, isUpdateKey(column));
     }
 
     @Override
@@ -99,7 +122,7 @@ public class KintoneColumnVisitor
     {
         String fieldCode = getFieldCode(column);
         FieldType type = getType(column, FieldType.MULTI_LINE_TEXT);
-        setValue(fieldCode, pageReader.getString(column), type);
+        setValue(fieldCode, pageReader.getString(column), type, isUpdateKey(column));
     }
 
     @Override
@@ -117,7 +140,7 @@ public class KintoneColumnVisitor
                 DateTimeZone timezone = getTimezone(column);
                 TimestampFormatter formatter = new TimestampFormatter(format, timezone);
                 String date = formatter.format(value);
-                setValue(fieldCode, date, type);
+                setValue(fieldCode, date, type, isUpdateKey(column));
                 break;
             }
             case DATETIME: {
@@ -125,11 +148,11 @@ public class KintoneColumnVisitor
                 DateTimeZone timezone = DateTimeZone.forID("UTC");
                 TimestampFormatter formatter = new TimestampFormatter(format, timezone);
                 String dateTime = formatter.format(value);
-                setValue(fieldCode, dateTime, type);
+                setValue(fieldCode, dateTime, type, isUpdateKey(column));
                 break;
             }
             default: {
-                setValue(fieldCode, value, type);
+                setValue(fieldCode, value, type, isUpdateKey(column));
             }
         }
     }
@@ -139,6 +162,6 @@ public class KintoneColumnVisitor
     {
         String fieldCode = getFieldCode(column);
         FieldType type = getType(column, FieldType.MULTI_LINE_TEXT);
-        setValue(fieldCode, pageReader.getJson(column), type);
+        setValue(fieldCode, pageReader.getJson(column), type, isUpdateKey(column));
     }
 }

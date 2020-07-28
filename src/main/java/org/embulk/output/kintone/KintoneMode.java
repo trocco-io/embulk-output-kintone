@@ -22,7 +22,7 @@ public enum KintoneMode
                 return UPSERT;
             default:
                 throw new ConfigException(String.format(
-                        "Unknown mode '%s'. Supported modes are insert",
+                        "Unknown mode '%s'",
                         value));
         }
     }
