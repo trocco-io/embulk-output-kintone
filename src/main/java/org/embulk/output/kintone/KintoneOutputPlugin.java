@@ -57,6 +57,7 @@ public class KintoneOutputPlugin
                 }
                 break;
             case UPDATE:
+            case UPSERT:
                 boolean hasUpdateKey = false;
                 for (KintoneColumnOption option : options) {
                     if (option.getUpdateKey()) {
@@ -72,8 +73,6 @@ public class KintoneOutputPlugin
                             "when mode is update, require update_key.");
                 }
                 break;
-            case UPSERT:
-                // TODO upsertPage
             default:
                 throw new IllegalArgumentException(
                         "mode is insert only.");

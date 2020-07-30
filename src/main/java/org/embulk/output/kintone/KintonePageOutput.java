@@ -3,6 +3,7 @@ package org.embulk.output.kintone;
 import com.cybozu.kintone.client.authentication.Auth;
 import com.cybozu.kintone.client.connection.Connection;
 import com.cybozu.kintone.client.model.record.RecordUpdateItem;
+import com.cybozu.kintone.client.model.record.RecordsUpsertItem;
 import com.cybozu.kintone.client.model.record.RecordUpdateKey;
 import com.cybozu.kintone.client.model.record.field.FieldValue;
 import com.cybozu.kintone.client.module.record.Record;
@@ -41,10 +42,12 @@ public class KintonePageOutput
                 updatePage(page);
                 break;
             case UPSERT:
-                // TODO upsertPage
+                upsertPage(page);
+                break;
             default:
-                throw new UnsupportedOperationException(
-                        "kintone output plugin does not support upsert");
+                throw new UnsupportedOperationException(String.format(
+                        "Unknown mode '%s'",
+                        task.getMode()));
         }
     }
 
@@ -164,6 +167,41 @@ public class KintonePageOutput
                 }
                 if (updateItems.size() > 0) {
                     kintoneRecordManager.updateRecords(task.getAppId(), updateItems);
+                }
+            }
+            catch (Exception e) {
+                throw new RuntimeException("kintone throw exception", e);
+            }
+        });
+    }
+
+    private void upsertPage(final Page page)
+    {
+        execute(conn -> {
+            try {
+                ArrayList<RecordsUpsertItem> upsertItems = new ArrayList<RecordsUpsertItem>();
+                pageReader.setPage(page);
+                KintoneColumnVisitor visitor = new KintoneColumnVisitor(pageReader,
+                        task.getColumnOptions());
+                Record kintoneRecordManager = new Record(conn);
+                while (pageReader.nextRecord()) {
+                    HashMap<String, FieldValue> record = new HashMap<String, FieldValue>();
+                    HashMap<String, String> updateKey = new HashMap<String, String>();
+                    visitor.setRecord(record);
+                    visitor.setUpdateKey(updateKey);
+                    for (Column column : pageReader.getSchema().getColumns()) {
+                        column.visit(visitor);
+                    }
+
+                    RecordUpdateKey key = new RecordUpdateKey(updateKey.get("fieldCode"), updateKey.get("fieldValue"));
+                    upsertItems.add(new RecordsUpsertItem(key, record));
+                    if (upsertItems.size() == 100) {
+                        kintoneRecordManager.upsertRecords(task.getAppId(), upsertItems);
+                        upsertItems.clear();
+                    }
+                }
+                if (upsertItems.size() > 0) {
+                    kintoneRecordManager.upsertRecords(task.getAppId(), upsertItems);
                 }
             }
             catch (Exception e) {

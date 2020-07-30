@@ -21,7 +21,7 @@ targetCompatibility = 1.8
 dependencies {
     compile  "org.embulk:embulk-core:0.9.20"
     provided "org.embulk:embulk-core:0.9.20"
-    compile group: 'com.cybozu.kintone', name: 'kintone-sdk', version: '0.4.0'
+    compile group: 'com.cybozu.kintone', name: 'kintone-sdk', version: '0.6.2'
 
     // compile "YOUR_JAR_DEPENDENCY_GROUP:YOUR_JAR_DEPENDENCY_MODULE:YOUR_JAR_DEPENDENCY_VERSION"
     testCompile "junit:junit:4.+"
