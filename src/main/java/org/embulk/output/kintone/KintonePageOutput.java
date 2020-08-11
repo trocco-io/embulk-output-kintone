@@ -2,6 +2,8 @@ package org.embulk.output.kintone;
 
 import com.cybozu.kintone.client.authentication.Auth;
 import com.cybozu.kintone.client.connection.Connection;
+import com.cybozu.kintone.client.model.record.RecordUpdateItem;
+import com.cybozu.kintone.client.model.record.RecordUpdateKey;
 import com.cybozu.kintone.client.model.record.field.FieldValue;
 import com.cybozu.kintone.client.module.record.Record;
 import org.embulk.config.TaskReport;
@@ -36,12 +38,13 @@ public class KintonePageOutput
                 insertPage(page);
                 break;
             case UPDATE:
-                // TODO updatePage
+                updatePage(page);
+                break;
             case UPSERT:
                 // TODO upsertPage
             default:
                 throw new UnsupportedOperationException(
-                        "kintone output plugin does not support update, upsert");
+                        "kintone output plugin does not support upsert");
         }
     }
 
@@ -113,7 +116,7 @@ public class KintonePageOutput
                         task.getColumnOptions());
                 Record kintoneRecordManager = new Record(conn);
                 while (pageReader.nextRecord()) {
-                    HashMap record = new HashMap();
+                    HashMap<String, FieldValue> record = new HashMap<String, FieldValue>();
                     visitor.setRecord(record);
                     for (Column column : pageReader.getSchema().getColumns()) {
                         column.visit(visitor);
@@ -126,6 +129,41 @@ public class KintonePageOutput
                 }
                 if (records.size() > 0) {
                     kintoneRecordManager.addRecords(task.getAppId(), records);
+                }
+            }
+            catch (Exception e) {
+                throw new RuntimeException("kintone throw exception", e);
+            }
+        });
+    }
+
+    private void updatePage(final Page page)
+    {
+        execute(conn -> {
+            try {
+                ArrayList<RecordUpdateItem> updateItems = new ArrayList<RecordUpdateItem>();
+                pageReader.setPage(page);
+                KintoneColumnVisitor visitor = new KintoneColumnVisitor(pageReader,
+                        task.getColumnOptions());
+                Record kintoneRecordManager = new Record(conn);
+                while (pageReader.nextRecord()) {
+                    HashMap<String, FieldValue> record = new HashMap<String, FieldValue>();
+                    HashMap<String, String> updateKey = new HashMap<String, String>();
+                    visitor.setRecord(record);
+                    visitor.setUpdateKey(updateKey);
+                    for (Column column : pageReader.getSchema().getColumns()) {
+                        column.visit(visitor);
+                    }
+
+                    RecordUpdateKey key = new RecordUpdateKey(updateKey.get("fieldCode"), updateKey.get("fieldValue"));
+                    updateItems.add(new RecordUpdateItem(null, null, key, record));
+                    if (updateItems.size() == 100) {
+                        kintoneRecordManager.updateRecords(task.getAppId(), updateItems);
+                        updateItems.clear();
+                    }
+                }
+                if (updateItems.size() > 0) {
+                    kintoneRecordManager.updateRecords(task.getAppId(), updateItems);
                 }
             }
             catch (Exception e) {
