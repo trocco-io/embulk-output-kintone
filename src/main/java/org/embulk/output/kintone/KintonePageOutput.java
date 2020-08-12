@@ -1,11 +1,10 @@
 package org.embulk.output.kintone;
 
-import com.cybozu.kintone.client.authentication.Auth;
-import com.cybozu.kintone.client.connection.Connection;
-import com.cybozu.kintone.client.model.record.RecordUpdateItem;
-import com.cybozu.kintone.client.model.record.RecordUpdateKey;
-import com.cybozu.kintone.client.model.record.field.FieldValue;
-import com.cybozu.kintone.client.module.record.Record;
+import com.kintone.client.KintoneClient;
+import com.kintone.client.KintoneClientBuilder;
+import com.kintone.client.model.record.Record;
+import com.kintone.client.model.record.RecordForUpdate;
+import com.kintone.client.model.record.UpdateKey;
 import org.embulk.config.TaskReport;
 import org.embulk.spi.Column;
 import org.embulk.spi.Exec;
@@ -22,7 +21,7 @@ public class KintonePageOutput
 {
     private PageReader pageReader;
     private PluginTask task;
-    private Connection conn;
+    private KintoneClient client;
 
     public KintonePageOutput(PluginTask task, Schema schema)
     {
@@ -57,7 +56,15 @@ public class KintonePageOutput
     @Override
     public void close()
     {
-        // noop
+        if (this.client == null) {
+            return;
+        }
+        try {
+            this.client.close();
+        }
+        catch (Exception e) {
+            throw new RuntimeException("kintone throw exception", e);
+        }
     }
 
     @Override
@@ -79,56 +86,56 @@ public class KintonePageOutput
 
     public void connect(final PluginTask task)
     {
-        Auth kintoneAuth = new Auth();
-        if (task.getUsername().isPresent() && task.getPassword().isPresent()) {
-            kintoneAuth.setPasswordAuth(task.getUsername().get(), task.getPassword().get());
+        KintoneClientBuilder builder = KintoneClientBuilder.create("https://" + task.getDomain());
+        if (task.getGuestSpaceId().isPresent()) {
+            builder.setGuestSpaceId(task.getGuestSpaceId().or(-1));
         }
-        else if (task.getToken().isPresent()) {
-            kintoneAuth.setApiToken(task.getToken().get());
-        }
-
         if (task.getBasicAuthUsername().isPresent() && task.getBasicAuthPassword().isPresent()) {
-            kintoneAuth.setBasicAuth(task.getBasicAuthUsername().get(),
+            builder.withBasicAuth(task.getBasicAuthUsername().get(),
                     task.getBasicAuthPassword().get());
         }
 
-        if (task.getGuestSpaceId().isPresent()) {
-            this.conn = new Connection(task.getDomain(), kintoneAuth, task.getGuestSpaceId().or(-1));
+        if (task.getUsername().isPresent() && task.getPassword().isPresent()) {
+            this.client = builder
+                .authByPassword(task.getUsername().get(), task.getPassword().get())
+                .build();
         }
-        else {
-            this.conn = new Connection(task.getDomain(), kintoneAuth);
+        else if (task.getToken().isPresent()) {
+            this.client = builder
+                .authByApiToken(task.getToken().get())
+                .build();
         }
     }
 
-    private void execute(Consumer<Connection> operation)
+    private void execute(Consumer<KintoneClient> operation)
     {
         connect(task);
-        operation.accept(this.conn);
+        operation.accept(this.client);
     }
 
     private void insertPage(final Page page)
     {
-        execute(conn -> {
+        execute(client -> {
             try {
-                ArrayList<HashMap<String, FieldValue>> records = new ArrayList<>();
+                ArrayList<Record> records = new ArrayList<>();
                 pageReader.setPage(page);
                 KintoneColumnVisitor visitor = new KintoneColumnVisitor(pageReader,
                         task.getColumnOptions());
-                Record kintoneRecordManager = new Record(conn);
                 while (pageReader.nextRecord()) {
-                    HashMap<String, FieldValue> record = new HashMap<String, FieldValue>();
+                    Record record = new Record();
                     visitor.setRecord(record);
                     for (Column column : pageReader.getSchema().getColumns()) {
                         column.visit(visitor);
                     }
+
                     records.add(record);
                     if (records.size() == 100) {
-                        kintoneRecordManager.addRecords(task.getAppId(), records);
+                        client.record().addRecords(task.getAppId(), records);
                         records.clear();
                     }
                 }
                 if (records.size() > 0) {
-                    kintoneRecordManager.addRecords(task.getAppId(), records);
+                    client.record().addRecords(task.getAppId(), records);
                 }
             }
             catch (Exception e) {
@@ -139,31 +146,29 @@ public class KintonePageOutput
 
     private void updatePage(final Page page)
     {
-        execute(conn -> {
+        execute(client -> {
             try {
-                ArrayList<RecordUpdateItem> updateItems = new ArrayList<RecordUpdateItem>();
+                ArrayList<RecordForUpdate> updateRecords = new ArrayList<RecordForUpdate>();
                 pageReader.setPage(page);
                 KintoneColumnVisitor visitor = new KintoneColumnVisitor(pageReader,
                         task.getColumnOptions());
-                Record kintoneRecordManager = new Record(conn);
                 while (pageReader.nextRecord()) {
-                    HashMap<String, FieldValue> record = new HashMap<String, FieldValue>();
-                    HashMap<String, String> updateKey = new HashMap<String, String>();
+                    Record record = new Record();
+                    UpdateKey updateKey = new UpdateKey();
                     visitor.setRecord(record);
                     visitor.setUpdateKey(updateKey);
                     for (Column column : pageReader.getSchema().getColumns()) {
                         column.visit(visitor);
                     }
 
-                    RecordUpdateKey key = new RecordUpdateKey(updateKey.get("fieldCode"), updateKey.get("fieldValue"));
-                    updateItems.add(new RecordUpdateItem(null, null, key, record));
-                    if (updateItems.size() == 100) {
-                        kintoneRecordManager.updateRecords(task.getAppId(), updateItems);
-                        updateItems.clear();
+                    updateRecords.add(new RecordForUpdate(updateKey, record));
+                    if (updateRecords.size() == 100) {
+                        client.record().updateRecords(task.getAppId(), updateRecords);
+                        updateRecords.clear();
                     }
                 }
-                if (updateItems.size() > 0) {
-                    kintoneRecordManager.updateRecords(task.getAppId(), updateItems);
+                if (updateRecords.size() > 0) {
+                    client.record().updateRecords(task.getAppId(), updateRecords);
                 }
             }
             catch (Exception e) {
