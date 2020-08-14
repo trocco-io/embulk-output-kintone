@@ -12,11 +12,10 @@ import org.embulk.spi.Column;
 import org.embulk.spi.ColumnVisitor;
 import org.embulk.spi.PageReader;
 import org.embulk.spi.time.Timestamp;
-import org.embulk.spi.time.TimestampFormatter;
-import org.joda.time.DateTimeZone;
 
 import java.math.BigDecimal;
-import java.time.LocalDate;
+import java.time.Instant;
+import java.time.ZoneId;
 import java.time.ZonedDateTime;
 import java.util.Map;
 
@@ -63,17 +62,25 @@ public class KintoneColumnVisitor
                 case NUMBER:
                     fieldValue = new NumberFieldValue(new BigDecimal(stringValue));
                     break;
-                case DATE:
-                    fieldValue = new DateFieldValue(LocalDate.parse(stringValue));
-                    break;
-                case DATETIME:
-                    fieldValue = new DateTimeFieldValue(ZonedDateTime.parse(stringValue));
-                    break;
                 default:
                     fieldValue = new SingleLineTextFieldValue(stringValue);
             }
             record.putField(fieldCode, fieldValue);
         }
+    }
+
+    private void setTimestampValue(String fieldCode, Instant instant, ZoneId zoneId, FieldType type)
+    {
+        FieldValue fieldValue = null;
+        ZonedDateTime datetime = instant.atZone(zoneId);
+        switch (type) {
+            case DATE:
+                fieldValue = new DateFieldValue(datetime.toLocalDate());
+                break;
+            case DATETIME:
+                fieldValue = new DateTimeFieldValue(datetime);
+        }
+        record.putField(fieldCode, fieldValue);
     }
 
     private FieldType getType(Column column, FieldType defaultType)
@@ -98,10 +105,10 @@ public class KintoneColumnVisitor
         }
     }
 
-    private DateTimeZone getTimezone(Column column)
+    private ZoneId getZoneId(Column column)
     {
         KintoneColumnOption option = columnOptions.get(column.getName());
-        return DateTimeZone.forID(option.getTimezone().get());
+        return ZoneId.of(option.getTimezone().get());
     }
 
     private boolean isUpdateKey(Column column)
@@ -148,33 +155,18 @@ public class KintoneColumnVisitor
     @Override
     public void timestampColumn(Column column)
     {
-        String fieldCode = getFieldCode(column);
-        FieldType type = getType(column, FieldType.DATETIME);
         Timestamp value = pageReader.getTimestamp(column);
         if (value == null) {
             return;
         }
-        switch (type) {
-            case DATE: {
-                String format = "%Y-%m-%d";
-                DateTimeZone timezone = getTimezone(column);
-                TimestampFormatter formatter = new TimestampFormatter(format, timezone);
-                String date = formatter.format(value);
-                setValue(fieldCode, date, type, isUpdateKey(column));
-                break;
-            }
-            case DATETIME: {
-                String format = "%Y-%m-%dT%H:%M:%S%z";
-                DateTimeZone timezone = DateTimeZone.forID("UTC");
-                TimestampFormatter formatter = new TimestampFormatter(format, timezone);
-                String dateTime = formatter.format(value);
-                setValue(fieldCode, dateTime, type, isUpdateKey(column));
-                break;
-            }
-            default: {
-                setValue(fieldCode, value, type, isUpdateKey(column));
-            }
+
+        String fieldCode = getFieldCode(column);
+        FieldType type = getType(column, FieldType.DATETIME);
+        ZoneId zoneId = getZoneId(column);
+        if (type == FieldType.DATETIME) {
+            zoneId = ZoneId.of("UTC");
         }
+        setTimestampValue(fieldCode, value.getInstant(), zoneId, type);
     }
 
     @Override
