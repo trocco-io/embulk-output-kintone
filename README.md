@@ -5,7 +5,6 @@
 ## Overview
 
 kintone output plugin for Embulk stores app records from kintone.
-embulk 0.9 is only supported due to the dependency of [kintone-java-client](https://github.com/kintone/kintone-java-client), which requires java 8.
 
 ## Configuration
 
