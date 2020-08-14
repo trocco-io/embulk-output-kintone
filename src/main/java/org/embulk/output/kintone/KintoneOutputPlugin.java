@@ -58,26 +58,26 @@ public class KintoneOutputPlugin
                 }
                 break;
             case UPDATE:
+            case UPSERT:
                 boolean hasUpdateKey = false;
                 for (KintoneColumnOption option : options) {
                     if (option.getUpdateKey()) {
                         if (hasUpdateKey) {
                             throw new IllegalArgumentException(
-                                    "when mode is update, only one column can have an update_key.");
+                                    "when mode is update and upsert, only one column can have an update_key.");
                         }
                         hasUpdateKey = true;
                     }
                 }
                 if (!hasUpdateKey) {
                     throw new IllegalArgumentException(
-                            "when mode is update, require update_key.");
+                            "when mode is update and upsert, require update_key.");
                 }
                 break;
-            case UPSERT:
-                // TODO upsertPage
             default:
-                throw new IllegalArgumentException(
-                        "mode is insert only.");
+                throw new IllegalArgumentException(String.format(
+                        "Unknown mode '%s'",
+                        task.getMode()));
         }
         return new KintonePageOutput(task, schema);
     }

@@ -13,8 +13,12 @@ import org.embulk.spi.PageReader;
 import org.embulk.spi.Schema;
 import org.embulk.spi.TransactionalPageOutput;
 
+import java.math.BigDecimal;
 import java.util.ArrayList;
 import java.util.HashMap;
+import java.util.List;
+import java.util.Map;
+import java.util.stream.Collectors;
 
 public class KintonePageOutput
         implements TransactionalPageOutput
@@ -41,10 +45,12 @@ public class KintonePageOutput
                 updatePage(page);
                 break;
             case UPSERT:
-                // TODO upsertPage
+                upsertPage(page);
+                break;
             default:
-                throw new UnsupportedOperationException(
-                        "kintone output plugin does not support upsert");
+                throw new UnsupportedOperationException(String.format(
+                        "Unknown mode '%s'",
+                        task.getMode()));
         }
     }
 
@@ -162,6 +168,7 @@ public class KintonePageOutput
                         column.visit(visitor);
                     }
 
+                    record.removeField(updateKey.getField());
                     updateRecords.add(new RecordForUpdate(updateKey, record));
                     if (updateRecords.size() == 100) {
                         client.record().updateRecords(task.getAppId(), updateRecords);
@@ -176,5 +183,135 @@ public class KintonePageOutput
                 throw new RuntimeException("kintone throw exception", e);
             }
         });
+    }
+
+    abstract class UpsertPage<T>
+    {
+        public abstract List<T> getUpdateKeyValues(List<Record> records);
+        public abstract boolean existsRecord(List<T> updateKeyValues, Record record);
+
+        public void run(final Page page)
+        {
+            execute(client -> {
+                try {
+                    List<T> updateKeyValues = getUpdateKeyValues(client.record().getRecords(task.getAppId()));
+
+                    ArrayList<Record> insertRecords = new ArrayList<>();
+                    ArrayList<RecordForUpdate> updateRecords = new ArrayList<RecordForUpdate>();
+                    pageReader.setPage(page);
+                    KintoneColumnVisitor visitor = new KintoneColumnVisitor(pageReader,
+                            task.getColumnOptions());
+                    while (pageReader.nextRecord()) {
+                        Record record = new Record();
+                        UpdateKey updateKey = new UpdateKey();
+                        visitor.setRecord(record);
+                        visitor.setUpdateKey(updateKey);
+                        for (Column column : pageReader.getSchema().getColumns()) {
+                            column.visit(visitor);
+                        }
+
+                        if (existsRecord(updateKeyValues, record)) {
+                            record.removeField(updateKey.getField());
+                            updateRecords.add(new RecordForUpdate(updateKey, record));
+                        }
+                        else {
+                            insertRecords.add(record);
+                        }
+
+                        if (insertRecords.size() == 100) {
+                            client.record().addRecords(task.getAppId(), insertRecords);
+                            insertRecords.clear();
+                        }
+                        else if (updateRecords.size() == 100) {
+                            client.record().updateRecords(task.getAppId(), updateRecords);
+                            updateRecords.clear();
+                        }
+                    }
+
+                    if (insertRecords.size() > 0) {
+                        client.record().addRecords(task.getAppId(), insertRecords);
+                    }
+                    if (updateRecords.size() > 0) {
+                        client.record().updateRecords(task.getAppId(), updateRecords);
+                    }
+                }
+                catch (Exception e) {
+                    throw new RuntimeException("kintone throw exception", e);
+                }
+            });
+        }
+    }
+
+    class UpsertPageByStringKey extends UpsertPage<String>
+    {
+        private String fieldCode;
+
+        public UpsertPageByStringKey(String fieldCode)
+        {
+            this.fieldCode = fieldCode;
+        }
+
+        public List<String> getUpdateKeyValues(List<Record> records)
+        {
+            return records
+                .stream()
+                .map(r -> r.getSingleLineTextFieldValue(fieldCode))
+                .collect(Collectors.toList());
+        }
+
+        public boolean existsRecord(List<String> updateKeyValues, Record record)
+        {
+            return updateKeyValues.contains(record.getSingleLineTextFieldValue(fieldCode));
+        }
+    }
+
+    class UpsertPageByNumberKey extends UpsertPage<BigDecimal>
+    {
+        private String fieldCode;
+
+        public UpsertPageByNumberKey(String fieldCode)
+        {
+            this.fieldCode = fieldCode;
+        }
+
+        public List<BigDecimal> getUpdateKeyValues(List<Record> records)
+        {
+            return records
+                .stream()
+                .map(r -> r.getNumberFieldValue(fieldCode))
+                .collect(Collectors.toList());
+        }
+
+        public boolean existsRecord(List<BigDecimal> updateKeyValues, Record record)
+        {
+            return updateKeyValues.contains(record.getNumberFieldValue(fieldCode));
+        }
+    }
+
+    private void upsertPage(final Page page)
+    {
+        KintoneColumnOption updateKeyColumn = null;
+        for (KintoneColumnOption v : task.getColumnOptions().values()) {
+            if (v.getUpdateKey()) {
+                updateKeyColumn = v;
+                break;
+            }
+        }
+        if (updateKeyColumn == null) {
+            throw new RuntimeException("when mode is upsert, require update_key");
+        }
+
+        UpsertPage runner;
+        switch(updateKeyColumn.getType()) {
+            case "SINGLE_LINE_TEXT":
+                runner = new UpsertPageByStringKey(updateKeyColumn.getFieldCode());
+                break;
+            case "NUMBER":
+                runner = new UpsertPageByNumberKey(updateKeyColumn.getFieldCode());
+                break;
+            default:
+                throw new RuntimeException("The update_key must be 'SINGLE_LINE_TEXT' or 'NUMBER'.");
+        }
+        runner.run(page);
     }
 }
