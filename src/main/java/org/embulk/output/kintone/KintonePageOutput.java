@@ -32,7 +32,8 @@ public class KintonePageOutput
     @Override
     public void add(Page page)
     {
-        switch (task.getMode()) {
+        KintoneMode mode = KintoneMode.getKintoneModeByValue(task.getMode());
+        switch (mode) {
             case INSERT:
                 insertPage(page);
                 break;

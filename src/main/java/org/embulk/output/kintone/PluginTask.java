@@ -46,5 +46,5 @@ public interface PluginTask
 
     @Config("mode")
     @ConfigDefault("insert")
-    public KintoneMode getMode();
+    public String getMode();
 }
