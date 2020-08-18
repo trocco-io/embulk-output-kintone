@@ -1,36 +1,31 @@
 package org.embulk.output.kintone;
 
-import com.fasterxml.jackson.annotation.JsonCreator;
-import com.fasterxml.jackson.annotation.JsonValue;
 import org.embulk.config.ConfigException;
-
-import java.util.Locale;
 
 public enum KintoneMode
 {
-    INSERT, UPDATE, UPSERT;
+    INSERT("insert"), UPDATE("update"), UPSERT("upsert");
 
-    @JsonCreator
-    public static KintoneMode fromString(String value)
+    private final String value;
+
+    KintoneMode(String value)
     {
-        switch (value) {
-            case "insert":
-                return INSERT;
-            case "update":
-                return UPDATE;
-            case "upsert":
-                return UPSERT;
-            default:
-                throw new ConfigException(String.format(
-                        "Unknown mode '%s'",
-                        value));
-        }
+        this.value = value;
     }
 
-    @JsonValue
     @Override
     public String toString()
     {
-        return name().toLowerCase(Locale.ENGLISH);
+        return value;
+    }
+
+    public static KintoneMode getKintoneModeByValue(String value)
+    {
+        for (KintoneMode mode : values()) {
+            if (mode.toString().equals(value)) {
+                return mode;
+            }
+        }
+        throw new ConfigException(String.format("Unknown mode '%s'", value));
     }
 }

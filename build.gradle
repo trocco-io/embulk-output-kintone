@@ -1,6 +1,7 @@
 plugins {
     id "com.jfrog.bintray" version "1.1"
     id "com.github.jruby-gradle.base" version "1.5.0"
+    id "com.github.johnrengelman.shadow" version "4.0.3"
     id "java"
     id "checkstyle"
 }
@@ -18,18 +19,26 @@ version = "0.1.2"
 sourceCompatibility = 1.8
 targetCompatibility = 1.8
 
+shadowJar {
+    exclude "org/embulk/plugin/**"
+    relocate "com.fasterxml.jackson", "embulk.kintone.com.fasterxml.jackson"
+}
+
 dependencies {
     compile  "org.embulk:embulk-core:0.9.20"
     provided "org.embulk:embulk-core:0.9.20"
-    compile group: 'com.cybozu.kintone', name: 'kintone-sdk', version: '0.4.0'
+    compile "com.kintone:kintone-java-client:1.0.2"
 
     // compile "YOUR_JAR_DEPENDENCY_GROUP:YOUR_JAR_DEPENDENCY_MODULE:YOUR_JAR_DEPENDENCY_VERSION"
     testCompile "junit:junit:4.+"
 }
 
-task classpath(type: Copy, dependsOn: ["jar"]) {
+task classpath(type: Copy, dependsOn: ["jar", "shadowJar"]) {
     doFirst { file("classpath").deleteDir() }
-    from (configurations.runtime - configurations.provided + files(jar.archivePath))
+    from (configurations.runtime - configurations.provided
+            + configurations.shadow
+            - files(shadowJar.getIncludedDependencies())
+            + files(shadowJar.archivePath))
     into "classpath"
 }
 clean { delete "classpath" }

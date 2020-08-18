@@ -47,7 +47,8 @@ public class KintoneOutputPlugin
         PluginTask task = taskSource.loadTask(PluginTask.class);
         Collection<KintoneColumnOption> options = task.getColumnOptions().values();
 
-        switch (task.getMode()) {
+        KintoneMode mode = KintoneMode.getKintoneModeByValue(task.getMode());
+        switch (mode) {
             case INSERT:
                 for (KintoneColumnOption option : options) {
                     if (option.getUpdateKey()) {
