@@ -22,4 +22,8 @@ public interface KintoneColumnOption
     @Config("update_key")
     @ConfigDefault("false")
     public boolean getUpdateKey();
+
+    @Config("val_sep")
+    @ConfigDefault("\",\"")
+    public String getValueSeparator();
 }

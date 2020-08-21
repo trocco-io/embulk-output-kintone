@@ -1,9 +1,13 @@
 package org.embulk.output.kintone;
 
+import com.kintone.client.model.record.CheckBoxFieldValue;
 import com.kintone.client.model.record.DateFieldValue;
 import com.kintone.client.model.record.DateTimeFieldValue;
+import com.kintone.client.model.record.DropDownFieldValue;
 import com.kintone.client.model.record.FieldType;
 import com.kintone.client.model.record.FieldValue;
+import com.kintone.client.model.record.LinkFieldValue;
+import com.kintone.client.model.record.MultiLineTextFieldValue;
 import com.kintone.client.model.record.NumberFieldValue;
 import com.kintone.client.model.record.Record;
 import com.kintone.client.model.record.SingleLineTextFieldValue;
@@ -62,6 +66,15 @@ public class KintoneColumnVisitor
                 case NUMBER:
                     fieldValue = new NumberFieldValue(new BigDecimal(stringValue));
                     break;
+                case MULTI_LINE_TEXT:
+                    fieldValue = new MultiLineTextFieldValue(stringValue);
+                    break;
+                case DROP_DOWN:
+                    fieldValue = new DropDownFieldValue(stringValue);
+                    break;
+                case LINK:
+                    fieldValue = new LinkFieldValue(stringValue);
+                    break;
                 default:
                     fieldValue = new SingleLineTextFieldValue(stringValue);
             }
@@ -81,6 +94,15 @@ public class KintoneColumnVisitor
                 fieldValue = new DateTimeFieldValue(datetime);
         }
         record.putField(fieldCode, fieldValue);
+    }
+
+    private void setCheckBoxValue(String fieldCode, Object value, String valueSeparator)
+    {
+        String str = String.valueOf(value);
+        record.putField(
+            fieldCode,
+            new CheckBoxFieldValue(str.split(valueSeparator, 0))
+        );
     }
 
     private FieldType getType(Column column, FieldType defaultType)
@@ -120,6 +142,15 @@ public class KintoneColumnVisitor
         return option.getUpdateKey();
     }
 
+    private String getValueSeparator(Column column)
+    {
+        KintoneColumnOption option = columnOptions.get(column.getName());
+        if (option == null) {
+            return ",";
+        }
+        return option.getValueSeparator();
+    }
+
     @Override
     public void booleanColumn(Column column)
     {
@@ -149,6 +180,10 @@ public class KintoneColumnVisitor
     {
         String fieldCode = getFieldCode(column);
         FieldType type = getType(column, FieldType.MULTI_LINE_TEXT);
+        if (type == FieldType.CHECK_BOX) {
+            setCheckBoxValue(fieldCode, pageReader.getString(column), getValueSeparator(column));
+            return;
+        }
         setValue(fieldCode, pageReader.getString(column), type, isUpdateKey(column));
     }
 
