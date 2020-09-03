@@ -185,16 +185,30 @@ public class KintonePageOutput
         });
     }
 
+    private List<Record> getAllRecords(String fieldCode)
+    {
+        int limit = 500;
+        List<Record> allRecords = new ArrayList<Record>();
+        for (int offset = 0;; offset += limit) {
+            List<Record> records = client.record().getRecords(task.getAppId(), limit, offset);
+            if (records.size() == 0) {
+                break;
+            }
+            allRecords.addAll(records);
+        }
+        return allRecords;
+    }
+
     abstract class UpsertPage<T>
     {
-        public abstract List<T> getUpdateKeyValues(List<Record> records);
+        public abstract List<T> getUpdateKeyValues();
         public abstract boolean existsRecord(List<T> updateKeyValues, Record record);
 
         public void run(final Page page)
         {
             execute(client -> {
                 try {
-                    List<T> updateKeyValues = getUpdateKeyValues(client.record().getRecords(task.getAppId()));
+                    List<T> updateKeyValues = getUpdateKeyValues();
 
                     ArrayList<Record> insertRecords = new ArrayList<>();
                     ArrayList<RecordForUpdate> updateRecords = new ArrayList<RecordForUpdate>();
@@ -251,9 +265,9 @@ public class KintonePageOutput
             this.fieldCode = fieldCode;
         }
 
-        public List<String> getUpdateKeyValues(List<Record> records)
+        public List<String> getUpdateKeyValues()
         {
-            return records
+            return getAllRecords(fieldCode)
                 .stream()
                 .map(r -> r.getSingleLineTextFieldValue(fieldCode))
                 .collect(Collectors.toList());
@@ -274,9 +288,9 @@ public class KintonePageOutput
             this.fieldCode = fieldCode;
         }
 
-        public List<BigDecimal> getUpdateKeyValues(List<Record> records)
+        public List<BigDecimal> getUpdateKeyValues()
         {
-            return records
+            return getAllRecords(fieldCode)
                 .stream()
                 .map(r -> r.getNumberFieldValue(fieldCode))
                 .collect(Collectors.toList());
