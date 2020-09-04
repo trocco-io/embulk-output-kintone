@@ -2,6 +2,7 @@ package org.embulk.output.kintone;
 
 import com.kintone.client.KintoneClient;
 import com.kintone.client.KintoneClientBuilder;
+import com.kintone.client.api.record.GetRecordsByCursorResponseBody;
 import com.kintone.client.model.record.Record;
 import com.kintone.client.model.record.RecordForUpdate;
 import com.kintone.client.model.record.UpdateKey;
@@ -15,6 +16,7 @@ import org.embulk.spi.TransactionalPageOutput;
 
 import java.math.BigDecimal;
 import java.util.ArrayList;
+import java.util.Arrays;
 import java.util.HashMap;
 import java.util.List;
 import java.util.Map;
@@ -187,14 +189,17 @@ public class KintonePageOutput
 
     private List<Record> getAllRecords(String fieldCode)
     {
-        int limit = 500;
         List<Record> allRecords = new ArrayList<Record>();
-        for (int offset = 0;; offset += limit) {
-            List<Record> records = client.record().getRecords(task.getAppId(), limit, offset);
-            if (records.size() == 0) {
+        List<String> fields = Arrays.asList(fieldCode);
+        String cursorId = client.record().createCursor(task.getAppId(), fields, null);
+        while (true) {
+            GetRecordsByCursorResponseBody resp = client.record().getRecordsByCursor(cursorId);
+            List<Record> records = resp.getRecords();
+            allRecords.addAll(records);
+
+            if (!resp.hasNext()) {
                 break;
             }
-            allRecords.addAll(records);
         }
         return allRecords;
     }
