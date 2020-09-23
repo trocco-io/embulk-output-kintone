@@ -80,7 +80,6 @@ public class KintoneColumnVisitor
             }
             record.putField(fieldCode, fieldValue);
         }
-        record.putField(fieldCode, fieldValue);
     }
 
     private void setTimestampValue(String fieldCode, Instant instant, ZoneId zoneId, FieldType type)
