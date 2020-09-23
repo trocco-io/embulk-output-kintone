@@ -50,23 +50,22 @@ public class KintoneColumnVisitor
             return;
         }
 
-        if (isUpdateKey) {
+        if (isUpdateKey && updateKey != null) {
             updateKey
                 .setField(fieldCode)
                 .setValue(String.valueOf(value));
         }
-        else {
-            String stringValue = String.valueOf(value);
-            FieldValue fieldValue = null;
-            switch (type) {
-                case NUMBER:
-                    fieldValue = new NumberFieldValue(new BigDecimal(stringValue));
-                    break;
-                default:
-                    fieldValue = new SingleLineTextFieldValue(stringValue);
-            }
-            record.putField(fieldCode, fieldValue);
+
+        String stringValue = String.valueOf(value);
+        FieldValue fieldValue = null;
+        switch (type) {
+            case NUMBER:
+                fieldValue = new NumberFieldValue(new BigDecimal(stringValue));
+                break;
+            default:
+                fieldValue = new SingleLineTextFieldValue(stringValue);
         }
+        record.putField(fieldCode, fieldValue);
     }
 
     private void setTimestampValue(String fieldCode, Instant instant, ZoneId zoneId, FieldType type)
