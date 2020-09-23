@@ -59,27 +59,25 @@ public class KintoneColumnVisitor
                 .setField(fieldCode)
                 .setValue(String.valueOf(value));
         }
-        else {
-            String stringValue = String.valueOf(value);
-            FieldValue fieldValue = null;
-            switch (type) {
-                case NUMBER:
-                    fieldValue = new NumberFieldValue(new BigDecimal(stringValue));
-                    break;
-                case MULTI_LINE_TEXT:
-                    fieldValue = new MultiLineTextFieldValue(stringValue);
-                    break;
-                case DROP_DOWN:
-                    fieldValue = new DropDownFieldValue(stringValue);
-                    break;
-                case LINK:
-                    fieldValue = new LinkFieldValue(stringValue);
-                    break;
-                default:
-                    fieldValue = new SingleLineTextFieldValue(stringValue);
-            }
-            record.putField(fieldCode, fieldValue);
+        String stringValue = String.valueOf(value);
+        FieldValue fieldValue = null;
+        switch (type) {
+            case NUMBER:
+                fieldValue = new NumberFieldValue(new BigDecimal(stringValue));
+                break;
+            case MULTI_LINE_TEXT:
+                fieldValue = new MultiLineTextFieldValue(stringValue);
+                break;
+            case DROP_DOWN:
+                fieldValue = new DropDownFieldValue(stringValue);
+                break;
+            case LINK:
+                fieldValue = new LinkFieldValue(stringValue);
+                break;
+            default:
+                fieldValue = new SingleLineTextFieldValue(stringValue);
         }
+        record.putField(fieldCode, fieldValue);
     }
 
     private void setTimestampValue(String fieldCode, Instant instant, ZoneId zoneId, FieldType type)
