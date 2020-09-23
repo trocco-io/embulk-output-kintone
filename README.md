@@ -22,6 +22,7 @@ kintone output plugin for Embulk stores app records from kintone.
     - **type**: field type (string, required)
     - **timezone**: timezone to convert into `date` (string, default is `UTC`)
     - **update_key**: update key (boolean, default is `false`)
+    - **val_sep**: Used to specify multiple checkbox values (string, default is `,`)
 
 ## Example
 
