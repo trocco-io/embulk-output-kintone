@@ -54,7 +54,7 @@ public class KintoneColumnVisitor
             return;
         }
 
-        if (isUpdateKey) {
+        if (isUpdateKey && updateKey != null) {
             updateKey
                 .setField(fieldCode)
                 .setValue(String.valueOf(value));
@@ -80,6 +80,7 @@ public class KintoneColumnVisitor
             }
             record.putField(fieldCode, fieldValue);
         }
+        record.putField(fieldCode, fieldValue);
     }
 
     private void setTimestampValue(String fieldCode, Instant instant, ZoneId zoneId, FieldType type)
