@@ -30,12 +30,22 @@ public class KintoneColumnVisitor
     private Record record;
     private UpdateKey updateKey;
     private Map<String, KintoneColumnOption> columnOptions;
+    private String updateKeyName;
 
     public KintoneColumnVisitor(PageReader pageReader,
                                 Map<String, KintoneColumnOption> columnOptions)
     {
         this.pageReader = pageReader;
         this.columnOptions = columnOptions;
+    }
+
+    public KintoneColumnVisitor(PageReader pageReader,
+                                Map<String, KintoneColumnOption> columnOptions,
+                                String updateKeyName)
+    {
+        this.pageReader = pageReader;
+        this.columnOptions = columnOptions;
+        this.updateKeyName = updateKeyName;
     }
 
     public void setRecord(Record record)
@@ -133,11 +143,11 @@ public class KintoneColumnVisitor
 
     private boolean isUpdateKey(Column column)
     {
-        KintoneColumnOption option = columnOptions.get(column.getName());
-        if (option == null) {
+        if (this.updateKeyName == null) {
             return false;
         }
-        return option.getUpdateKey();
+
+        return this.updateKeyName.equals(column.getName());
     }
 
     private String getValueSeparator(Column column)

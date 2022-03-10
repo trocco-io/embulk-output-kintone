@@ -158,7 +158,7 @@ public class KintonePageOutput
                 ArrayList<RecordForUpdate> updateRecords = new ArrayList<RecordForUpdate>();
                 pageReader.setPage(page);
                 KintoneColumnVisitor visitor = new KintoneColumnVisitor(pageReader,
-                        task.getColumnOptions());
+                        task.getColumnOptions(), task.getUpdateKeyName());
                 while (pageReader.nextRecord()) {
                     Record record = new Record();
                     UpdateKey updateKey = new UpdateKey();

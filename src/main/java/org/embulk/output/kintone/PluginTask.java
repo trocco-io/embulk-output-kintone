@@ -47,4 +47,8 @@ public interface PluginTask
     @Config("mode")
     @ConfigDefault("insert")
     public String getMode();
+
+    @Config("update_key")
+    @ConfigDefault("null")
+    public String getUpdateKeyName();
 }
