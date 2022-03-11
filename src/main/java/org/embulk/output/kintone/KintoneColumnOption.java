@@ -19,10 +19,6 @@ public interface KintoneColumnOption
     @ConfigDefault("\"UTC\"")
     public Optional<String> getTimezone();
 
-    @Config("update_key")
-    @ConfigDefault("false")
-    public boolean getUpdateKey();
-
     @Config("val_sep")
     @ConfigDefault("\",\"")
     public String getValueSeparator();
