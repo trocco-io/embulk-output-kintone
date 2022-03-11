@@ -3,7 +3,6 @@ package org.embulk.output.kintone;
 import com.kintone.client.KintoneClient;
 import com.kintone.client.KintoneClientBuilder;
 import com.kintone.client.api.record.GetRecordsByCursorResponseBody;
-import com.kintone.client.model.app.field.FieldProperty;
 import com.kintone.client.model.record.*;
 import com.kintone.client.model.record.Record;
 import org.embulk.config.TaskReport;
@@ -14,11 +13,9 @@ import org.embulk.spi.PageReader;
 import org.embulk.spi.Schema;
 import org.embulk.spi.TransactionalPageOutput;
 
-import java.math.BigDecimal;
 import java.util.ArrayList;
 import java.util.Arrays;
 import java.util.List;
-import java.util.Map;
 import java.util.stream.Collectors;
 
 public class KintonePageOutput
