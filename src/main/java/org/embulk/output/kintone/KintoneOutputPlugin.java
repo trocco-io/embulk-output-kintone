@@ -50,28 +50,14 @@ public class KintoneOutputPlugin
         KintoneMode mode = KintoneMode.getKintoneModeByValue(task.getMode());
         switch (mode) {
             case INSERT:
-                for (KintoneColumnOption option : options) {
-                    if (option.getUpdateKey()) {
-                        throw new IllegalArgumentException(
-                                "when mode is insert, require no update_key.");
-                    }
+                if (task.getUpdateKeyName() != null) {
+                    throw new IllegalArgumentException("when mode is insert, require no update_key.");
                 }
                 break;
             case UPDATE:
             case UPSERT:
-                boolean hasUpdateKey = false;
-                for (KintoneColumnOption option : options) {
-                    if (option.getUpdateKey()) {
-                        if (hasUpdateKey) {
-                            throw new IllegalArgumentException(
-                                    "when mode is update and upsert, only one column can have an update_key.");
-                        }
-                        hasUpdateKey = true;
-                    }
-                }
-                if (!hasUpdateKey) {
-                    throw new IllegalArgumentException(
-                            "when mode is update and upsert, require update_key.");
+                if (task.getUpdateKeyName() == null) {
+                    throw new IllegalArgumentException("when mode is update and upsert, require update_key.");
                 }
                 break;
             default:
