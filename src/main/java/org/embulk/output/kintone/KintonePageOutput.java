@@ -231,12 +231,7 @@ public class KintonePageOutput
             throw new RuntimeException("records.size() != updateKeys.size()");
         }
 
-        String updateKeyField = updateKeys.get(0).getField();
-        List<String> queryValues = updateKeys
-                .stream()
-                .map(k -> "\"" + k.getValue().toString() + "\"")
-                .collect(Collectors.toList());
-        List<Record> distRecords = getRecordsByUpdateKey(updateKeyField, queryValues);
+        List<Record> distRecords = getRecordsByUpdateKey(updateKeys);
 
         ArrayList<Record> insertRecords = new ArrayList<>();
         ArrayList<RecordForUpdate> updateRecords = new ArrayList<>();
@@ -270,13 +265,18 @@ public class KintonePageOutput
     }
 
 
-    private List<Record> getRecordsByUpdateKey(String fieldCode, List<String> queryValues)
+    private List<Record> getRecordsByUpdateKey(ArrayList<UpdateKey> updateKeys)
     {
-        List<Record> allRecords = new ArrayList<Record>();
-        List<String> fields = Arrays.asList(fieldCode);
+        String fieldCode = updateKeys.get(0).getField();
+        List<String> queryValues = updateKeys
+                .stream()
+                .map(k -> "\"" + k.getValue().toString() + "\"")
+                .collect(Collectors.toList());
+
+        List<Record> allRecords = new ArrayList<>();
         String cursorId = client.record().createCursor(
             task.getAppId(),
-            fields,
+            Arrays.asList(fieldCode),
             fieldCode + " in (" + String.join(",", queryValues) + ")"
         );
         while (true) {
@@ -297,9 +297,13 @@ public class KintonePageOutput
         FieldType type = client.app().getFormFields(task.getAppId()).get(fieldCode).getType();
         switch (type) {
             case SINGLE_LINE_TEXT:
-                return distRecords.stream().anyMatch(d -> d.getSingleLineTextFieldValue(fieldCode).equals(updateKey.getValue()));
+                return distRecords
+                        .stream()
+                        .anyMatch(d -> d.getSingleLineTextFieldValue(fieldCode).equals(updateKey.getValue()));
             case NUMBER:
-                return distRecords.stream().anyMatch(d -> d.getNumberFieldValue(fieldCode).equals(updateKey.getValue()));
+                return distRecords
+                        .stream()
+                        .anyMatch(d -> d.getNumberFieldValue(fieldCode).equals(updateKey.getValue()));
             default:
                 throw new RuntimeException("The update_key must be 'SINGLE_LINE_TEXT' or 'NUMBER'.");
         }
