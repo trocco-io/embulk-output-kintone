@@ -50,13 +50,13 @@ public class KintoneOutputPlugin
         KintoneMode mode = KintoneMode.getKintoneModeByValue(task.getMode());
         switch (mode) {
             case INSERT:
-                if (task.getUpdateKeyName() != null) {
+                if (task.getUpdateKeyName().isPresent()) {
                     throw new IllegalArgumentException("when mode is insert, require no update_key.");
                 }
                 break;
             case UPDATE:
             case UPSERT:
-                if (task.getUpdateKeyName() == null) {
+                if (!task.getUpdateKeyName().isPresent()) {
                     throw new IllegalArgumentException("when mode is update and upsert, require update_key.");
                 }
                 break;

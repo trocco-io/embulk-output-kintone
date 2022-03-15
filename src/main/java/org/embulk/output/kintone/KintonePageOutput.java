@@ -153,11 +153,16 @@ public class KintonePageOutput
     {
         execute(client -> {
             try {
+                if (!task.getUpdateKeyName().isPresent()) {
+                    // KintoneOutputPlugin.open() で validation 済み
+                    throw new RuntimeException("unreachable error");
+                }
                 ArrayList<RecordForUpdate> updateRecords = new ArrayList<RecordForUpdate>();
                 pageReader.setPage(page);
+
                 KintoneColumnVisitor visitor = new KintoneColumnVisitor(pageReader,
                         task.getColumnOptions(),
-                        task.getUpdateKeyName());
+                        task.getUpdateKeyName().get());
                 while (pageReader.nextRecord()) {
                     Record record = new Record();
                     UpdateKey updateKey = new UpdateKey();
@@ -188,13 +193,17 @@ public class KintonePageOutput
     {
         execute(client -> {
             try {
+                if (!task.getUpdateKeyName().isPresent()) {
+                    // KintoneOutputPlugin.open() で validation 済み
+                    throw new RuntimeException("unreachable error");
+                }
                 ArrayList<Record> records = new ArrayList<>();
                 ArrayList<UpdateKey> updateKeys = new ArrayList<>();
-
                 pageReader.setPage(page);
+
                 KintoneColumnVisitor visitor = new KintoneColumnVisitor(pageReader,
                         task.getColumnOptions(),
-                        task.getUpdateKeyName());
+                        task.getUpdateKeyName().get());
                 while (pageReader.nextRecord()) {
                     Record record = new Record();
                     UpdateKey updateKey = new UpdateKey();

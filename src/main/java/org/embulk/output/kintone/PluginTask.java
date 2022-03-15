@@ -50,5 +50,5 @@ public interface PluginTask
 
     @Config("update_key")
     @ConfigDefault("null")
-    public String getUpdateKeyName();
+    Optional<String> getUpdateKeyName();
 }
