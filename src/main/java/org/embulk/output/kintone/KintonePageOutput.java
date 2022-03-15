@@ -154,7 +154,7 @@ public class KintonePageOutput
         execute(client -> {
             try {
                 if (!task.getUpdateKeyName().isPresent()) {
-                    // KintoneOutputPlugin.open() で validation 済み
+                    // already validated in KintoneOutputPlugin.open()
                     throw new RuntimeException("unreachable error");
                 }
                 ArrayList<RecordForUpdate> updateRecords = new ArrayList<RecordForUpdate>();
@@ -194,7 +194,7 @@ public class KintonePageOutput
         execute(client -> {
             try {
                 if (!task.getUpdateKeyName().isPresent()) {
-                    // KintoneOutputPlugin.open() で validation 済み
+                    // already validated in KintoneOutputPlugin.open()
                     throw new RuntimeException("unreachable error");
                 }
                 ArrayList<Record> records = new ArrayList<>();
