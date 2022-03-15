@@ -57,7 +57,7 @@ public class KintoneOutputPlugin
             case UPDATE:
             case UPSERT:
                 if (!task.getUpdateKeyName().isPresent()) {
-                    throw new IllegalArgumentException("when mode is update and upsert, require update_key.");
+                    throw new IllegalArgumentException("when mode is update or upsert, require update_key.");
                 }
                 break;
             default:
