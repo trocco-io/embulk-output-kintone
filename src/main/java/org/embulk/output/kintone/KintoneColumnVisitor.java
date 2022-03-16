@@ -70,7 +70,8 @@ public class KintoneColumnVisitor
         FieldValue fieldValue;
         switch (type) {
             case NUMBER:
-                fieldValue = new NumberFieldValue(new BigDecimal(stringValue));
+                BigDecimal setValue = stringValue.equals("") ? null : new BigDecimal(stringValue);
+                fieldValue = new NumberFieldValue(setValue);
                 break;
             case MULTI_LINE_TEXT:
                 fieldValue = new MultiLineTextFieldValue(stringValue);
@@ -169,7 +170,11 @@ public class KintoneColumnVisitor
     {
         String fieldCode = getFieldCode(column);
         FieldType type = getType(column, FieldType.NUMBER);
-        setValue(fieldCode, pageReader.getLong(column), type, isUpdateKey(column));
+        if (pageReader.isNull(column)) {
+            setValue(fieldCode, null, type, isUpdateKey(column));
+        } else {
+            setValue(fieldCode, pageReader.getLong(column), type, isUpdateKey(column));
+        }
     }
 
     @Override
