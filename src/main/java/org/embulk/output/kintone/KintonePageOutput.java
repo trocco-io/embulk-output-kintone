@@ -261,11 +261,11 @@ public class KintonePageOutput
                 insertRecords.add(record);
             }
 
-            if (insertRecords.size() == 100) {
+            if (insertRecords.size() == CHUNK_SIZE) {
                 client.record().addRecords(task.getAppId(), insertRecords);
                 insertRecords.clear();
             }
-            else if (updateRecords.size() == 100) {
+            else if (updateRecords.size() == CHUNK_SIZE) {
                 client.record().updateRecords(task.getAppId(), updateRecords);
                 updateRecords.clear();
             }
