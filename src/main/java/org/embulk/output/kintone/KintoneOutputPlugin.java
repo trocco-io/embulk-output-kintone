@@ -1,6 +1,7 @@
 package org.embulk.output.kintone;
 
 import org.embulk.config.ConfigDiff;
+import org.embulk.config.ConfigException;
 import org.embulk.config.ConfigSource;
 import org.embulk.config.TaskReport;
 import org.embulk.config.TaskSource;
@@ -51,17 +52,17 @@ public class KintoneOutputPlugin
         switch (mode) {
             case INSERT:
                 if (task.getUpdateKeyName().isPresent()) {
-                    throw new IllegalArgumentException("when mode is insert, require no update_key.");
+                    throw new ConfigException("when mode is insert, require no update_key.");
                 }
                 break;
             case UPDATE:
             case UPSERT:
                 if (!task.getUpdateKeyName().isPresent()) {
-                    throw new IllegalArgumentException("when mode is update or upsert, require update_key.");
+                    throw new ConfigException("when mode is update or upsert, require update_key.");
                 }
                 break;
             default:
-                throw new IllegalArgumentException(String.format(
+                throw new ConfigException(String.format(
                         "Unknown mode '%s'",
                         task.getMode()));
         }
