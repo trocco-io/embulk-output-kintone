@@ -241,7 +241,7 @@ public class KintonePageOutput
             throw new RuntimeException("records.size() != updateKeys.size()");
         }
 
-        List<Record> distRecords = getRecordsByUpdateKey(updateKeys);
+        List<Record> existingRecords = getExiststingRecordsByUpdateKey(updateKeys);
 
         ArrayList<Record> insertRecords = new ArrayList<>();
         ArrayList<RecordForUpdate> updateRecords = new ArrayList<>();
