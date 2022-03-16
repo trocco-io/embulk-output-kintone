@@ -13,6 +13,7 @@ import org.embulk.spi.PageReader;
 import org.embulk.spi.Schema;
 import org.embulk.spi.TransactionalPageOutput;
 
+import java.awt.*;
 import java.util.ArrayList;
 import java.util.Arrays;
 import java.util.List;
@@ -245,13 +246,13 @@ public class KintonePageOutput
             Record record = records.get(i);
             UpdateKey updateKey = updateKeys.get(i);
 
-           if (existsRecord(distRecords, updateKey)) {
-               record.removeField(updateKey.getField());
-               updateRecords.add(new RecordForUpdate(updateKey, record));
-           }
-           else {
-               insertRecords.add(record);
-           }
+            if (existsRecord(distRecords, updateKey)) {
+                record.removeField(updateKey.getField());
+                updateRecords.add(new RecordForUpdate(updateKey, record));
+            }
+            else {
+                insertRecords.add(record);
+            }
 
             if (insertRecords.size() == 100) {
                 client.record().addRecords(task.getAppId(), insertRecords);
@@ -276,10 +277,14 @@ public class KintonePageOutput
         String fieldCode = updateKeys.get(0).getField();
         List<String> queryValues = updateKeys
                 .stream()
+                .filter(k -> k.getValue() != "")
                 .map(k -> "\"" + k.getValue().toString() + "\"")
                 .collect(Collectors.toList());
 
         List<Record> allRecords = new ArrayList<>();
+        if (queryValues.isEmpty()) {
+            return allRecords;
+        }
         String cursorId = client.record().createCursor(
             task.getAppId(),
             Arrays.asList(fieldCode),
