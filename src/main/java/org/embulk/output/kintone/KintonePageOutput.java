@@ -241,7 +241,7 @@ public class KintonePageOutput
             throw new RuntimeException("records.size() != updateKeys.size()");
         }
 
-        List<Record> existingRecords = getExiststingRecordsByUpdateKey(updateKeys);
+        List<Record> existingRecords = getExistingRecordsByUpdateKey(updateKeys);
 
         ArrayList<Record> insertRecords = new ArrayList<>();
         ArrayList<RecordForUpdate> updateRecords = new ArrayList<>();
@@ -249,7 +249,7 @@ public class KintonePageOutput
             Record record = records.get(i);
             UpdateKey updateKey = updateKeys.get(i);
 
-            if (existsRecord(distRecords, updateKey)) {
+            if (existsRecord(existingRecords, updateKey)) {
                 record.removeField(updateKey.getField());
                 updateRecords.add(new RecordForUpdate(updateKey, record));
             }
@@ -275,7 +275,7 @@ public class KintonePageOutput
     }
 
 
-    private List<Record> getRecordsByUpdateKey(ArrayList<UpdateKey> updateKeys)
+    private List<Record> getExistingRecordsByUpdateKey(ArrayList<UpdateKey> updateKeys)
     {
         String fieldCode = updateKeys.get(0).getField();
         List<String> queryValues = updateKeys
