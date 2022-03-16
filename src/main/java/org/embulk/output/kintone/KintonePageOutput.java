@@ -3,8 +3,10 @@ package org.embulk.output.kintone;
 import com.kintone.client.KintoneClient;
 import com.kintone.client.KintoneClientBuilder;
 import com.kintone.client.api.record.GetRecordsByCursorResponseBody;
-import com.kintone.client.model.record.*;
+import com.kintone.client.model.record.FieldType;
 import com.kintone.client.model.record.Record;
+import com.kintone.client.model.record.RecordForUpdate;
+import com.kintone.client.model.record.UpdateKey;
 import org.embulk.config.TaskReport;
 import org.embulk.spi.Column;
 import org.embulk.spi.Exec;
@@ -157,7 +159,7 @@ public class KintonePageOutput
                     // already validated in KintoneOutputPlugin.open()
                     throw new RuntimeException("unreachable error");
                 }
-                ArrayList<RecordForUpdate> updateRecords = new ArrayList<RecordForUpdate>();
+                ArrayList<RecordForUpdate> updateRecords = new ArrayList<>();
                 pageReader.setPage(page);
 
                 KintoneColumnVisitor visitor = new KintoneColumnVisitor(pageReader,
