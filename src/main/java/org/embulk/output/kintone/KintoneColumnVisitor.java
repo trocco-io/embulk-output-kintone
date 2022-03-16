@@ -22,6 +22,7 @@ import java.time.Instant;
 import java.time.ZoneId;
 import java.time.ZonedDateTime;
 import java.util.Map;
+import java.util.Objects;
 
 public class KintoneColumnVisitor
         implements ColumnVisitor
@@ -60,17 +61,13 @@ public class KintoneColumnVisitor
 
     private void setValue(String fieldCode, Object value, FieldType type, boolean isUpdateKey)
     {
-        if (value == null) {
-            return;
-        }
-
         if (isUpdateKey && updateKey != null) {
             updateKey
                 .setField(fieldCode)
-                .setValue(String.valueOf(value));
+                .setValue(Objects.toString(value, ""));
         }
-        String stringValue = String.valueOf(value);
-        FieldValue fieldValue = null;
+        String stringValue = Objects.toString(value, "");
+        FieldValue fieldValue;
         switch (type) {
             case NUMBER:
                 fieldValue = new NumberFieldValue(new BigDecimal(stringValue));
