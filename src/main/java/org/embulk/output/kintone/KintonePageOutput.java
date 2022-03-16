@@ -23,6 +23,8 @@ import java.util.stream.Collectors;
 public class KintonePageOutput
         implements TransactionalPageOutput
 {
+    public static final int UPSERT_BATCH_SIZE = 10000;
+    public static final int CHUNK_SIZE = 100;
     private PageReader pageReader;
     private PluginTask task;
     private KintoneClient client;
@@ -136,7 +138,7 @@ public class KintonePageOutput
                     }
 
                     records.add(record);
-                    if (records.size() == 100) {
+                    if (records.size() == CHUNK_SIZE) {
                         client.record().addRecords(task.getAppId(), records);
                         records.clear();
                     }
@@ -180,7 +182,7 @@ public class KintonePageOutput
 
                     record.removeField(updateKey.getField());
                     updateRecords.add(new RecordForUpdate(updateKey, record));
-                    if (updateRecords.size() == 100) {
+                    if (updateRecords.size() == CHUNK_SIZE) {
                         client.record().updateRecords(task.getAppId(), updateRecords);
                         updateRecords.clear();
                     }
@@ -221,7 +223,7 @@ public class KintonePageOutput
                     records.add(record);
                     updateKeys.add(updateKey);
 
-                    if (records.size() == 10000) {
+                    if (records.size() == UPSERT_BATCH_SIZE) {
                         upsert(records, updateKeys);
                         records.clear();
                         updateKeys.clear();
