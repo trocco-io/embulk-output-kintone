@@ -173,6 +173,10 @@ public class KintonePageOutput
                         column.visit(visitor);
                     }
 
+                    if (updateKey.getValue() == "") {
+                        continue;
+                    }
+
                     record.removeField(updateKey.getField());
                     updateRecords.add(new RecordForUpdate(updateKey, record));
                     if (updateRecords.size() == 100) {
