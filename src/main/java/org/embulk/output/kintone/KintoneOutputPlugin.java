@@ -10,7 +10,6 @@ import org.embulk.spi.OutputPlugin;
 import org.embulk.spi.Schema;
 import org.embulk.spi.TransactionalPageOutput;
 
-import java.util.Collection;
 import java.util.List;
 
 public class KintoneOutputPlugin

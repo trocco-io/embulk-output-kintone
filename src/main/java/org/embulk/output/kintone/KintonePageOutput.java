@@ -97,7 +97,7 @@ public class KintonePageOutput
     {
         KintoneClientBuilder builder = KintoneClientBuilder.create("https://" + task.getDomain());
         if (task.getGuestSpaceId().isPresent()) {
-            builder.setGuestSpaceId(task.getGuestSpaceId().or(-1));
+            builder.setGuestSpaceId(task.getGuestSpaceId().orElse(-1));
         }
         if (task.getBasicAuthUsername().isPresent() && task.getBasicAuthPassword().isPresent()) {
             builder.withBasicAuth(task.getBasicAuthUsername().get(),
@@ -157,16 +157,12 @@ public class KintonePageOutput
     {
         execute(client -> {
             try {
-                if (!task.getUpdateKeyName().isPresent()) {
-                    // already validated in KintoneOutputPlugin.open()
-                    throw new RuntimeException("unreachable error");
-                }
                 ArrayList<RecordForUpdate> updateRecords = new ArrayList<>();
                 pageReader.setPage(page);
 
                 KintoneColumnVisitor visitor = new KintoneColumnVisitor(pageReader,
                         task.getColumnOptions(),
-                        task.getUpdateKeyName().get());
+                        task.getUpdateKeyName().orElseThrow(RuntimeException::new));
                 while (pageReader.nextRecord()) {
                     Record record = new Record();
                     UpdateKey updateKey = new UpdateKey();
@@ -201,17 +197,13 @@ public class KintonePageOutput
     {
         execute(client -> {
             try {
-                if (!task.getUpdateKeyName().isPresent()) {
-                    // already validated in KintoneOutputPlugin.open()
-                    throw new RuntimeException("unreachable error");
-                }
                 ArrayList<Record> records = new ArrayList<>();
                 ArrayList<UpdateKey> updateKeys = new ArrayList<>();
                 pageReader.setPage(page);
 
                 KintoneColumnVisitor visitor = new KintoneColumnVisitor(pageReader,
                         task.getColumnOptions(),
-                        task.getUpdateKeyName().get());
+                        task.getUpdateKeyName().orElseThrow(RuntimeException::new));
                 while (pageReader.nextRecord()) {
                     Record record = new Record();
                     UpdateKey updateKey = new UpdateKey();
