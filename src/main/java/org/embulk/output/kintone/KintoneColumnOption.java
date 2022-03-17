@@ -10,16 +10,16 @@ public interface KintoneColumnOption
         extends Task
 {
     @Config("type")
-    public String getType();
+    String getType();
 
     @Config("field_code")
-    public String getFieldCode();
+    String getFieldCode();
 
     @Config("timezone")
     @ConfigDefault("\"UTC\"")
-    public Optional<String> getTimezone();
+    Optional<String> getTimezone();
 
     @Config("val_sep")
     @ConfigDefault("\",\"")
-    public String getValueSeparator();
+    String getValueSeparator();
 }

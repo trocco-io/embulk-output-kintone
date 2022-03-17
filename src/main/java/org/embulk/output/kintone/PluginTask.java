@@ -42,11 +42,11 @@ public interface PluginTask
 
     @Config("column_options")
     @ConfigDefault("{}")
-    public Map<String, KintoneColumnOption> getColumnOptions();
+    Map<String, KintoneColumnOption> getColumnOptions();
 
     @Config("mode")
     @ConfigDefault("insert")
-    public String getMode();
+    String getMode();
 
     @Config("update_key")
     @ConfigDefault("null")

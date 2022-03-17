@@ -27,10 +27,10 @@ import java.util.Objects;
 public class KintoneColumnVisitor
         implements ColumnVisitor
 {
-    private PageReader pageReader;
+    private final PageReader pageReader;
     private Record record;
     private UpdateKey updateKey;
-    private Map<String, KintoneColumnOption> columnOptions;
+    private final Map<String, KintoneColumnOption> columnOptions;
     private String updateKeyName;
 
     public KintoneColumnVisitor(PageReader pageReader,

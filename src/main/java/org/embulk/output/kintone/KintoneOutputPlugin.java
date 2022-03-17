@@ -46,7 +46,6 @@ public class KintoneOutputPlugin
     public TransactionalPageOutput open(TaskSource taskSource, Schema schema, int taskIndex)
     {
         PluginTask task = taskSource.loadTask(PluginTask.class);
-        Collection<KintoneColumnOption> options = task.getColumnOptions().values();
 
         KintoneMode mode = KintoneMode.getKintoneModeByValue(task.getMode());
         switch (mode) {
