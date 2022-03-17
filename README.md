@@ -17,11 +17,11 @@ kintone output plugin for Embulk stores app records from kintone.
 - **basic_auth_password**:  kintone basic auth password (string, optional)
 - **guest_space_id**: kintone app belongs to guest space, guest space id is required. (integer, optional)
 - **mode**: kintone mode (string, required)
+- **update_key**: column name to set update key (string, required if mode is update or upsert)
 - **column_options** advanced: a key-value pairs where key is a column name and value is options for the column.
     - **field_code**: field code (string, required)
     - **type**: field type (string, required)
     - **timezone**: timezone to convert into `date` (string, default is `UTC`)
-    - **update_key**: update key (boolean, default is `false`)
     - **val_sep**: Used to specify multiple checkbox values (string, default is `,`)
 
 ## Example
@@ -33,7 +33,8 @@ out:
   username: username
   password: password
   app_id: 1
-  mode: insert
+  mode: upsert
+  update_key: id
   column_options:
     id: {field_code: "id", type: "NUMBER"}
     name: {field_code: "name", type: "SINGLE_LINE_TEXT"}

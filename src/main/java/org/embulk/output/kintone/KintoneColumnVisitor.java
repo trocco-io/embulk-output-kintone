@@ -22,6 +22,7 @@ import java.time.Instant;
 import java.time.ZoneId;
 import java.time.ZonedDateTime;
 import java.util.Map;
+import java.util.Objects;
 
 public class KintoneColumnVisitor
         implements ColumnVisitor
@@ -30,12 +31,22 @@ public class KintoneColumnVisitor
     private Record record;
     private UpdateKey updateKey;
     private Map<String, KintoneColumnOption> columnOptions;
+    private String updateKeyName;
 
     public KintoneColumnVisitor(PageReader pageReader,
                                 Map<String, KintoneColumnOption> columnOptions)
     {
         this.pageReader = pageReader;
         this.columnOptions = columnOptions;
+    }
+
+    public KintoneColumnVisitor(PageReader pageReader,
+                                Map<String, KintoneColumnOption> columnOptions,
+                                String updateKeyName)
+    {
+        this.pageReader = pageReader;
+        this.columnOptions = columnOptions;
+        this.updateKeyName = updateKeyName;
     }
 
     public void setRecord(Record record)
@@ -50,20 +61,17 @@ public class KintoneColumnVisitor
 
     private void setValue(String fieldCode, Object value, FieldType type, boolean isUpdateKey)
     {
-        if (value == null) {
-            return;
-        }
-
         if (isUpdateKey && updateKey != null) {
             updateKey
                 .setField(fieldCode)
-                .setValue(String.valueOf(value));
+                .setValue(Objects.toString(value, ""));
         }
-        String stringValue = String.valueOf(value);
-        FieldValue fieldValue = null;
+        String stringValue = Objects.toString(value, "");
+        FieldValue fieldValue;
         switch (type) {
             case NUMBER:
-                fieldValue = new NumberFieldValue(new BigDecimal(stringValue));
+                BigDecimal setValue = stringValue.equals("") ? null : new BigDecimal(stringValue);
+                fieldValue = new NumberFieldValue(setValue);
                 break;
             case MULTI_LINE_TEXT:
                 fieldValue = new MultiLineTextFieldValue(stringValue);
@@ -133,11 +141,11 @@ public class KintoneColumnVisitor
 
     private boolean isUpdateKey(Column column)
     {
-        KintoneColumnOption option = columnOptions.get(column.getName());
-        if (option == null) {
+        if (this.updateKeyName == null) {
             return false;
         }
-        return option.getUpdateKey();
+
+        return this.updateKeyName.equals(column.getName());
     }
 
     private String getValueSeparator(Column column)
@@ -162,7 +170,11 @@ public class KintoneColumnVisitor
     {
         String fieldCode = getFieldCode(column);
         FieldType type = getType(column, FieldType.NUMBER);
-        setValue(fieldCode, pageReader.getLong(column), type, isUpdateKey(column));
+        if (pageReader.isNull(column)) {
+            setValue(fieldCode, null, type, isUpdateKey(column));
+        } else {
+            setValue(fieldCode, pageReader.getLong(column), type, isUpdateKey(column));
+        }
     }
 
     @Override
