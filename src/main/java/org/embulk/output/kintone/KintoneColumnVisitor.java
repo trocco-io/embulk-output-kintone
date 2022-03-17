@@ -136,7 +136,10 @@ public class KintoneColumnVisitor
     private ZoneId getZoneId(Column column)
     {
         KintoneColumnOption option = columnOptions.get(column.getName());
-        return ZoneId.of(option.getTimezone().get());
+        if (option == null) {
+            return ZoneId.of("UTC");
+        }
+        return ZoneId.of(option.getTimezone().orElse("UTC"));
     }
 
     private boolean isUpdateKey(Column column)
