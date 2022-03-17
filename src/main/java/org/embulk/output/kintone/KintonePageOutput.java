@@ -162,7 +162,7 @@ public class KintonePageOutput
 
                 KintoneColumnVisitor visitor = new KintoneColumnVisitor(pageReader,
                         task.getColumnOptions(),
-                        task.getUpdateKeyName().orElseThrow(RuntimeException::new));
+                        task.getUpdateKeyName().orElseThrow(() -> new RuntimeException("unreachable"))); // Already validated
                 while (pageReader.nextRecord()) {
                     Record record = new Record();
                     UpdateKey updateKey = new UpdateKey();
@@ -203,7 +203,7 @@ public class KintonePageOutput
 
                 KintoneColumnVisitor visitor = new KintoneColumnVisitor(pageReader,
                         task.getColumnOptions(),
-                        task.getUpdateKeyName().orElseThrow(RuntimeException::new));
+                        task.getUpdateKeyName().orElseThrow(() -> new RuntimeException("unreachable"))); // Already validated
                 while (pageReader.nextRecord()) {
                     Record record = new Record();
                     UpdateKey updateKey = new UpdateKey();
