@@ -10,7 +10,6 @@ import org.embulk.spi.OutputPlugin;
 import org.embulk.spi.Schema;
 import org.embulk.spi.TransactionalPageOutput;
 
-import java.util.Collection;
 import java.util.List;
 
 public class KintoneOutputPlugin
@@ -46,7 +45,6 @@ public class KintoneOutputPlugin
     public TransactionalPageOutput open(TaskSource taskSource, Schema schema, int taskIndex)
     {
         PluginTask task = taskSource.loadTask(PluginTask.class);
-        Collection<KintoneColumnOption> options = task.getColumnOptions().values();
 
         KintoneMode mode = KintoneMode.getKintoneModeByValue(task.getMode());
         switch (mode) {

@@ -16,7 +16,7 @@ import org.embulk.spi.Schema;
 import org.embulk.spi.TransactionalPageOutput;
 
 import java.util.ArrayList;
-import java.util.Arrays;
+import java.util.Collections;
 import java.util.List;
 import java.util.stream.Collectors;
 
@@ -25,8 +25,8 @@ public class KintonePageOutput
 {
     public static final int UPSERT_BATCH_SIZE = 10000;
     public static final int CHUNK_SIZE = 100;
-    private PageReader pageReader;
-    private PluginTask task;
+    private final PageReader pageReader;
+    private final PluginTask task;
     private KintoneClient client;
 
     public KintonePageOutput(PluginTask task, Schema schema)
@@ -90,14 +90,14 @@ public class KintonePageOutput
 
     public interface Consumer<T>
     {
-        public void accept(T t);
+        void accept(T t);
     }
 
     public void connect(final PluginTask task)
     {
         KintoneClientBuilder builder = KintoneClientBuilder.create("https://" + task.getDomain());
         if (task.getGuestSpaceId().isPresent()) {
-            builder.setGuestSpaceId(task.getGuestSpaceId().or(-1));
+            builder.setGuestSpaceId(task.getGuestSpaceId().orElse(-1));
         }
         if (task.getBasicAuthUsername().isPresent() && task.getBasicAuthPassword().isPresent()) {
             builder.withBasicAuth(task.getBasicAuthUsername().get(),
@@ -157,16 +157,12 @@ public class KintonePageOutput
     {
         execute(client -> {
             try {
-                if (!task.getUpdateKeyName().isPresent()) {
-                    // already validated in KintoneOutputPlugin.open()
-                    throw new RuntimeException("unreachable error");
-                }
                 ArrayList<RecordForUpdate> updateRecords = new ArrayList<>();
                 pageReader.setPage(page);
 
                 KintoneColumnVisitor visitor = new KintoneColumnVisitor(pageReader,
                         task.getColumnOptions(),
-                        task.getUpdateKeyName().get());
+                        task.getUpdateKeyName().orElseThrow(() -> new RuntimeException("unreachable"))); // Already validated
                 while (pageReader.nextRecord()) {
                     Record record = new Record();
                     UpdateKey updateKey = new UpdateKey();
@@ -201,17 +197,13 @@ public class KintonePageOutput
     {
         execute(client -> {
             try {
-                if (!task.getUpdateKeyName().isPresent()) {
-                    // already validated in KintoneOutputPlugin.open()
-                    throw new RuntimeException("unreachable error");
-                }
                 ArrayList<Record> records = new ArrayList<>();
                 ArrayList<UpdateKey> updateKeys = new ArrayList<>();
                 pageReader.setPage(page);
 
                 KintoneColumnVisitor visitor = new KintoneColumnVisitor(pageReader,
                         task.getColumnOptions(),
-                        task.getUpdateKeyName().get());
+                        task.getUpdateKeyName().orElseThrow(() -> new RuntimeException("unreachable"))); // Already validated
                 while (pageReader.nextRecord()) {
                     Record record = new Record();
                     UpdateKey updateKey = new UpdateKey();
@@ -294,7 +286,7 @@ public class KintonePageOutput
         }
         String cursorId = client.record().createCursor(
             task.getAppId(),
-            Arrays.asList(fieldCode),
+            Collections.singletonList(fieldCode),
             fieldCode + " in (" + String.join(",", queryValues) + ")"
         );
         while (true) {

@@ -27,10 +27,10 @@ import java.util.Objects;
 public class KintoneColumnVisitor
         implements ColumnVisitor
 {
-    private PageReader pageReader;
+    private final PageReader pageReader;
     private Record record;
     private UpdateKey updateKey;
-    private Map<String, KintoneColumnOption> columnOptions;
+    private final Map<String, KintoneColumnOption> columnOptions;
     private String updateKeyName;
 
     public KintoneColumnVisitor(PageReader pageReader,
@@ -136,7 +136,10 @@ public class KintoneColumnVisitor
     private ZoneId getZoneId(Column column)
     {
         KintoneColumnOption option = columnOptions.get(column.getName());
-        return ZoneId.of(option.getTimezone().get());
+        if (option == null) {
+            return ZoneId.of("UTC");
+        }
+        return ZoneId.of(option.getTimezone().orElse("UTC"));
     }
 
     private boolean isUpdateKey(Column column)

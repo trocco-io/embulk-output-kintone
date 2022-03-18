@@ -1,11 +1,11 @@
 package org.embulk.output.kintone;
 
-import com.google.common.base.Optional;
 import org.embulk.config.Config;
 import org.embulk.config.ConfigDefault;
 import org.embulk.config.Task;
 
 import java.util.Map;
+import java.util.Optional;
 
 public interface PluginTask
         extends Task
@@ -42,11 +42,11 @@ public interface PluginTask
 
     @Config("column_options")
     @ConfigDefault("{}")
-    public Map<String, KintoneColumnOption> getColumnOptions();
+    Map<String, KintoneColumnOption> getColumnOptions();
 
     @Config("mode")
     @ConfigDefault("insert")
-    public String getMode();
+    String getMode();
 
     @Config("update_key")
     @ConfigDefault("null")
