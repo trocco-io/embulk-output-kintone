@@ -309,7 +309,7 @@ public class KintonePageOutput
             case SINGLE_LINE_TEXT:
                 return distRecords
                         .stream()
-                        .anyMatch(d -> d.getSingleLineTextFieldValue(fieldCode).equals(updateKey.getValue()));
+                        .anyMatch(d -> d.getSingleLineTextFieldValue(fieldCode).equals(updateKey.getValue().toString()));
             case NUMBER:
                 return distRecords
                         .stream()
