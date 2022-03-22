@@ -313,7 +313,8 @@ public class KintonePageOutput
             case NUMBER:
                 return distRecords
                         .stream()
-                        .anyMatch(d -> d.getNumberFieldValue(fieldCode).equals(updateKey.getValue()));
+                        .anyMatch(d -> d.getNumberFieldValue(fieldCode).toPlainString()
+                                        .equals(updateKey.getValue().toString()));
             default:
                 throw new RuntimeException("The update_key must be 'SINGLE_LINE_TEXT' or 'NUMBER'.");
         }
