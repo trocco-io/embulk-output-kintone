@@ -45,7 +45,7 @@ public interface PluginTask
     Map<String, KintoneColumnOption> getColumnOptions();
 
     @Config("mode")
-    @ConfigDefault("insert")
+    @ConfigDefault("\"insert\"")
     String getMode();
 
     @Config("update_key")
