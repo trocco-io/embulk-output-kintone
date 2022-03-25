@@ -31,8 +31,8 @@ dependencies {
 
     // compile "YOUR_JAR_DEPENDENCY_GROUP:YOUR_JAR_DEPENDENCY_MODULE:YOUR_JAR_DEPENDENCY_VERSION"
     testImplementation "junit:junit:4.+"
-    testImplementation "org.embulk:embulk-core:0.9.20"
-    testImplementation "org.embulk:embulk-core:0.9.20:tests"
+    testImplementation "org.embulk:embulk-test:0.9.20"
+    testImplementation "org.embulk:embulk-standards:0.9.20"
 }
 
 task classpath(type: Copy, dependsOn: ["jar", "shadowJar"]) {
