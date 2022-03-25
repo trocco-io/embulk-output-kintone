@@ -4,6 +4,7 @@ import static org.junit.Assert.assertEquals;
 
 import org.embulk.config.ConfigSource;
 import org.embulk.spi.FileInputPlugin;
+import org.embulk.spi.InputPlugin;
 import org.embulk.spi.OutputPlugin;
 import org.embulk.spi.ParserPlugin;
 import org.embulk.standards.CsvParserPlugin;
@@ -19,8 +20,8 @@ public class TestKintoneOutputPlugin
 
     @Rule
     public TestingEmbulk embulk = TestingEmbulk.builder()
-            .registerPlugin(FileInputPlugin.class, "file", LocalFileInputPlugin.class)
-            .registerPlugin(ParserPlugin.class, "csv", CsvParserPlugin.class)
+            //.registerPlugin(InputPlugin.class, "file", LocalFileInputPlugin.class)
+            //.registerPlugin(ParserPlugin.class, "csv", CsvParserPlugin.class)
             .registerPlugin(OutputPlugin.class, "kintone", KintoneOutputPlugin.class)
             .build();
 
