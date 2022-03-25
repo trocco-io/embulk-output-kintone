@@ -24,12 +24,13 @@ public class TestKintoneOutputPlugin
             .registerPlugin(OutputPlugin.class, "kintone", KintoneOutputPlugin.class)
             .build();
 
-
     @Test
     public void testConfigDefault() {
         final ConfigSource config = embulk.configLoader()
                                           .newConfigSource()
-                                          .set("type", "kintone");
+                                          .set("type", "kintone")
+                                          .set("domain", "hogehoge")
+                                          .set("app_id", 1);
         final PluginTask task = config.loadConfig(PluginTask.class);
 
         assertEquals("insert", task.getMode());
