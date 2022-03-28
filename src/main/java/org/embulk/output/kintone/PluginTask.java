@@ -25,7 +25,7 @@ public interface PluginTask
     Optional<String> getToken();
 
     @Config("username")
-    @ConfigDefault("null")
+    @ConfigDefault("\"\"")
     Optional<String> getUsername();
 
     @Config("password")
