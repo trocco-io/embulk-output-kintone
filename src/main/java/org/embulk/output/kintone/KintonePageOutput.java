@@ -148,7 +148,6 @@ public class KintonePageOutput
                     }
                 }
                 if (records.size() > 0) {
-                    System.out.println(client);
                     client.record().addRecords(task.getAppId(), records);
                 }
             }
