@@ -119,7 +119,11 @@ public class KintonePageOutput
     private void execute(Consumer<KintoneClient> operation)
     {
         connect(task);
-        operation.accept(this.client);
+        if (this.client != null) {
+            operation.accept(this.client);
+        } else {
+            throw new RuntimeException("Failed to connect to kintone.");
+        }
     }
 
     private void insertPage(final Page page)
