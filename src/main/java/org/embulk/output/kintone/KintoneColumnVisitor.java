@@ -193,11 +193,17 @@ public class KintoneColumnVisitor
     {
         String fieldCode = getFieldCode(column);
         FieldType type = getType(column, FieldType.MULTI_LINE_TEXT);
+        Object value = pageReader.getString(column);
         if (type == FieldType.CHECK_BOX) {
-            setCheckBoxValue(fieldCode, pageReader.getString(column), getValueSeparator(column));
+            String stringValue = Objects.toString(value, "");
+            if (stringValue == "") {
+                return;
+            } else {
+                setCheckBoxValue(fieldCode, value, getValueSeparator(column));
+            }
             return;
         }
-        setValue(fieldCode, pageReader.getString(column), type, isUpdateKey(column));
+        setValue(fieldCode, value, type, isUpdateKey(column));
     }
 
     @Override
