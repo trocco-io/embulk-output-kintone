@@ -21,8 +21,7 @@ import java.math.BigDecimal;
 import java.time.Instant;
 import java.time.ZoneId;
 import java.time.ZonedDateTime;
-import java.util.Map;
-import java.util.Objects;
+import java.util.*;
 
 public class KintoneColumnVisitor
         implements ColumnVisitor
@@ -105,9 +104,15 @@ public class KintoneColumnVisitor
     private void setCheckBoxValue(String fieldCode, Object value, String valueSeparator)
     {
         String str = String.valueOf(value);
+        CheckBoxFieldValue checkBoxFieldValue = new CheckBoxFieldValue();
+
+        if (str != null && !str.equals("")){
+            List<String> values = Arrays.asList(str.split(valueSeparator, 0));
+            checkBoxFieldValue = new CheckBoxFieldValue(values);
+        }
         record.putField(
-            fieldCode,
-            new CheckBoxFieldValue(str.split(valueSeparator, 0))
+                fieldCode,
+                checkBoxFieldValue
         );
     }
 
@@ -196,11 +201,7 @@ public class KintoneColumnVisitor
         Object value = pageReader.getString(column);
         if (type == FieldType.CHECK_BOX) {
             String stringValue = Objects.toString(value, "");
-            if (stringValue == "") {
-                return;
-            } else {
-                setCheckBoxValue(fieldCode, value, getValueSeparator(column));
-            }
+            setCheckBoxValue(fieldCode, value, getValueSeparator(column));
             return;
         }
         setValue(fieldCode, value, type, isUpdateKey(column));
