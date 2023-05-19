@@ -110,10 +110,7 @@ public class KintoneColumnVisitor
             List<String> values = Arrays.asList(str.split(valueSeparator, 0));
             checkBoxFieldValue = new CheckBoxFieldValue(values);
         }
-        record.putField(
-                fieldCode,
-                checkBoxFieldValue
-        );
+        record.putField(fieldCode, checkBoxFieldValue);
     }
 
     private FieldType getType(Column column, FieldType defaultType)
