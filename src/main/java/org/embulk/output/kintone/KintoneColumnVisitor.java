@@ -21,7 +21,10 @@ import java.math.BigDecimal;
 import java.time.Instant;
 import java.time.ZoneId;
 import java.time.ZonedDateTime;
-import java.util.*;
+import java.util.Arrays;
+import java.util.List;
+import java.util.Map;
+import java.util.Objects;
 
 public class KintoneColumnVisitor
         implements ColumnVisitor
@@ -106,7 +109,7 @@ public class KintoneColumnVisitor
         String str = String.valueOf(value);
         CheckBoxFieldValue checkBoxFieldValue = new CheckBoxFieldValue();
 
-        if (str != null && !str.equals("")){
+        if (str != null && !str.equals("")) {
             List<String> values = Arrays.asList(str.split(valueSeparator, 0));
             checkBoxFieldValue = new CheckBoxFieldValue(values);
         }
