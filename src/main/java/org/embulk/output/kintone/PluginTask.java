@@ -41,6 +41,14 @@ public interface PluginTask extends Task {
   @ConfigDefault("{}")
   Map<String, KintoneColumnOption> getColumnOptions();
 
+  @Config("prefer_nulls")
+  @ConfigDefault("\"false\"")
+  boolean getPreferNulls();
+
+  @Config("ignore_nulls")
+  @ConfigDefault("\"false\"")
+  boolean getIgnoreNulls();
+
   @Config("mode")
   @ConfigDefault("\"insert\"")
   String getMode();
