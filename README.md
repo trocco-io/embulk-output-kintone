@@ -23,7 +23,7 @@ kintone output plugin for Embulk stores app records from kintone.
 - **column_options** advanced: a key-value pairs where key is a column name and value is options for the column.
     - **field_code**: field code (string, required)
     - **type**: field type (string, required). See [this page](https://cybozu.dev/ja/kintone/docs/overview/field-types/#field-type-update) for list of available types. However, following types are not yet supported
-        - `USER_SELECT`, `ORGANIZATION_SELECT`, `GROUP_SELECT`, `FILE`, `SUBTABLE`
+        - `USER_SELECT`, `ORGANIZATION_SELECT`, `GROUP_SELECT`, `FILE`
     - **timezone**: timezone to convert into `date` (string, default is `UTC`)
     - **val_sep**: Used to specify multiple checkbox values (string, default is `,`)
 

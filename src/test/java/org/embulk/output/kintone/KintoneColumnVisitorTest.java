@@ -1,5 +1,6 @@
 package org.embulk.output.kintone;
 
+import static org.embulk.output.kintone.deserializer.DeserializerTest.assertTableRows;
 import static org.hamcrest.MatcherAssert.assertThat;
 import static org.hamcrest.Matchers.is;
 import static org.hamcrest.Matchers.nullValue;
@@ -7,6 +8,7 @@ import static org.junit.Assert.assertThrows;
 
 import com.google.common.collect.ImmutableMap;
 import com.kintone.client.model.record.FieldType;
+import com.kintone.client.model.record.TableRow;
 import java.math.BigDecimal;
 import java.time.Instant;
 import java.time.LocalDate;
@@ -17,14 +19,28 @@ import java.util.Arrays;
 import java.util.List;
 import java.util.Map;
 import java.util.function.Function;
+import java.util.stream.Collectors;
+import org.embulk.output.kintone.deserializer.DeserializerTest;
 import org.embulk.spi.Page;
 import org.embulk.spi.Schema;
+import org.embulk.spi.json.JsonParser;
 import org.embulk.spi.time.Timestamp;
 import org.embulk.spi.type.Types;
 import org.junit.Test;
+import org.msgpack.value.Value;
 import org.msgpack.value.ValueFactory;
 
 public class KintoneColumnVisitorTest {
+  private static final JsonParser PARSER = new JsonParser();
+  private static final String[] ROWS = {
+    DeserializerTest.TABLE_ROW.apply(0L),
+    DeserializerTest.TABLE_ROW.apply(1L),
+    DeserializerTest.TABLE_ROW.apply(2L),
+    DeserializerTest.TABLE_ROW.apply(3L),
+    DeserializerTest.TABLE_ROW.apply(4L),
+    DeserializerTest.TABLE_ROW.apply(5L),
+  };
+
   @Test
   public void test() {
     KintoneColumnVisitorVerifier verifier = verifier("STRING|SINGLE_LINE_TEXT");
@@ -71,6 +87,7 @@ public class KintoneColumnVisitorTest {
               record.getDateTimeFieldValue("STRING|DATETIME"),
               is(dateTime("1970-01-01T00:00:00Z")));
           assertThat(record.getLinkFieldValue("STRING|LINK"), is(""));
+          assertThat(record.getSubtableFieldValue("STRING|SUBTABLE"), is(list()));
           assertThat(
               record.getSingleLineTextFieldValue("TIMESTAMP|SINGLE_LINE_TEXT"),
               is("1970-01-01T00:00:00Z"));
@@ -85,6 +102,7 @@ public class KintoneColumnVisitorTest {
               record.getDateTimeFieldValue("TIMESTAMP"), is(dateTime("1970-01-01T00:00:00Z")));
           assertThat(record.getSingleLineTextFieldValue("JSON|SINGLE_LINE_TEXT"), is("\"\""));
           assertThat(record.getMultiLineTextFieldValue("JSON"), is("\"\""));
+          assertThat(record.getSubtableFieldValue("JSON|SUBTABLE"), is(list()));
           assertThat(updateKey.getField(), is("STRING|SINGLE_LINE_TEXT"));
           assertThat(updateKey.getValue(), is(""));
         });
@@ -131,6 +149,7 @@ public class KintoneColumnVisitorTest {
               record.getDateTimeFieldValue("STRING|DATETIME"),
               is(dateTime("1970-01-01T00:00:00Z")));
           assertThat(record.getLinkFieldValue("STRING|LINK"), is(""));
+          assertThat(record.getSubtableFieldValue("STRING|SUBTABLE"), is(list()));
           assertThat(
               record.getSingleLineTextFieldValue("TIMESTAMP|SINGLE_LINE_TEXT"),
               is("1970-01-01T00:00:00Z"));
@@ -145,6 +164,7 @@ public class KintoneColumnVisitorTest {
               record.getDateTimeFieldValue("TIMESTAMP"), is(dateTime("1970-01-01T00:00:00Z")));
           assertThat(record.getSingleLineTextFieldValue("JSON|SINGLE_LINE_TEXT"), is("\"\""));
           assertThat(record.getMultiLineTextFieldValue("JSON"), is("\"\""));
+          assertThat(record.getSubtableFieldValue("JSON|SUBTABLE"), is(list()));
           assertThat(updateKey.getField(), is("STRING|SINGLE_LINE_TEXT"));
           assertThat(updateKey.getValue(), is(""));
         });
@@ -192,6 +212,7 @@ public class KintoneColumnVisitorTest {
               record.getDateTimeFieldValue("STRING|DATETIME"),
               is(dateTime("1999-12-31T23:59:59Z")));
           assertThat(record.getLinkFieldValue("STRING|LINK"), is("abc"));
+          assertTableRows(record.getSubtableFieldValue("STRING|SUBTABLE"), rows(0L, 1L, 2L));
           assertThat(
               record.getSingleLineTextFieldValue("TIMESTAMP|SINGLE_LINE_TEXT"),
               is("1999-12-31T23:59:59Z"));
@@ -206,6 +227,7 @@ public class KintoneColumnVisitorTest {
               record.getDateTimeFieldValue("TIMESTAMP"), is(dateTime("1999-12-31T23:59:59Z")));
           assertThat(record.getSingleLineTextFieldValue("JSON|SINGLE_LINE_TEXT"), is("\"abc\""));
           assertThat(record.getMultiLineTextFieldValue("JSON"), is("\"abc\""));
+          assertTableRows(record.getSubtableFieldValue("JSON|SUBTABLE"), rows(0L, 1L, 2L));
           assertThat(updateKey.getField(), is("STRING|SINGLE_LINE_TEXT"));
           assertThat(updateKey.getValue(), is("abc"));
         });
@@ -253,6 +275,7 @@ public class KintoneColumnVisitorTest {
               record.getDateTimeFieldValue("STRING|DATETIME"),
               is(dateTime("2000-01-01T00:00:00Z")));
           assertThat(record.getLinkFieldValue("STRING|LINK"), is("def"));
+          assertTableRows(record.getSubtableFieldValue("STRING|SUBTABLE"), rows(3L, 4L, 5L));
           assertThat(
               record.getSingleLineTextFieldValue("TIMESTAMP|SINGLE_LINE_TEXT"),
               is("2000-01-01T00:00:00Z"));
@@ -267,6 +290,7 @@ public class KintoneColumnVisitorTest {
               record.getDateTimeFieldValue("TIMESTAMP"), is(dateTime("2000-01-01T00:00:00Z")));
           assertThat(record.getSingleLineTextFieldValue("JSON|SINGLE_LINE_TEXT"), is("\"def\""));
           assertThat(record.getMultiLineTextFieldValue("JSON"), is("\"def\""));
+          assertTableRows(record.getSubtableFieldValue("JSON|SUBTABLE"), rows(3L, 4L, 5L));
           assertThat(updateKey.getField(), is("STRING|SINGLE_LINE_TEXT"));
           assertThat(updateKey.getValue(), is("def"));
         });
@@ -316,6 +340,7 @@ public class KintoneColumnVisitorTest {
           assertThat(record.getFieldType("STRING|TIME|PST"), is(FieldType.TIME));
           assertThat(record.getFieldType("STRING|DATETIME"), is(FieldType.DATETIME));
           assertThat(record.getFieldType("STRING|LINK"), is(FieldType.LINK));
+          assertThat(record.getFieldType("STRING|SUBTABLE"), is(FieldType.SUBTABLE));
           assertThat(
               record.getFieldType("TIMESTAMP|SINGLE_LINE_TEXT"), is(FieldType.SINGLE_LINE_TEXT));
           assertThat(record.getFieldType("TIMESTAMP|NUMBER"), is(FieldType.NUMBER));
@@ -328,6 +353,7 @@ public class KintoneColumnVisitorTest {
           assertThat(record.getFieldType("TIMESTAMP"), is(FieldType.DATETIME));
           assertThat(record.getFieldType("JSON|SINGLE_LINE_TEXT"), is(FieldType.SINGLE_LINE_TEXT));
           assertThat(record.getFieldType("JSON"), is(FieldType.MULTI_LINE_TEXT));
+          assertThat(record.getFieldType("JSON|SUBTABLE"), is(FieldType.SUBTABLE));
           assertThat(record.getSingleLineTextFieldValue("BOOLEAN|SINGLE_LINE_TEXT"), nullValue());
           assertThat(record.getNumberFieldValue("BOOLEAN"), nullValue());
           assertThat(record.getSingleLineTextFieldValue("LONG|SINGLE_LINE_TEXT"), nullValue());
@@ -364,6 +390,7 @@ public class KintoneColumnVisitorTest {
           assertThat(record.getTimeFieldValue("STRING|TIME|PST"), nullValue());
           assertThat(record.getDateTimeFieldValue("STRING|DATETIME"), nullValue());
           assertThat(record.getLinkFieldValue("STRING|LINK"), nullValue());
+          assertThat(record.getSubtableFieldValue("STRING|SUBTABLE"), is(list()));
           assertThat(record.getSingleLineTextFieldValue("TIMESTAMP|SINGLE_LINE_TEXT"), nullValue());
           assertThat(record.getNumberFieldValue("TIMESTAMP|NUMBER"), nullValue());
           assertThat(record.getDateFieldValue("TIMESTAMP|DATE"), nullValue());
@@ -375,6 +402,7 @@ public class KintoneColumnVisitorTest {
           assertThat(record.getDateTimeFieldValue("TIMESTAMP"), nullValue());
           assertThat(record.getSingleLineTextFieldValue("JSON|SINGLE_LINE_TEXT"), nullValue());
           assertThat(record.getMultiLineTextFieldValue("JSON"), nullValue());
+          assertThat(record.getSubtableFieldValue("JSON|SUBTABLE"), is(list()));
           assertThat(updateKey.getField(), is("LONG"));
           assertThat(updateKey.getValue(), nullValue());
         });
@@ -421,6 +449,7 @@ public class KintoneColumnVisitorTest {
           assertThat(record.getFieldValue("STRING|TIME|PST"), nullValue());
           assertThat(record.getFieldValue("STRING|DATETIME"), nullValue());
           assertThat(record.getFieldValue("STRING|LINK"), nullValue());
+          assertThat(record.getFieldValue("STRING|SUBTABLE"), nullValue());
           assertThat(record.getFieldValue("TIMESTAMP|SINGLE_LINE_TEXT"), nullValue());
           assertThat(record.getFieldValue("TIMESTAMP|NUMBER"), nullValue());
           assertThat(record.getFieldValue("TIMESTAMP|DATE"), nullValue());
@@ -432,6 +461,7 @@ public class KintoneColumnVisitorTest {
           assertThat(record.getFieldValue("TIMESTAMP"), nullValue());
           assertThat(record.getFieldValue("JSON|SINGLE_LINE_TEXT"), nullValue());
           assertThat(record.getFieldValue("JSON"), nullValue());
+          assertThat(record.getFieldValue("JSON|SUBTABLE"), nullValue());
           assertThat(updateKey.getField(), nullValue());
           assertThat(updateKey.getValue(), nullValue());
         },
@@ -523,6 +553,7 @@ public class KintoneColumnVisitorTest {
         .add("STRING|TIME|PST", Types.STRING)
         .add("STRING|DATETIME", Types.STRING)
         .add("STRING|LINK", Types.STRING)
+        .add("STRING|SUBTABLE", Types.STRING)
         .add("TIMESTAMP|SINGLE_LINE_TEXT", Types.TIMESTAMP)
         .add("TIMESTAMP|NUMBER", Types.TIMESTAMP)
         .add("TIMESTAMP|DATE", Types.TIMESTAMP)
@@ -534,6 +565,7 @@ public class KintoneColumnVisitorTest {
         .add("TIMESTAMP", Types.TIMESTAMP)
         .add("JSON|SINGLE_LINE_TEXT", Types.JSON)
         .add("JSON", Types.JSON)
+        .add("JSON|SUBTABLE", Types.JSON)
         .build();
   }
 
@@ -576,6 +608,7 @@ public class KintoneColumnVisitorTest {
         .put(build("STRING|TIME|PST", it -> it.setType("TIME").setTimezone("US/Pacific")))
         .put(build("STRING|DATETIME", it -> it.setType("DATETIME")))
         .put(build("STRING|LINK", it -> it.setType("LINK")))
+        .put(build("STRING|SUBTABLE", it -> it.setType("SUBTABLE")))
         .put(build("TIMESTAMP|SINGLE_LINE_TEXT", it -> it.setType("SINGLE_LINE_TEXT")))
         .put(build("TIMESTAMP|NUMBER", it -> it.setType("NUMBER")))
         .put(build("TIMESTAMP|DATE", it -> it.setType("DATE").setTimezone("UTC")))
@@ -587,6 +620,7 @@ public class KintoneColumnVisitorTest {
         .put(build("TIMESTAMP", it -> it.setType("DATETIME")))
         .put(build("JSON|SINGLE_LINE_TEXT", it -> it.setType("SINGLE_LINE_TEXT")))
         .put(build("JSON", it -> it.setType("MULTI_LINE_TEXT")))
+        .put(build("JSON|SUBTABLE", it -> it.setType("SUBTABLE")))
         .build();
   }
 
@@ -634,6 +668,7 @@ public class KintoneColumnVisitorTest {
         .setNull("STRING|TIME|PST")
         .setNull("STRING|DATETIME")
         .setNull("STRING|LINK")
+        .setNull("STRING|SUBTABLE")
         .setNull("TIMESTAMP|SINGLE_LINE_TEXT")
         .setNull("TIMESTAMP|NUMBER")
         .setNull("TIMESTAMP|DATE")
@@ -645,6 +680,7 @@ public class KintoneColumnVisitorTest {
         .setNull("TIMESTAMP")
         .setNull("JSON|SINGLE_LINE_TEXT")
         .setNull("JSON")
+        .setNull("JSON|SUBTABLE")
         .addRecord()
         .setBoolean("BOOLEAN|SINGLE_LINE_TEXT", false)
         .setBoolean("BOOLEAN", false)
@@ -682,6 +718,7 @@ public class KintoneColumnVisitorTest {
         .setString("STRING|TIME|PST", "")
         .setString("STRING|DATETIME", "")
         .setString("STRING|LINK", "")
+        .setString("STRING|SUBTABLE", "")
         .setTimestamp("TIMESTAMP|SINGLE_LINE_TEXT", Timestamp.ofInstant(Instant.EPOCH))
         .setTimestamp("TIMESTAMP|NUMBER", Timestamp.ofInstant(Instant.EPOCH))
         .setTimestamp("TIMESTAMP|DATE", Timestamp.ofInstant(Instant.EPOCH))
@@ -693,6 +730,7 @@ public class KintoneColumnVisitorTest {
         .setTimestamp("TIMESTAMP", Timestamp.ofInstant(Instant.EPOCH))
         .setJson("JSON|SINGLE_LINE_TEXT", ValueFactory.newString(""))
         .setJson("JSON", ValueFactory.newString(""))
+        .setJson("JSON|SUBTABLE", ValueFactory.newString(""))
         .addRecord()
         .setBoolean("BOOLEAN|SINGLE_LINE_TEXT", true)
         .setBoolean("BOOLEAN", true)
@@ -730,6 +768,7 @@ public class KintoneColumnVisitorTest {
         .setString("STRING|TIME|PST", "23:59:59")
         .setString("STRING|DATETIME", "1999-12-31T23:59:59Z")
         .setString("STRING|LINK", "abc")
+        .setString("STRING|SUBTABLE", String.format("[%s,%s,%s]", ROWS[0], ROWS[1], ROWS[2]))
         .setTimestamp("TIMESTAMP|SINGLE_LINE_TEXT", timestamp("1999-12-31T23:59:59Z"))
         .setTimestamp("TIMESTAMP|NUMBER", timestamp("1999-12-31T23:59:59Z"))
         .setTimestamp("TIMESTAMP|DATE", timestamp("1999-12-31T23:59:59Z"))
@@ -741,6 +780,8 @@ public class KintoneColumnVisitorTest {
         .setTimestamp("TIMESTAMP", timestamp("1999-12-31T23:59:59Z"))
         .setJson("JSON|SINGLE_LINE_TEXT", ValueFactory.newString("abc"))
         .setJson("JSON", ValueFactory.newString("abc"))
+        .setJson(
+            "JSON|SUBTABLE", ValueFactory.newArray(value(ROWS[0]), value(ROWS[1]), value(ROWS[2])))
         .addRecord()
         .setBoolean("BOOLEAN|SINGLE_LINE_TEXT", false)
         .setBoolean("BOOLEAN", false)
@@ -778,6 +819,7 @@ public class KintoneColumnVisitorTest {
         .setString("STRING|TIME|PST", "00:00:00")
         .setString("STRING|DATETIME", "2000-01-01T00:00:00Z")
         .setString("STRING|LINK", "def")
+        .setString("STRING|SUBTABLE", String.format("[%s,%s,%s]", ROWS[3], ROWS[4], ROWS[5]))
         .setTimestamp("TIMESTAMP|SINGLE_LINE_TEXT", timestamp("2000-01-01T00:00:00Z"))
         .setTimestamp("TIMESTAMP|NUMBER", timestamp("2000-01-01T00:00:00Z"))
         .setTimestamp("TIMESTAMP|DATE", timestamp("2000-01-01T00:00:00Z"))
@@ -789,6 +831,8 @@ public class KintoneColumnVisitorTest {
         .setTimestamp("TIMESTAMP", timestamp("2000-01-01T00:00:00Z"))
         .setJson("JSON|SINGLE_LINE_TEXT", ValueFactory.newString("def"))
         .setJson("JSON", ValueFactory.newString("def"))
+        .setJson(
+            "JSON|SUBTABLE", ValueFactory.newArray(value(ROWS[3]), value(ROWS[4]), value(ROWS[5])))
         .addRecord()
         .build();
   }
@@ -800,6 +844,10 @@ public class KintoneColumnVisitorTest {
   @SafeVarargs
   private static <T> List<T> list(T... a) {
     return Arrays.asList(a);
+  }
+
+  private static List<TableRow> rows(Long... ids) {
+    return Arrays.stream(ids).map(DeserializerTest::tableRow).collect(Collectors.toList());
   }
 
   private static LocalDate date(CharSequence text) {
@@ -816,5 +864,9 @@ public class KintoneColumnVisitorTest {
 
   private static Timestamp timestamp(CharSequence text) {
     return Timestamp.ofInstant(Instant.parse(text));
+  }
+
+  private static Value value(String json) {
+    return PARSER.parse(json);
   }
 }
