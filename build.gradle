@@ -5,6 +5,7 @@ plugins {
     id "java"
     id "checkstyle"
     id "com.palantir.git-version" version "0.12.3"
+    id "com.diffplug.spotless" version "6.13.0"
 }
 import com.github.jrubygradle.JRubyExec
 repositories {
@@ -116,3 +117,13 @@ end
     }
 }
 clean { delete "${project.name}.gemspec" }
+
+spotless {
+    java {
+        importOrder()
+        removeUnusedImports()
+        googleJavaFormat()
+        formatAnnotations()
+        toggleOffOn()
+    }
+}
