@@ -35,12 +35,13 @@ shadowJar {
 }
 
 dependencies {
-    compile  "org.embulk:embulk-core:0.9.20"
-    provided "org.embulk:embulk-core:0.9.20"
+    compile  "org.embulk:embulk-core:0.9.23"
+    provided "org.embulk:embulk-core:0.9.23"
     compile "com.kintone:kintone-java-client:1.0.2"
 
     // compile "YOUR_JAR_DEPENDENCY_GROUP:YOUR_JAR_DEPENDENCY_MODULE:YOUR_JAR_DEPENDENCY_VERSION"
     testCompile "junit:junit:4.+"
+    testCompile "org.embulk:embulk-deps-buffer:0.9.23"
 }
 
 task classpath(type: Copy, dependsOn: ["jar", "shadowJar"]) {
