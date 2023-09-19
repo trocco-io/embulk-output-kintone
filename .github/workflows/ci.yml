@@ -21,6 +21,9 @@ jobs:
         with:
           java-version: 1.8
 
+      - name: Code format check by Spotless
+        run: ./gradlew spotlessCheck
+
       - name: Test
         run: ./gradlew test
 
