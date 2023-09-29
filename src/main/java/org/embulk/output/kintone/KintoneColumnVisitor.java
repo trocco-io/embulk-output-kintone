@@ -17,6 +17,7 @@ public class KintoneColumnVisitor implements ColumnVisitor {
   private final Map<String, KintoneColumnOption> options;
   private final boolean preferNulls;
   private final boolean ignoreNulls;
+  private final String reduceKeyName;
   private final String updateKeyName;
   private Record record;
   private UpdateKey updateKey;
@@ -25,8 +26,9 @@ public class KintoneColumnVisitor implements ColumnVisitor {
       PageReader reader,
       Map<String, KintoneColumnOption> options,
       boolean preferNulls,
-      boolean ignoreNulls) {
-    this(reader, options, preferNulls, ignoreNulls, null);
+      boolean ignoreNulls,
+      String reduceKeyName) {
+    this(reader, options, preferNulls, ignoreNulls, reduceKeyName, null);
   }
 
   public KintoneColumnVisitor(
@@ -34,11 +36,13 @@ public class KintoneColumnVisitor implements ColumnVisitor {
       Map<String, KintoneColumnOption> options,
       boolean preferNulls,
       boolean ignoreNulls,
+      String reduceKeyName,
       String updateKeyName) {
     this.reader = reader;
     this.options = options;
     this.preferNulls = preferNulls;
     this.ignoreNulls = ignoreNulls;
+    this.reduceKeyName = reduceKeyName;
     this.updateKeyName = updateKeyName;
   }
 
@@ -52,7 +56,7 @@ public class KintoneColumnVisitor implements ColumnVisitor {
 
   @Override
   public void booleanColumn(Column column) {
-    if (isIgnoreNull(column)) {
+    if (isReduced(column) || isIgnoreNull(column)) {
       return;
     }
     KintoneColumnOption option = getOption(column);
@@ -70,7 +74,7 @@ public class KintoneColumnVisitor implements ColumnVisitor {
 
   @Override
   public void longColumn(Column column) {
-    if (isIgnoreNull(column)) {
+    if (isReduced(column) || isIgnoreNull(column)) {
       return;
     }
     KintoneColumnOption option = getOption(column);
@@ -88,7 +92,7 @@ public class KintoneColumnVisitor implements ColumnVisitor {
 
   @Override
   public void doubleColumn(Column column) {
-    if (isIgnoreNull(column)) {
+    if (isReduced(column) || isIgnoreNull(column)) {
       return;
     }
     KintoneColumnOption option = getOption(column);
@@ -106,7 +110,7 @@ public class KintoneColumnVisitor implements ColumnVisitor {
 
   @Override
   public void stringColumn(Column column) {
-    if (isIgnoreNull(column)) {
+    if (isReduced(column) || isIgnoreNull(column)) {
       return;
     }
     KintoneColumnOption option = getOption(column);
@@ -126,7 +130,7 @@ public class KintoneColumnVisitor implements ColumnVisitor {
 
   @Override
   public void timestampColumn(Column column) {
-    if (isIgnoreNull(column)) {
+    if (isReduced(column) || isIgnoreNull(column)) {
       return;
     }
     KintoneColumnOption option = getOption(column);
@@ -144,7 +148,7 @@ public class KintoneColumnVisitor implements ColumnVisitor {
 
   @Override
   public void jsonColumn(Column column) {
-    if (isIgnoreNull(column)) {
+    if (isReduced(column) || isIgnoreNull(column)) {
       return;
     }
     KintoneColumnOption option = getOption(column);
@@ -256,6 +260,10 @@ public class KintoneColumnVisitor implements ColumnVisitor {
 
   private UpdateKey getUpdateKey(Column column) {
     return updateKeyName != null && updateKeyName.equals(column.getName()) ? updateKey : null;
+  }
+
+  private boolean isReduced(Column column) {
+    return reduceKeyName != null && column.getName().matches("^.*\\..*$");
   }
 
   private boolean isIgnoreNull(Column column) {

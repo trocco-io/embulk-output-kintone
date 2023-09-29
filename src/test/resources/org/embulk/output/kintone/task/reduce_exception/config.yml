@@ -1,0 +1,36 @@
+sort_columns:
+- name: double_single_line_text
+  order: asc
+- name: string_number
+  order: asc
+column_options:
+  double_single_line_text:
+    field_code: double_single_line_text
+    type: SINGLE_LINE_TEXT
+  string_number:
+    field_code: string_number
+    type: NUMBER
+  json:
+    field_code: json
+    type: MULTI_LINE_TEXT
+    sort_columns:
+    - name: $id
+      order: asc
+  json.double_single_line_text:
+    field_code: json_double_single_line_text
+    type: SINGLE_LINE_TEXT
+  json.string_number:
+    field_code: json_string_number
+    type: NUMBER
+  json_subtable:
+    field_code: json_subtable
+    type: SUBTABLE
+    sort_columns:
+    - name: $id
+      order: desc
+  json_subtable.double_single_line_text:
+    field_code: json_subtable_double_single_line_text
+    type: SINGLE_LINE_TEXT
+  json_subtable.string_number:
+    field_code: json_subtable_string_number
+    type: NUMBER

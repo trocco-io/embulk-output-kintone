@@ -18,6 +18,12 @@ kintone output plugin for Embulk stores app records from kintone.
 - **guest_space_id**: kintone app belongs to guest space, guest space id is required. (integer, optional)
 - **mode**: kintone mode (string, required)
 - **update_key**: Column name to set update key (string, required if mode is update or upsert)
+- **reduce_key**: Key column name to reduce expanded SUBTABLE (string, optional)
+- **sort_columns**: List of columns for sorting input records (array of objects, optional)
+    - **name**: Column name (string, required)
+    - **order**: Sort order (string `asc` or `desc`, required)
+- **max_sort_tmp_files**: Maximum number of temporary files for sorting input records (integer, default is `1024`)
+- **max_sort_memory**: Maximum memory usage for sorting input records (bytes in long, default is the estimated available memory, which is the approximate value of the JVM's current free memory)
 - **prefer_nulls**: Whether to set fields to null instead of default value of type when column is null (boolean, default is `false`)
 - **ignore_nulls**: Whether to completely ignore fields when column is null (boolean, default is `false`)
 - **column_options** advanced: a key-value pairs where key is a column name and value is options for the column.
@@ -26,6 +32,10 @@ kintone output plugin for Embulk stores app records from kintone.
         - `USER_SELECT`, `ORGANIZATION_SELECT`, `GROUP_SELECT`, `FILE`
     - **timezone**: timezone to convert into `date` (string, default is `UTC`)
     - **val_sep**: Used to specify multiple checkbox values (string, default is `,`)
+    - **sort_columns**: List of columns for sorting rows in SUBTABLE. Available only if type is `SUBTABLE` (array of objects, optional)
+        - **name**: Column name (string, required)
+        - **order**: Sort order (string `asc` or `desc`, required)
+- **chunk_size**: Maximum number of records to request at once (integer, default is `100`)
 
 ## Example
 

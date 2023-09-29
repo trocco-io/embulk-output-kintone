@@ -1,10 +1,12 @@
 package org.embulk.output.kintone;
 
+import static org.embulk.output.kintone.deserializer.DeserializerTest.assertTableRows;
 import static org.hamcrest.MatcherAssert.assertThat;
 import static org.hamcrest.Matchers.is;
 import static org.mockito.ArgumentMatchers.anyList;
 import static org.mockito.ArgumentMatchers.eq;
 import static org.mockito.ArgumentMatchers.matches;
+import static org.mockito.Mockito.CALLS_REAL_METHODS;
 import static org.mockito.Mockito.atLeast;
 import static org.mockito.Mockito.mock;
 import static org.mockito.Mockito.mockStatic;
@@ -19,11 +21,13 @@ import com.kintone.client.api.record.GetRecordsByCursorResponseBody;
 import com.kintone.client.model.app.field.FieldProperty;
 import com.kintone.client.model.app.field.NumberFieldProperty;
 import com.kintone.client.model.app.field.SingleLineTextFieldProperty;
+import com.kintone.client.model.record.FieldType;
 import com.kintone.client.model.record.FieldValue;
 import com.kintone.client.model.record.NumberFieldValue;
 import com.kintone.client.model.record.Record;
 import com.kintone.client.model.record.RecordForUpdate;
 import com.kintone.client.model.record.SingleLineTextFieldValue;
+import com.kintone.client.model.record.SubtableFieldValue;
 import com.kintone.client.model.record.UpdateKey;
 import java.math.BigDecimal;
 import java.util.Collection;
@@ -33,6 +37,9 @@ import java.util.Map;
 import java.util.stream.Collectors;
 import java.util.stream.IntStream;
 import org.embulk.config.TaskReport;
+import org.embulk.deps.buffer.PooledBufferAllocator;
+import org.embulk.spi.BufferAllocator;
+import org.embulk.spi.Exec;
 import org.embulk.spi.Page;
 import org.embulk.spi.TransactionalPageOutput;
 import org.mockito.ArgumentCaptor;
@@ -45,6 +52,15 @@ public class KintonePageOutputVerifier implements TransactionalPageOutput {
   private final List<String> values;
   private final List<Record> addRecords;
   private final List<RecordForUpdate> updateRecords;
+
+  public KintonePageOutputVerifier(
+      String domain,
+      String field,
+      List<String> values,
+      List<Record> addRecords,
+      List<RecordForUpdate> updateRecords) {
+    this(null, domain, field, values, addRecords, updateRecords);
+  }
 
   public KintonePageOutputVerifier(
       TransactionalPageOutput transactionalPageOutput,
@@ -73,6 +89,9 @@ public class KintonePageOutputVerifier implements TransactionalPageOutput {
 
   @Override
   public void close() {
+    if (transactionalPageOutput == null) {
+      return;
+    }
     transactionalPageOutput.close();
   }
 
@@ -88,9 +107,17 @@ public class KintonePageOutputVerifier implements TransactionalPageOutput {
 
   public void runWithMock(Runnable runnable) {
     try {
-      runWithMockClient(runnable);
+      runWithMockExec(runnable);
     } catch (Exception e) {
       throw new RuntimeException(e);
+    }
+  }
+
+  private void runWithMockExec(Runnable runnable) throws Exception {
+    BufferAllocator bufferAllocator = PooledBufferAllocator.create(1024 * 1024);
+    try (MockedStatic<Exec> mocked = mockStatic(Exec.class, CALLS_REAL_METHODS)) {
+      mocked.when(Exec::getBufferAllocator).thenReturn(bufferAllocator);
+      runWithMockClient(runnable);
     }
   }
 
@@ -181,14 +208,30 @@ public class KintonePageOutputVerifier implements TransactionalPageOutput {
     assertThat(reason, actual.getFieldCodes(true), is(expected.getFieldCodes(true)));
     // spotless:off
     actual.getFieldCodes(true).forEach(fieldCode -> assertFieldValue(domain, index, fieldCode, actual.getFieldValue(fieldCode), expected.getFieldValue(fieldCode)));
+    actual.getFieldCodes(true).forEach(fieldCode -> assertSubtableFieldValue(domain, index, fieldCode, actual.getFieldValue(fieldCode), expected.getFieldValue(fieldCode)));
     // spotless:on
   }
 
   private static void assertFieldValue(
       String domain, int index, String fieldCode, FieldValue actual, FieldValue expected) {
+    if (actual.getType() == FieldType.SUBTABLE) {
+      return;
+    }
     String reason = String.format("%s:%d:%s", domain, index, fieldCode);
     assertThat(reason, actual.getType(), is(expected.getType()));
     assertThat(reason, actual, is(expected));
+  }
+
+  private static void assertSubtableFieldValue(
+      String domain, int index, String fieldCode, FieldValue actual, FieldValue expected) {
+    if (actual.getType() != FieldType.SUBTABLE) {
+      return;
+    }
+    String reason = String.format("%s:%d:%s", domain, index, fieldCode);
+    assertThat(reason, actual.getType(), is(expected.getType()));
+    // spotless:off
+    assertTableRows(reason, ((SubtableFieldValue) actual).getRows(), ((SubtableFieldValue) expected).getRows());
+    // spotless:on
   }
 
   private static void assertRecordForUpdates(

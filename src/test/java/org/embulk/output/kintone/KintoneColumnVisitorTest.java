@@ -43,7 +43,7 @@ public class KintoneColumnVisitorTest {
 
   @Test
   public void test() {
-    KintoneColumnVisitorVerifier verifier = verifier("STRING|SINGLE_LINE_TEXT");
+    KintoneColumnVisitorVerifier verifier = verifier(null, "STRING|SINGLE_LINE_TEXT");
     verifier.verify(
         (record, updateKey) -> {
           assertThat(record.getSingleLineTextFieldValue("BOOLEAN|SINGLE_LINE_TEXT"), is("false"));
@@ -103,6 +103,8 @@ public class KintoneColumnVisitorTest {
           assertThat(record.getSingleLineTextFieldValue("JSON|SINGLE_LINE_TEXT"), is("\"\""));
           assertThat(record.getMultiLineTextFieldValue("JSON"), is("\"\""));
           assertThat(record.getSubtableFieldValue("JSON|SUBTABLE"), is(list()));
+          assertThat(
+              record.getSingleLineTextFieldValue("JSON|SUBTABLE.SINGLE_LINE_TEXT"), is("\"\""));
           assertThat(updateKey.getField(), is("STRING|SINGLE_LINE_TEXT"));
           assertThat(updateKey.getValue(), is(""));
         });
@@ -165,6 +167,8 @@ public class KintoneColumnVisitorTest {
           assertThat(record.getSingleLineTextFieldValue("JSON|SINGLE_LINE_TEXT"), is("\"\""));
           assertThat(record.getMultiLineTextFieldValue("JSON"), is("\"\""));
           assertThat(record.getSubtableFieldValue("JSON|SUBTABLE"), is(list()));
+          assertThat(
+              record.getSingleLineTextFieldValue("JSON|SUBTABLE.SINGLE_LINE_TEXT"), is("\"\""));
           assertThat(updateKey.getField(), is("STRING|SINGLE_LINE_TEXT"));
           assertThat(updateKey.getValue(), is(""));
         });
@@ -228,6 +232,8 @@ public class KintoneColumnVisitorTest {
           assertThat(record.getSingleLineTextFieldValue("JSON|SINGLE_LINE_TEXT"), is("\"abc\""));
           assertThat(record.getMultiLineTextFieldValue("JSON"), is("\"abc\""));
           assertTableRows(record.getSubtableFieldValue("JSON|SUBTABLE"), rows(0L, 1L, 2L));
+          assertThat(
+              record.getSingleLineTextFieldValue("JSON|SUBTABLE.SINGLE_LINE_TEXT"), is("\"abc\""));
           assertThat(updateKey.getField(), is("STRING|SINGLE_LINE_TEXT"));
           assertThat(updateKey.getValue(), is("abc"));
         });
@@ -291,6 +297,8 @@ public class KintoneColumnVisitorTest {
           assertThat(record.getSingleLineTextFieldValue("JSON|SINGLE_LINE_TEXT"), is("\"def\""));
           assertThat(record.getMultiLineTextFieldValue("JSON"), is("\"def\""));
           assertTableRows(record.getSubtableFieldValue("JSON|SUBTABLE"), rows(3L, 4L, 5L));
+          assertThat(
+              record.getSingleLineTextFieldValue("JSON|SUBTABLE.SINGLE_LINE_TEXT"), is("\"def\""));
           assertThat(updateKey.getField(), is("STRING|SINGLE_LINE_TEXT"));
           assertThat(updateKey.getValue(), is("def"));
         });
@@ -298,7 +306,7 @@ public class KintoneColumnVisitorTest {
 
   @Test
   public void testPreferNulls() {
-    KintoneColumnVisitorVerifier verifier = verifier("LONG", true, false);
+    KintoneColumnVisitorVerifier verifier = verifier(null, "LONG", true, false);
     verifier.verify(
         (record, updateKey) -> {
           assertThat(
@@ -354,6 +362,9 @@ public class KintoneColumnVisitorTest {
           assertThat(record.getFieldType("JSON|SINGLE_LINE_TEXT"), is(FieldType.SINGLE_LINE_TEXT));
           assertThat(record.getFieldType("JSON"), is(FieldType.MULTI_LINE_TEXT));
           assertThat(record.getFieldType("JSON|SUBTABLE"), is(FieldType.SUBTABLE));
+          assertThat(
+              record.getFieldType("JSON|SUBTABLE.SINGLE_LINE_TEXT"),
+              is(FieldType.SINGLE_LINE_TEXT));
           assertThat(record.getSingleLineTextFieldValue("BOOLEAN|SINGLE_LINE_TEXT"), nullValue());
           assertThat(record.getNumberFieldValue("BOOLEAN"), nullValue());
           assertThat(record.getSingleLineTextFieldValue("LONG|SINGLE_LINE_TEXT"), nullValue());
@@ -403,6 +414,8 @@ public class KintoneColumnVisitorTest {
           assertThat(record.getSingleLineTextFieldValue("JSON|SINGLE_LINE_TEXT"), nullValue());
           assertThat(record.getMultiLineTextFieldValue("JSON"), nullValue());
           assertThat(record.getSubtableFieldValue("JSON|SUBTABLE"), is(list()));
+          assertThat(
+              record.getSingleLineTextFieldValue("JSON|SUBTABLE.SINGLE_LINE_TEXT"), nullValue());
           assertThat(updateKey.getField(), is("LONG"));
           assertThat(updateKey.getValue(), nullValue());
         });
@@ -410,7 +423,7 @@ public class KintoneColumnVisitorTest {
 
   @Test
   public void testIgnoreNulls() {
-    KintoneColumnVisitorVerifier verifier = verifier("JSON", false, true);
+    KintoneColumnVisitorVerifier verifier = verifier("JSON", "JSON", false, true);
     verifier.verify(
         (record, updateKey) -> {
           assertThat(record.getFieldValue("BOOLEAN|SINGLE_LINE_TEXT"), nullValue());
@@ -462,6 +475,76 @@ public class KintoneColumnVisitorTest {
           assertThat(record.getFieldValue("JSON|SINGLE_LINE_TEXT"), nullValue());
           assertThat(record.getFieldValue("JSON"), nullValue());
           assertThat(record.getFieldValue("JSON|SUBTABLE"), nullValue());
+          assertThat(record.getFieldValue("JSON|SUBTABLE.SINGLE_LINE_TEXT"), nullValue());
+          assertThat(updateKey.getField(), nullValue());
+          assertThat(updateKey.getValue(), nullValue());
+        },
+        true);
+  }
+
+  @Test
+  public void testReduceKey() {
+    KintoneColumnVisitorVerifier verifier = verifier("JSON|SUBTABLE", null);
+    verifier.verify(
+        (record, updateKey) -> {
+          assertThat(record.getSingleLineTextFieldValue("BOOLEAN|SINGLE_LINE_TEXT"), is("false"));
+          assertThat(record.getNumberFieldValue("BOOLEAN"), is(number("0")));
+          assertThat(record.getSingleLineTextFieldValue("LONG|SINGLE_LINE_TEXT"), is("0"));
+          assertThat(record.getNumberFieldValue("LONG"), is(number("0")));
+          assertThat(record.getDateFieldValue("LONG|DATE"), is(date("1970-01-01")));
+          assertThat(record.getDateFieldValue("LONG|DATE|JST"), is(date("1970-01-01")));
+          assertThat(record.getDateFieldValue("LONG|DATE|PST"), is(date("1969-12-31")));
+          assertThat(record.getTimeFieldValue("LONG|TIME"), is(time("00:00:00")));
+          assertThat(record.getTimeFieldValue("LONG|TIME|JST"), is(time("09:00:00")));
+          assertThat(record.getTimeFieldValue("LONG|TIME|PST"), is(time("16:00:00")));
+          assertThat(
+              record.getDateTimeFieldValue("LONG|DATETIME"), is(dateTime("1970-01-01T00:00:00Z")));
+          assertThat(record.getSingleLineTextFieldValue("DOUBLE|SINGLE_LINE_TEXT"), is("0.0"));
+          assertThat(record.getNumberFieldValue("DOUBLE"), is(number("0.0")));
+          assertThat(record.getDateFieldValue("DOUBLE|DATE"), is(date("1970-01-01")));
+          assertThat(record.getDateFieldValue("DOUBLE|DATE|JST"), is(date("1970-01-01")));
+          assertThat(record.getDateFieldValue("DOUBLE|DATE|PST"), is(date("1969-12-31")));
+          assertThat(record.getTimeFieldValue("DOUBLE|TIME"), is(time("00:00:00")));
+          assertThat(record.getTimeFieldValue("DOUBLE|TIME|JST"), is(time("09:00:00")));
+          assertThat(record.getTimeFieldValue("DOUBLE|TIME|PST"), is(time("16:00:00")));
+          assertThat(
+              record.getDateTimeFieldValue("DOUBLE|DATETIME"),
+              is(dateTime("1970-01-01T00:00:00Z")));
+          assertThat(record.getSingleLineTextFieldValue("STRING|SINGLE_LINE_TEXT"), is(""));
+          assertThat(record.getMultiLineTextFieldValue("STRING"), is(""));
+          assertThat(record.getRichTextFieldValue("STRING|RICH_TEXT"), is(""));
+          assertThat(record.getNumberFieldValue("STRING|NUMBER"), is(number("0")));
+          assertThat(record.getCheckBoxFieldValue("STRING|CHECK_BOX"), is(list()));
+          assertThat(record.getRadioButtonFieldValue("STRING|RADIO_BUTTON"), is(""));
+          assertThat(record.getMultiSelectFieldValue("STRING|MULTI_SELECT"), is(list()));
+          assertThat(record.getDropDownFieldValue("STRING|DROP_DOWN"), is(""));
+          assertThat(record.getDateFieldValue("STRING|DATE"), is(date("1970-01-01")));
+          assertThat(record.getDateFieldValue("STRING|DATE|JST"), is(date("1970-01-01")));
+          assertThat(record.getDateFieldValue("STRING|DATE|PST"), is(date("1969-12-31")));
+          assertThat(record.getTimeFieldValue("STRING|TIME"), is(time("00:00:00")));
+          assertThat(record.getTimeFieldValue("STRING|TIME|JST"), is(time("09:00:00")));
+          assertThat(record.getTimeFieldValue("STRING|TIME|PST"), is(time("16:00:00")));
+          assertThat(
+              record.getDateTimeFieldValue("STRING|DATETIME"),
+              is(dateTime("1970-01-01T00:00:00Z")));
+          assertThat(record.getLinkFieldValue("STRING|LINK"), is(""));
+          assertThat(record.getSubtableFieldValue("STRING|SUBTABLE"), is(list()));
+          assertThat(
+              record.getSingleLineTextFieldValue("TIMESTAMP|SINGLE_LINE_TEXT"),
+              is("1970-01-01T00:00:00Z"));
+          assertThat(record.getNumberFieldValue("TIMESTAMP|NUMBER"), is(number("0")));
+          assertThat(record.getDateFieldValue("TIMESTAMP|DATE"), is(date("1970-01-01")));
+          assertThat(record.getDateFieldValue("TIMESTAMP|DATE|JST"), is(date("1970-01-01")));
+          assertThat(record.getDateFieldValue("TIMESTAMP|DATE|PST"), is(date("1969-12-31")));
+          assertThat(record.getTimeFieldValue("TIMESTAMP|TIME"), is(time("00:00:00")));
+          assertThat(record.getTimeFieldValue("TIMESTAMP|TIME|JST"), is(time("09:00:00")));
+          assertThat(record.getTimeFieldValue("TIMESTAMP|TIME|PST"), is(time("16:00:00")));
+          assertThat(
+              record.getDateTimeFieldValue("TIMESTAMP"), is(dateTime("1970-01-01T00:00:00Z")));
+          assertThat(record.getSingleLineTextFieldValue("JSON|SINGLE_LINE_TEXT"), is("\"\""));
+          assertThat(record.getMultiLineTextFieldValue("JSON"), is("\"\""));
+          assertThat(record.getSubtableFieldValue("JSON|SUBTABLE"), is(list()));
+          assertThat(record.getFieldValue("JSON|SUBTABLE.SINGLE_LINE_TEXT"), nullValue());
           assertThat(updateKey.getField(), nullValue());
           assertThat(updateKey.getValue(), nullValue());
         },
@@ -470,8 +553,8 @@ public class KintoneColumnVisitorTest {
 
   @Test
   public void testUpdateKey() {
-    assertThrows(UnsupportedOperationException.class, () -> verifier("TIMESTAMP").verify());
-    KintoneColumnVisitorVerifier verifier = verifier("TIMESTAMP|NUMBER");
+    assertThrows(UnsupportedOperationException.class, () -> verifier(null, "TIMESTAMP").verify());
+    KintoneColumnVisitorVerifier verifier = verifier(null, "TIMESTAMP|NUMBER");
     verifier.verify(
         (record, updateKey) -> {
           assertThat(updateKey.getField(), is("TIMESTAMP|NUMBER"));
@@ -494,23 +577,25 @@ public class KintoneColumnVisitorTest {
         });
   }
 
-  private static KintoneColumnVisitorVerifier verifier(String updateKeyName) {
+  private static KintoneColumnVisitorVerifier verifier(String reduceKeyName, String updateKeyName) {
     Schema schema = build(Schema.builder());
     return new KintoneColumnVisitorVerifier(
         schema,
         build(ImmutableMap.builder()),
+        reduceKeyName,
         updateKeyName,
         OutputPageBuilder.build(schema, KintoneColumnVisitorTest::build));
   }
 
   private static KintoneColumnVisitorVerifier verifier(
-      String updateKeyName, boolean preferNulls, boolean ignoreNulls) {
+      String reduceKeyName, String updateKeyName, boolean preferNulls, boolean ignoreNulls) {
     Schema schema = build(Schema.builder());
     return new KintoneColumnVisitorVerifier(
         schema,
         build(ImmutableMap.builder()),
         preferNulls,
         ignoreNulls,
+        reduceKeyName,
         updateKeyName,
         OutputPageBuilder.build(schema, KintoneColumnVisitorTest::build));
   }
@@ -566,6 +651,7 @@ public class KintoneColumnVisitorTest {
         .add("JSON|SINGLE_LINE_TEXT", Types.JSON)
         .add("JSON", Types.JSON)
         .add("JSON|SUBTABLE", Types.JSON)
+        .add("JSON|SUBTABLE.SINGLE_LINE_TEXT", Types.JSON)
         .build();
   }
 
@@ -621,6 +707,7 @@ public class KintoneColumnVisitorTest {
         .put(build("JSON|SINGLE_LINE_TEXT", it -> it.setType("SINGLE_LINE_TEXT")))
         .put(build("JSON", it -> it.setType("MULTI_LINE_TEXT")))
         .put(build("JSON|SUBTABLE", it -> it.setType("SUBTABLE")))
+        .put(build("JSON|SUBTABLE.SINGLE_LINE_TEXT", it -> it.setType("SINGLE_LINE_TEXT")))
         .build();
   }
 
@@ -681,6 +768,7 @@ public class KintoneColumnVisitorTest {
         .setNull("JSON|SINGLE_LINE_TEXT")
         .setNull("JSON")
         .setNull("JSON|SUBTABLE")
+        .setNull("JSON|SUBTABLE.SINGLE_LINE_TEXT")
         .addRecord()
         .setBoolean("BOOLEAN|SINGLE_LINE_TEXT", false)
         .setBoolean("BOOLEAN", false)
@@ -731,6 +819,7 @@ public class KintoneColumnVisitorTest {
         .setJson("JSON|SINGLE_LINE_TEXT", ValueFactory.newString(""))
         .setJson("JSON", ValueFactory.newString(""))
         .setJson("JSON|SUBTABLE", ValueFactory.newString(""))
+        .setJson("JSON|SUBTABLE.SINGLE_LINE_TEXT", ValueFactory.newString(""))
         .addRecord()
         .setBoolean("BOOLEAN|SINGLE_LINE_TEXT", true)
         .setBoolean("BOOLEAN", true)
@@ -782,6 +871,7 @@ public class KintoneColumnVisitorTest {
         .setJson("JSON", ValueFactory.newString("abc"))
         .setJson(
             "JSON|SUBTABLE", ValueFactory.newArray(value(ROWS[0]), value(ROWS[1]), value(ROWS[2])))
+        .setJson("JSON|SUBTABLE.SINGLE_LINE_TEXT", ValueFactory.newString("abc"))
         .addRecord()
         .setBoolean("BOOLEAN|SINGLE_LINE_TEXT", false)
         .setBoolean("BOOLEAN", false)
@@ -833,6 +923,7 @@ public class KintoneColumnVisitorTest {
         .setJson("JSON", ValueFactory.newString("def"))
         .setJson(
             "JSON|SUBTABLE", ValueFactory.newArray(value(ROWS[3]), value(ROWS[4]), value(ROWS[5])))
+        .setJson("JSON|SUBTABLE.SINGLE_LINE_TEXT", ValueFactory.newString("def"))
         .addRecord()
         .build();
   }

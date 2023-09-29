@@ -6,6 +6,8 @@ import org.embulk.config.ConfigException;
 import org.embulk.config.ConfigSource;
 import org.embulk.config.TaskReport;
 import org.embulk.config.TaskSource;
+import org.embulk.output.kintone.reducer.ReducedPageOutput;
+import org.embulk.output.kintone.reducer.Reducer;
 import org.embulk.spi.Exec;
 import org.embulk.spi.OutputPlugin;
 import org.embulk.spi.Schema;
@@ -16,8 +18,11 @@ public class KintoneOutputPlugin implements OutputPlugin {
   public ConfigDiff transaction(
       ConfigSource config, Schema schema, int taskCount, OutputPlugin.Control control) {
     PluginTask task = config.loadConfig(PluginTask.class);
-    control.run(task.dump());
-    return Exec.newConfigDiff();
+    List<TaskReport> taskReports = control.run(task.dump());
+    return task.getReduceKeyName().isPresent()
+        ? new Reducer(task, schema)
+            .reduce(taskReports, schema.lookupColumn(task.getReduceKeyName().get()))
+        : Exec.newConfigDiff();
   }
 
   @Override
@@ -49,6 +54,8 @@ public class KintoneOutputPlugin implements OutputPlugin {
       default:
         throw new ConfigException(String.format("Unknown mode '%s'", task.getMode()));
     }
-    return new KintonePageOutput(task, schema);
+    return task.getReduceKeyName().isPresent()
+        ? new ReducedPageOutput(schema, taskIndex)
+        : new KintonePageOutput(task, schema);
   }
 }

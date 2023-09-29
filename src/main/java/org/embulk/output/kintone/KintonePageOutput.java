@@ -50,7 +50,6 @@ public class KintonePageOutput implements TransactionalPageOutput {
           "GAIA_DA02" // データベースのロックに失敗したため、変更を保存できませんでした。時間をおいて再度お試しください。
           );
   private static final int UPSERT_BATCH_SIZE = 10000;
-  private static final int CHUNK_SIZE = 100;
   private final Map<String, Pair<FieldType, FieldType>> wrongTypeFields = new TreeMap<>();
   private final PluginTask task;
   private final PageReader reader;
@@ -203,14 +202,18 @@ public class KintonePageOutput implements TransactionalPageOutput {
     reader.setPage(page);
     KintoneColumnVisitor visitor =
         new KintoneColumnVisitor(
-            reader, task.getColumnOptions(), task.getPreferNulls(), task.getIgnoreNulls());
+            reader,
+            task.getColumnOptions(),
+            task.getPreferNulls(),
+            task.getIgnoreNulls(),
+            task.getReduceKeyName().orElse(null));
     while (reader.nextRecord()) {
       Record record = new Record();
       visitor.setRecord(record);
       reader.getSchema().visitColumns(visitor);
       putWrongTypeFields(record);
       records.add(record);
-      if (records.size() == CHUNK_SIZE) {
+      if (records.size() == task.getChunkSize()) {
         insert(records);
         records.clear();
       }
@@ -229,6 +232,7 @@ public class KintonePageOutput implements TransactionalPageOutput {
             task.getColumnOptions(),
             task.getPreferNulls(),
             task.getIgnoreNulls(),
+            task.getReduceKeyName().orElse(null),
             task.getUpdateKeyName()
                 .orElseThrow(() -> new RuntimeException("unreachable"))); // Already validated
     while (reader.nextRecord()) {
@@ -243,7 +247,7 @@ public class KintonePageOutput implements TransactionalPageOutput {
         continue;
       }
       records.add(new RecordForUpdate(updateKey, record.removeField(updateKey.getField())));
-      if (records.size() == CHUNK_SIZE) {
+      if (records.size() == task.getChunkSize()) {
         update(records);
         records.clear();
       }
@@ -263,6 +267,7 @@ public class KintonePageOutput implements TransactionalPageOutput {
             task.getColumnOptions(),
             task.getPreferNulls(),
             task.getIgnoreNulls(),
+            task.getReduceKeyName().orElse(null),
             task.getUpdateKeyName()
                 .orElseThrow(() -> new RuntimeException("unreachable"))); // Already validated
     while (reader.nextRecord()) {
@@ -300,10 +305,10 @@ public class KintonePageOutput implements TransactionalPageOutput {
       } else {
         insertRecords.add(record);
       }
-      if (insertRecords.size() == CHUNK_SIZE) {
+      if (insertRecords.size() == task.getChunkSize()) {
         insert(insertRecords);
         insertRecords.clear();
-      } else if (updateRecords.size() == CHUNK_SIZE) {
+      } else if (updateRecords.size() == task.getChunkSize()) {
         update(updateRecords);
         updateRecords.clear();
       }
