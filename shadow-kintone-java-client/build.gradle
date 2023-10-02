@@ -1,0 +1,35 @@
+plugins {
+    id "java"
+    id "maven-publish"
+    id "com.github.johnrengelman.shadow"
+}
+
+repositories {
+    mavenCentral()
+}
+
+group = "${rootProject.group}"
+version = "${rootProject.version}"
+
+sourceCompatibility = 1.8
+targetCompatibility = 1.8
+
+configurations {
+    runtimeClasspath {
+        resolutionStrategy.activateDependencyLocking()
+    }
+    shadow {
+        resolutionStrategy.activateDependencyLocking()
+        transitive = false
+    }
+}
+
+dependencies {
+    implementation("com.kintone:kintone-java-client:1.4.0") {
+        exclude group: "org.slf4j", module: "slf4j-api"
+    }
+}
+
+shadowJar {
+    relocate "com.fasterxml.jackson", "embulk.kintone.com.fasterxml.jackson"
+}

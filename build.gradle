@@ -1,7 +1,7 @@
 plugins {
     id "com.jfrog.bintray" version "1.1"
     id "com.github.jruby-gradle.base" version "1.5.0"
-    id "com.github.johnrengelman.shadow" version "4.0.3"
+    id "com.github.johnrengelman.shadow" version "6.1.0" apply false
     id "java"
     id "checkstyle"
     id "com.palantir.git-version" version "0.12.3"
@@ -11,9 +11,6 @@ import com.github.jrubygradle.JRubyExec
 repositories {
     mavenCentral()
     jcenter()
-}
-configurations {
-    provided
 }
 
 version = {
@@ -29,27 +26,23 @@ version = {
 sourceCompatibility = 1.8
 targetCompatibility = 1.8
 
-shadowJar {
-    exclude "org/embulk/plugin/**"
-    relocate "com.fasterxml.jackson", "embulk.kintone.com.fasterxml.jackson"
-}
-
 dependencies {
-    compile  "org.embulk:embulk-core:0.9.23"
-    provided "org.embulk:embulk-core:0.9.23"
-    compile "com.kintone:kintone-java-client:1.0.2"
+    compileOnly "org.embulk:embulk-core:0.9.23"
+    implementation project(path: ":shadow-kintone-java-client", configuration: "shadow")
 
-    // compile "YOUR_JAR_DEPENDENCY_GROUP:YOUR_JAR_DEPENDENCY_MODULE:YOUR_JAR_DEPENDENCY_VERSION"
-    testCompile "junit:junit:4.+"
-    testCompile "org.embulk:embulk-deps-buffer:0.9.23"
+    testImplementation "junit:junit:4.+"
+    testImplementation "org.embulk:embulk-test:0.9.23"
+    testImplementation "org.embulk:embulk-standards:0.9.23"
+    testImplementation "org.embulk:embulk-deps-buffer:0.9.23"
+    testImplementation "org.embulk:embulk-deps-config:0.9.23"
+    testImplementation "org.mockito:mockito-inline:4.11.0"
+    testImplementation "ch.qos.logback:logback-classic:1.3.8"
+    testImplementation "net.jcip:jcip-annotations:1.0"
 }
 
-task classpath(type: Copy, dependsOn: ["jar", "shadowJar"]) {
+task classpath(type: Copy, dependsOn: ["jar"]) {
     doFirst { file("classpath").deleteDir() }
-    from (configurations.runtime - configurations.provided
-            + configurations.shadow
-            - files(shadowJar.getIncludedDependencies())
-            + files(shadowJar.archivePath))
+    from (configurations.runtimeClasspath + files(jar.archivePath))
     into "classpath"
 }
 clean { delete "classpath" }
@@ -127,4 +120,9 @@ spotless {
         formatAnnotations()
         toggleOffOn()
     }
+}
+
+test {
+    forkEvery = 1
+    maxHeapSize = "1g"
 }
