@@ -7,10 +7,13 @@ import com.kintone.client.model.record.FieldType;
 import com.kintone.client.model.record.Record;
 import com.kintone.client.model.record.RecordForUpdate;
 import com.kintone.client.model.record.UpdateKey;
+import java.math.BigDecimal;
 import java.util.ArrayList;
+import java.util.Arrays;
 import java.util.Collections;
 import java.util.List;
 import java.util.stream.Collectors;
+import org.embulk.config.ConfigException;
 import org.embulk.config.TaskReport;
 import org.embulk.spi.Column;
 import org.embulk.spi.Exec;
@@ -224,8 +227,31 @@ public class KintonePageOutput implements TransactionalPageOutput {
     if (records.size() != updateKeys.size()) {
       throw new RuntimeException("records.size() != updateKeys.size()");
     }
+    FieldType updateKeyFieldType =
+        client.app().getFormFields(task.getAppId()).get(updateKeys.get(0).getField()).getType();
+    if (!Arrays.asList(FieldType.SINGLE_LINE_TEXT, FieldType.NUMBER).contains(updateKeyFieldType)) {
+      throw new ConfigException("The update_key must be 'SINGLE_LINE_TEXT' or 'NUMBER'.");
+    }
 
     List<Record> existingRecords = getExistingRecordsByUpdateKey(updateKeys);
+    String updateField = updateKeys.get(0).getField();
+    List<String> existingValues =
+        existingRecords.stream()
+            .map(
+                (r) -> {
+                  switch (updateKeyFieldType) {
+                    case SINGLE_LINE_TEXT:
+                      String s = r.getSingleLineTextFieldValue(updateField);
+                      return s == null ? null : s.toString();
+                    case NUMBER:
+                      BigDecimal bd = r.getNumberFieldValue(updateField);
+                      return bd == null ? null : bd.toPlainString();
+                    default:
+                      return null;
+                  }
+                })
+            .filter(v -> v != null)
+            .collect(Collectors.toList());
 
     ArrayList<Record> insertRecords = new ArrayList<>();
     ArrayList<RecordForUpdate> updateRecords = new ArrayList<>();
@@ -233,7 +259,7 @@ public class KintonePageOutput implements TransactionalPageOutput {
       Record record = records.get(i);
       UpdateKey updateKey = updateKeys.get(i);
 
-      if (existsRecord(existingRecords, updateKey)) {
+      if (existsRecord(existingValues, updateKey)) {
         record.removeField(updateKey.getField());
         updateRecords.add(new RecordForUpdate(updateKey, record));
       } else {
@@ -287,25 +313,7 @@ public class KintonePageOutput implements TransactionalPageOutput {
     return allRecords;
   }
 
-  private boolean existsRecord(List<Record> distRecords, UpdateKey updateKey) {
-    String fieldCode = updateKey.getField();
-    FieldType type = client.app().getFormFields(task.getAppId()).get(fieldCode).getType();
-    switch (type) {
-      case SINGLE_LINE_TEXT:
-        return distRecords.stream()
-            .anyMatch(
-                d ->
-                    d.getSingleLineTextFieldValue(fieldCode)
-                        .equals(updateKey.getValue().toString()));
-      case NUMBER:
-        return distRecords.stream()
-            .anyMatch(
-                d ->
-                    d.getNumberFieldValue(fieldCode)
-                        .toPlainString()
-                        .equals(updateKey.getValue().toString()));
-      default:
-        throw new RuntimeException("The update_key must be 'SINGLE_LINE_TEXT' or 'NUMBER'.");
-    }
+  private boolean existsRecord(List<String> distValues, UpdateKey updateKey) {
+    return distValues.stream().anyMatch(v -> v.equals(updateKey.getValue().toString()));
   }
 }
