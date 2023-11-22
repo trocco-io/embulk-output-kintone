@@ -3,13 +3,17 @@ name: main
 on:
   push:
     branches:
-      - 'master'
+      - "master"
     tags:
-      - '*'
+      - "*"
   pull_request:
     branches:
-      - 'master'
+      - "master"
     types: [opened, synchronize]
+
+permissions:
+  contents: read
+  packages: write
 
 jobs:
   main:
