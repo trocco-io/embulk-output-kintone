@@ -12,6 +12,7 @@ import java.util.ArrayList;
 import java.util.Arrays;
 import java.util.Collections;
 import java.util.List;
+import java.util.concurrent.TimeUnit;
 import java.util.stream.Collectors;
 import org.embulk.config.ConfigException;
 import org.embulk.config.TaskReport;
@@ -21,10 +22,13 @@ import org.embulk.spi.Page;
 import org.embulk.spi.PageReader;
 import org.embulk.spi.Schema;
 import org.embulk.spi.TransactionalPageOutput;
+import org.slf4j.Logger;
+import org.slf4j.LoggerFactory;
 
 public class KintonePageOutput implements TransactionalPageOutput {
   public static final int UPSERT_BATCH_SIZE = 10000;
   public static final int CHUNK_SIZE = 100;
+  private static final Logger LOGGER = LoggerFactory.getLogger(KintonePageOutput.class);
   private final PageReader pageReader;
   private final PluginTask task;
   private KintoneClient client;
@@ -128,6 +132,7 @@ public class KintonePageOutput implements TransactionalPageOutput {
               if (records.size() == CHUNK_SIZE) {
                 client.record().addRecords(task.getAppId(), records);
                 records.clear();
+                sleep();
               }
             }
             if (records.size() > 0) {
@@ -171,6 +176,7 @@ public class KintonePageOutput implements TransactionalPageOutput {
               if (updateRecords.size() == CHUNK_SIZE) {
                 client.record().updateRecords(task.getAppId(), updateRecords);
                 updateRecords.clear();
+                sleep();
               }
             }
             if (updateRecords.size() > 0) {
@@ -223,7 +229,7 @@ public class KintonePageOutput implements TransactionalPageOutput {
         });
   }
 
-  private void upsert(ArrayList<Record> records, ArrayList<UpdateKey> updateKeys) {
+  private void upsert(ArrayList<Record> records, ArrayList<UpdateKey> updateKeys) throws InterruptedException {
     if (records.size() != updateKeys.size()) {
       throw new RuntimeException("records.size() != updateKeys.size()");
     }
@@ -269,9 +275,11 @@ public class KintonePageOutput implements TransactionalPageOutput {
       if (insertRecords.size() == CHUNK_SIZE) {
         client.record().addRecords(task.getAppId(), insertRecords);
         insertRecords.clear();
+        sleep();
       } else if (updateRecords.size() == CHUNK_SIZE) {
         client.record().updateRecords(task.getAppId(), updateRecords);
         updateRecords.clear();
+        sleep();
       }
     }
     if (insertRecords.size() > 0) {
@@ -315,5 +323,14 @@ public class KintonePageOutput implements TransactionalPageOutput {
 
   private boolean existsRecord(List<String> distValues, UpdateKey updateKey) {
     return distValues.stream().anyMatch(v -> v.equals(updateKey.getValue().toString()));
+  }
+
+  private void sleep() throws InterruptedException{
+    if (!task.getIntervalSeconds().isPresent()){
+      return;
+    }
+    Integer interval = task.getIntervalSeconds().get();
+    LOGGER.info(String.format("sleep %d seconds.", interval));
+    TimeUnit.SECONDS.sleep(interval);
   }
 }
