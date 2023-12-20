@@ -229,7 +229,8 @@ public class KintonePageOutput implements TransactionalPageOutput {
         });
   }
 
-  private void upsert(ArrayList<Record> records, ArrayList<UpdateKey> updateKeys) throws InterruptedException {
+  private void upsert(ArrayList<Record> records, ArrayList<UpdateKey> updateKeys)
+      throws InterruptedException {
     if (records.size() != updateKeys.size()) {
       throw new RuntimeException("records.size() != updateKeys.size()");
     }
@@ -325,8 +326,8 @@ public class KintonePageOutput implements TransactionalPageOutput {
     return distValues.stream().anyMatch(v -> v.equals(updateKey.getValue().toString()));
   }
 
-  private void sleep() throws InterruptedException{
-    if (!task.getIntervalSeconds().isPresent()){
+  private void sleep() throws InterruptedException {
+    if (!task.getIntervalSeconds().isPresent()) {
       return;
     }
     Integer interval = task.getIntervalSeconds().get();
