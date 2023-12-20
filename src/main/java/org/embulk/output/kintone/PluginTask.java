@@ -48,4 +48,8 @@ public interface PluginTask extends Task {
   @Config("update_key")
   @ConfigDefault("null")
   Optional<String> getUpdateKeyName();
+
+  @Config("interval_seconds")
+  @ConfigDefault("null")
+  Optional<Integer> getIntervalSeconds();
 }
