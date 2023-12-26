@@ -12,7 +12,6 @@ import java.util.ArrayList;
 import java.util.Arrays;
 import java.util.Collections;
 import java.util.List;
-import java.util.concurrent.TimeUnit;
 import java.util.stream.Collectors;
 import org.embulk.config.ConfigException;
 import org.embulk.config.TaskReport;
@@ -132,7 +131,6 @@ public class KintonePageOutput implements TransactionalPageOutput {
               if (records.size() == CHUNK_SIZE) {
                 client.record().addRecords(task.getAppId(), records);
                 records.clear();
-                sleep();
               }
             }
             if (records.size() > 0) {
@@ -176,7 +174,6 @@ public class KintonePageOutput implements TransactionalPageOutput {
               if (updateRecords.size() == CHUNK_SIZE) {
                 client.record().updateRecords(task.getAppId(), updateRecords);
                 updateRecords.clear();
-                sleep();
               }
             }
             if (updateRecords.size() > 0) {
@@ -191,46 +188,40 @@ public class KintonePageOutput implements TransactionalPageOutput {
   private void upsertPage(final Page page) {
     execute(
         client -> {
-          try {
-            ArrayList<Record> records = new ArrayList<>();
-            ArrayList<UpdateKey> updateKeys = new ArrayList<>();
-            pageReader.setPage(page);
+          ArrayList<Record> records = new ArrayList<>();
+          ArrayList<UpdateKey> updateKeys = new ArrayList<>();
+          pageReader.setPage(page);
 
-            KintoneColumnVisitor visitor =
-                new KintoneColumnVisitor(
-                    pageReader,
-                    task.getColumnOptions(),
-                    task.getUpdateKeyName()
-                        .orElseThrow(
-                            () -> new RuntimeException("unreachable"))); // Already validated
-            while (pageReader.nextRecord()) {
-              Record record = new Record();
-              UpdateKey updateKey = new UpdateKey();
-              visitor.setRecord(record);
-              visitor.setUpdateKey(updateKey);
-              for (Column column : pageReader.getSchema().getColumns()) {
-                column.visit(visitor);
-              }
-              records.add(record);
-              updateKeys.add(updateKey);
-
-              if (records.size() == UPSERT_BATCH_SIZE) {
-                upsert(records, updateKeys);
-                records.clear();
-                updateKeys.clear();
-              }
+          KintoneColumnVisitor visitor =
+              new KintoneColumnVisitor(
+                  pageReader,
+                  task.getColumnOptions(),
+                  task.getUpdateKeyName()
+                      .orElseThrow(() -> new RuntimeException("unreachable"))); // Already validated
+          while (pageReader.nextRecord()) {
+            Record record = new Record();
+            UpdateKey updateKey = new UpdateKey();
+            visitor.setRecord(record);
+            visitor.setUpdateKey(updateKey);
+            for (Column column : pageReader.getSchema().getColumns()) {
+              column.visit(visitor);
             }
-            if (records.size() > 0) {
+            records.add(record);
+            updateKeys.add(updateKey);
+
+            if (records.size() == UPSERT_BATCH_SIZE) {
               upsert(records, updateKeys);
+              records.clear();
+              updateKeys.clear();
             }
-          } catch (Exception e) {
-            throw new RuntimeException("kintone throw exception", e);
+          }
+          if (records.size() > 0) {
+            upsert(records, updateKeys);
           }
         });
   }
 
-  private void upsert(ArrayList<Record> records, ArrayList<UpdateKey> updateKeys)
-      throws InterruptedException {
+  private void upsert(ArrayList<Record> records, ArrayList<UpdateKey> updateKeys) {
     if (records.size() != updateKeys.size()) {
       throw new RuntimeException("records.size() != updateKeys.size()");
     }
@@ -276,11 +267,9 @@ public class KintonePageOutput implements TransactionalPageOutput {
       if (insertRecords.size() == CHUNK_SIZE) {
         client.record().addRecords(task.getAppId(), insertRecords);
         insertRecords.clear();
-        sleep();
       } else if (updateRecords.size() == CHUNK_SIZE) {
         client.record().updateRecords(task.getAppId(), updateRecords);
         updateRecords.clear();
-        sleep();
       }
     }
     if (insertRecords.size() > 0) {
@@ -324,14 +313,5 @@ public class KintonePageOutput implements TransactionalPageOutput {
 
   private boolean existsRecord(List<String> distValues, UpdateKey updateKey) {
     return distValues.stream().anyMatch(v -> v.equals(updateKey.getValue().toString()));
-  }
-
-  private void sleep() throws InterruptedException {
-    if (!task.getIntervalSeconds().isPresent()) {
-      return;
-    }
-    Integer interval = task.getIntervalSeconds().get();
-    LOGGER.info(String.format("sleep %d seconds.", interval));
-    TimeUnit.SECONDS.sleep(interval);
   }
 }
