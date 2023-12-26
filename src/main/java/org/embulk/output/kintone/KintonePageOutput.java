@@ -1,8 +1,11 @@
 package org.embulk.output.kintone;
 
+import static org.embulk.spi.util.RetryExecutor.retryExecutor;
+
 import com.kintone.client.KintoneClient;
 import com.kintone.client.KintoneClientBuilder;
 import com.kintone.client.api.record.GetRecordsByCursorResponseBody;
+import com.kintone.client.exception.KintoneApiRuntimeException;
 import com.kintone.client.model.record.FieldType;
 import com.kintone.client.model.record.Record;
 import com.kintone.client.model.record.RecordForUpdate;
@@ -21,6 +24,8 @@ import org.embulk.spi.Page;
 import org.embulk.spi.PageReader;
 import org.embulk.spi.Schema;
 import org.embulk.spi.TransactionalPageOutput;
+import org.embulk.spi.util.RetryExecutor.RetryGiveupException;
+import org.embulk.spi.util.RetryExecutor.Retryable;
 import org.slf4j.Logger;
 import org.slf4j.LoggerFactory;
 
@@ -103,86 +108,132 @@ public class KintonePageOutput implements TransactionalPageOutput {
     }
   }
 
+  private void update(ArrayList<RecordForUpdate> records) {
+    execute(
+        client -> {
+          client.record().updateRecords(task.getAppId(), records);
+        });
+  }
+
+  private void insert(ArrayList<Record> records) {
+    execute(
+        client -> {
+          client.record().addRecords(task.getAppId(), records);
+        });
+  }
+
   private void execute(Consumer<KintoneClient> operation) {
     connect(task);
-    if (this.client != null) {
-      operation.accept(this.client);
-    } else {
+    if (this.client == null) {
       throw new RuntimeException("Failed to connect to kintone.");
+    }
+    try {
+      retryExecutor()
+          .withRetryLimit(10)
+          .withInitialRetryWait(1000)
+          .withMaxRetryWait(60 * 1000)
+          .runInterruptible(
+              new Retryable<Void>() {
+
+                @Override
+                public Void call() throws Exception {
+                  operation.accept(client);
+                  return null;
+                }
+
+                @Override
+                public boolean isRetryableException(Exception e) {
+                  if (!(e instanceof KintoneApiRuntimeException)) {
+                    return false;
+                  }
+
+                  int code = ((KintoneApiRuntimeException) e).getStatusCode();
+                  if ((500 <= code && code <= 599) || code == 429) {
+                    return true;
+                  }
+                  return false;
+                }
+
+                @Override
+                public void onRetry(
+                    Exception exception, int retryCount, int retryLimit, int retryWait)
+                    throws RetryGiveupException {
+                  String message =
+                      String.format(
+                          "Retrying %d/%d after %d seconds. Message: %s",
+                          retryCount, retryLimit, retryWait / 1000, exception.getMessage());
+                  if (retryCount % 3 == 0) {
+                    LOGGER.warn(message, exception);
+                  } else {
+                    LOGGER.warn(message);
+                  }
+                }
+
+                @Override
+                public void onGiveup(Exception firstException, Exception lastException)
+                    throws RetryGiveupException {}
+              });
+    } catch (RetryGiveupException | InterruptedException e) {
+      throw new RuntimeException("kintone throw exception", e);
     }
   }
 
   private void insertPage(final Page page) {
-    execute(
-        client -> {
-          try {
-            ArrayList<Record> records = new ArrayList<>();
-            pageReader.setPage(page);
-            KintoneColumnVisitor visitor =
-                new KintoneColumnVisitor(pageReader, task.getColumnOptions());
-            while (pageReader.nextRecord()) {
-              Record record = new Record();
-              visitor.setRecord(record);
-              for (Column column : pageReader.getSchema().getColumns()) {
-                column.visit(visitor);
-              }
 
-              records.add(record);
-              if (records.size() == CHUNK_SIZE) {
-                client.record().addRecords(task.getAppId(), records);
-                records.clear();
-              }
-            }
-            if (records.size() > 0) {
-              client.record().addRecords(task.getAppId(), records);
-            }
-          } catch (Exception e) {
-            throw new RuntimeException("kintone throw exception", e);
-          }
-        });
+    ArrayList<Record> records = new ArrayList<>();
+    pageReader.setPage(page);
+    KintoneColumnVisitor visitor = new KintoneColumnVisitor(pageReader, task.getColumnOptions());
+    while (pageReader.nextRecord()) {
+      Record record = new Record();
+      visitor.setRecord(record);
+      for (Column column : pageReader.getSchema().getColumns()) {
+        column.visit(visitor);
+      }
+
+      records.add(record);
+      if (records.size() == CHUNK_SIZE) {
+        insert(records);
+        records.clear();
+      }
+    }
+    if (records.size() > 0) {
+      insert(records);
+    }
   }
 
   private void updatePage(final Page page) {
-    execute(
-        client -> {
-          try {
-            ArrayList<RecordForUpdate> updateRecords = new ArrayList<>();
-            pageReader.setPage(page);
+    ArrayList<RecordForUpdate> updateRecords = new ArrayList<>();
+    pageReader.setPage(page);
 
-            KintoneColumnVisitor visitor =
-                new KintoneColumnVisitor(
-                    pageReader,
-                    task.getColumnOptions(),
-                    task.getUpdateKeyName()
-                        .orElseThrow(
-                            () -> new RuntimeException("unreachable"))); // Already validated
-            while (pageReader.nextRecord()) {
-              Record record = new Record();
-              UpdateKey updateKey = new UpdateKey();
-              visitor.setRecord(record);
-              visitor.setUpdateKey(updateKey);
-              for (Column column : pageReader.getSchema().getColumns()) {
-                column.visit(visitor);
-              }
+    KintoneColumnVisitor visitor =
+        new KintoneColumnVisitor(
+            pageReader,
+            task.getColumnOptions(),
+            task.getUpdateKeyName()
+                .orElseThrow(() -> new RuntimeException("unreachable"))); // Already validated
+    while (pageReader.nextRecord()) {
+      Record record = new Record();
+      UpdateKey updateKey = new UpdateKey();
+      visitor.setRecord(record);
+      visitor.setUpdateKey(updateKey);
+      for (Column column : pageReader.getSchema().getColumns()) {
+        column.visit(visitor);
+      }
 
-              if (updateKey.getValue() == "") {
-                continue;
-              }
+      if (updateKey.getValue() == "") {
+        continue;
+      }
 
-              record.removeField(updateKey.getField());
-              updateRecords.add(new RecordForUpdate(updateKey, record));
-              if (updateRecords.size() == CHUNK_SIZE) {
-                client.record().updateRecords(task.getAppId(), updateRecords);
-                updateRecords.clear();
-              }
-            }
-            if (updateRecords.size() > 0) {
-              client.record().updateRecords(task.getAppId(), updateRecords);
-            }
-          } catch (Exception e) {
-            throw new RuntimeException("kintone throw exception", e);
-          }
-        });
+      record.removeField(updateKey.getField());
+      updateRecords.add(new RecordForUpdate(updateKey, record));
+      if (updateRecords.size() == CHUNK_SIZE) {
+        update(updateRecords);
+        updateRecords.clear();
+      }
+    }
+    if (updateRecords.size() > 0) {
+      update(updateRecords);
+    }
   }
 
   private void upsertPage(final Page page) {
@@ -265,18 +316,18 @@ public class KintonePageOutput implements TransactionalPageOutput {
       }
 
       if (insertRecords.size() == CHUNK_SIZE) {
-        client.record().addRecords(task.getAppId(), insertRecords);
+        insert(insertRecords);
         insertRecords.clear();
       } else if (updateRecords.size() == CHUNK_SIZE) {
-        client.record().updateRecords(task.getAppId(), updateRecords);
+        update(updateRecords);
         updateRecords.clear();
       }
     }
     if (insertRecords.size() > 0) {
-      client.record().addRecords(task.getAppId(), insertRecords);
+      insert(insertRecords);
     }
     if (updateRecords.size() > 0) {
-      client.record().updateRecords(task.getAppId(), updateRecords);
+      update(updateRecords);
     }
   }
 
