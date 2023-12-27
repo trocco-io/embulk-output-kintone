@@ -1,0 +1,54 @@
+column_options:
+  boolean_single_line_text:
+    field_code: boolean_single_line_text
+    type: SINGLE_LINE_TEXT
+  long_single_line_text:
+    field_code: long_single_line_text
+    type: SINGLE_LINE_TEXT
+  long:
+    field_code: long
+    type: NUMBER
+  double_single_line_text:
+    field_code: double_single_line_text
+    type: SINGLE_LINE_TEXT
+  double:
+    field_code: double
+    type: NUMBER
+  string_single_line_text:
+    field_code: string_single_line_text
+    type: SINGLE_LINE_TEXT
+  string:
+    field_code: string
+    type: MULTI_LINE_TEXT
+  string_number:
+    field_code: string_number
+    type: NUMBER
+  string_check_box:
+    field_code: string_check_box
+    type: CHECK_BOX
+  string_drop_down:
+    field_code: string_drop_down
+    type: DROP_DOWN
+  string_link:
+    field_code: string_link
+    type: LINK
+  timestamp_date:
+    field_code: timestamp_date
+    type: DATE
+  timestamp_date_jst:
+    field_code: timestamp_date_jst
+    type: DATE
+    timezone: Asia/Tokyo
+  timestamp_date_pst:
+    field_code: timestamp_date_pst
+    type: DATE
+    timezone: US/Pacific
+  timestamp:
+    field_code: timestamp
+    type: DATETIME
+  json_single_line_text:
+    field_code: json_single_line_text
+    type: SINGLE_LINE_TEXT
+  json:
+    field_code: json
+    type: MULTI_LINE_TEXT

@@ -1,0 +1,7 @@
+boolean_single_line_text:boolean,long_single_line_text:long,long:long,double_single_line_text:double,double:double,string_single_line_text:string,string:string,string_number:string,string_check_box:string,string_drop_down:string,string_link:string,timestamp_date:timestamp,timestamp_date_jst:timestamp,timestamp_date_pst:timestamp,timestamp:timestamp,json_single_line_text:json,json:json
+,,,,,,,,,,,,,,,,
+,,,1,,,,,,,,,,,,,
+true,123,123,123,123,abc,abc,123,"123,abc",abc,abc,1999-12-31 23:59:59.000 +0000,1999-12-31 23:59:59.000 +0000,1999-12-31 23:59:59.000 +0000,1999-12-31 23:59:59.000 +0000,"""abc""","""abc"""
+,,,,,,,,,,,,,,,,
+,,,,,,,1,,,,,,,,,
+false,456,456,456,456,def,def,456,"456,def",def,def,2000-01-01 00:00:00.000 +0000,2000-01-01 00:00:00.000 +0000,2000-01-01 00:00:00.000 +0000,2000-01-01 00:00:00.000 +0000,"""def""","""def"""
