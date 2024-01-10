@@ -36,6 +36,12 @@ public class KintonePageOutput implements TransactionalPageOutput {
   public static final int UPSERT_BATCH_SIZE = 10000;
   public static final int CHUNK_SIZE = 100;
   private static final Logger LOGGER = LoggerFactory.getLogger(KintonePageOutput.class);
+  private static final List<String> RETRYABLE_ERROR_CODES =
+      Arrays.asList(
+          "GAIA_TM12", // 作成できるカーソルの上限に達しているため、カーソ ルを作成できません。不要なカーソルを削除するか、しばらく経ってから再実行してください。
+          "GAIA_RE18", // データベースのロックに失敗したため、変更を保存できませんでした。時間をおいて再度お試しください。
+          "GAIA_DA02" // データベースのロックに失敗したため、変更を保存できませんでした。時間をおいて再度お試しください。
+          );
   private final PageReader pageReader;
   private final PluginTask task;
   private KintoneClient client;
@@ -156,7 +162,7 @@ public class KintonePageOutput implements TransactionalPageOutput {
                     JsonNode content =
                         mapper.readTree(((KintoneApiRuntimeException) e).getContent());
                     String code = content.get("code").textValue();
-                    return Objects.equals(code, "GAIA_RE18");
+                    return RETRYABLE_ERROR_CODES.contains(code);
                   } catch (IOException ex) {
                     throw new RuntimeException(ex);
                   }
