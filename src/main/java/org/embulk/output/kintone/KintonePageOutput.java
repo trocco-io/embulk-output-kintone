@@ -2,6 +2,8 @@ package org.embulk.output.kintone;
 
 import static org.embulk.spi.util.RetryExecutor.retryExecutor;
 
+import com.fasterxml.jackson.databind.JsonNode;
+import com.fasterxml.jackson.databind.ObjectMapper;
 import com.kintone.client.KintoneClient;
 import com.kintone.client.KintoneClientBuilder;
 import com.kintone.client.api.record.GetRecordsByCursorResponseBody;
@@ -10,6 +12,7 @@ import com.kintone.client.model.record.FieldType;
 import com.kintone.client.model.record.Record;
 import com.kintone.client.model.record.RecordForUpdate;
 import com.kintone.client.model.record.UpdateKey;
+import java.io.IOException;
 import java.math.BigDecimal;
 import java.util.ArrayList;
 import java.util.Arrays;
@@ -148,11 +151,15 @@ public class KintonePageOutput implements TransactionalPageOutput {
                     return false;
                   }
 
-                  int code = ((KintoneApiRuntimeException) e).getStatusCode();
-                  if ((500 <= code && code <= 599) || code == 429) {
-                    return true;
+                  try {
+                    ObjectMapper mapper = new ObjectMapper();
+                    JsonNode content =
+                        mapper.readTree(((KintoneApiRuntimeException) e).getContent());
+                    String code = content.get("code").textValue();
+                    return Objects.equals(code, "GAIA_RE18");
+                  } catch (IOException ex) {
+                    throw new RuntimeException(ex);
                   }
-                  return false;
                 }
 
                 @Override
