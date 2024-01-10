@@ -48,4 +48,8 @@ public interface PluginTask extends Task {
   @Config("update_key")
   @ConfigDefault("null")
   Optional<String> getUpdateKeyName();
+
+  @Config("retry_options")
+  @ConfigDefault("{}")
+  KintoneRetryOption getRetryOptions();
 }

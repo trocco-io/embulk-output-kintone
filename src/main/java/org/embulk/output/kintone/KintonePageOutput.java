@@ -127,11 +127,12 @@ public class KintonePageOutput implements TransactionalPageOutput {
     if (this.client == null) {
       throw new RuntimeException("Failed to connect to kintone.");
     }
+    KintoneRetryOption retryOption = task.getRetryOptions();
     try {
       retryExecutor()
-          .withRetryLimit(10)
-          .withInitialRetryWait(1000)
-          .withMaxRetryWait(60 * 1000)
+          .withRetryLimit(retryOption.getLimit())
+          .withInitialRetryWait(retryOption.getInitialWaitMillis())
+          .withMaxRetryWait(retryOption.getMaxWaitMillis())
           .runInterruptible(
               new Retryable<Void>() {
 
