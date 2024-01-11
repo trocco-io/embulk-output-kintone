@@ -49,7 +49,7 @@ public interface PluginTask extends Task {
   @ConfigDefault("null")
   Optional<String> getUpdateKeyName();
 
-  @Config("interval_seconds")
-  @ConfigDefault("null")
-  Optional<Integer> getIntervalSeconds();
+  @Config("retry_options")
+  @ConfigDefault("{}")
+  KintoneRetryOption getRetryOptions();
 }
