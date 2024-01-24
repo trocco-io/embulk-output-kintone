@@ -13,32 +13,27 @@ import org.embulk.spi.Schema;
 
 public class KintoneColumnVisitorVerifier {
   private final Schema schema;
-  private final Map<String, KintoneColumnOption> columnOptions;
-  private final PageReader pageReader;
+  private final Map<String, KintoneColumnOption> options;
+  private final PageReader reader;
   private final KintoneColumnVisitor visitor;
 
   public KintoneColumnVisitorVerifier(
-      Schema schema,
-      Map<String, KintoneColumnOption> columnOptions,
-      String updateKeyName,
-      Page page) {
-    this(schema, columnOptions, false, false, updateKeyName, page);
+      Schema schema, Map<String, KintoneColumnOption> options, String updateKeyName, Page page) {
+    this(schema, options, false, false, updateKeyName, page);
   }
 
   public KintoneColumnVisitorVerifier(
       Schema schema,
-      Map<String, KintoneColumnOption> columnOptions,
+      Map<String, KintoneColumnOption> options,
       boolean preferNulls,
       boolean ignoreNulls,
       String updateKeyName,
       Page page) {
     this.schema = schema;
-    this.columnOptions = columnOptions;
-    pageReader = new PageReader(schema);
-    pageReader.setPage(page);
-    visitor =
-        new KintoneColumnVisitor(
-            pageReader, columnOptions, preferNulls, ignoreNulls, updateKeyName);
+    this.options = options;
+    reader = new PageReader(schema);
+    reader.setPage(page);
+    visitor = new KintoneColumnVisitor(reader, options, preferNulls, ignoreNulls, updateKeyName);
   }
 
   public void verify() {
@@ -50,7 +45,7 @@ public class KintoneColumnVisitorVerifier {
   }
 
   public void verify(BiConsumer<Record, UpdateKey> consumer, boolean nullable) {
-    if (!pageReader.nextRecord()) {
+    if (!reader.nextRecord()) {
       throw new IllegalStateException();
     }
     Record record = new Record();
@@ -63,7 +58,7 @@ public class KintoneColumnVisitorVerifier {
   }
 
   private void verify(Record record, Column column, boolean nullable) {
-    FieldType expected = FieldType.valueOf(columnOptions.get(column.getName()).getType());
+    FieldType expected = FieldType.valueOf(options.get(column.getName()).getType());
     FieldType actual = record.getFieldType(column.getName());
     if (actual == null && nullable) {
       return;

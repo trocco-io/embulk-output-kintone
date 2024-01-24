@@ -13,8 +13,8 @@ import org.msgpack.value.Value;
 import org.msgpack.value.ValueFactory;
 
 public class KintoneColumnVisitor implements ColumnVisitor {
-  private final PageReader pageReader;
-  private final Map<String, KintoneColumnOption> columnOptions;
+  private final PageReader reader;
+  private final Map<String, KintoneColumnOption> options;
   private final boolean preferNulls;
   private final boolean ignoreNulls;
   private final String updateKeyName;
@@ -22,21 +22,21 @@ public class KintoneColumnVisitor implements ColumnVisitor {
   private UpdateKey updateKey;
 
   public KintoneColumnVisitor(
-      PageReader pageReader,
-      Map<String, KintoneColumnOption> columnOptions,
+      PageReader reader,
+      Map<String, KintoneColumnOption> options,
       boolean preferNulls,
       boolean ignoreNulls) {
-    this(pageReader, columnOptions, preferNulls, ignoreNulls, null);
+    this(reader, options, preferNulls, ignoreNulls, null);
   }
 
   public KintoneColumnVisitor(
-      PageReader pageReader,
-      Map<String, KintoneColumnOption> columnOptions,
+      PageReader reader,
+      Map<String, KintoneColumnOption> options,
       boolean preferNulls,
       boolean ignoreNulls,
       String updateKeyName) {
-    this.pageReader = pageReader;
-    this.columnOptions = columnOptions;
+    this.reader = reader;
+    this.options = options;
     this.preferNulls = preferNulls;
     this.ignoreNulls = ignoreNulls;
     this.updateKeyName = updateKeyName;
@@ -61,10 +61,10 @@ public class KintoneColumnVisitor implements ColumnVisitor {
     String fieldCode = getFieldCode(column);
     if (isPreferNull(column)) {
       setNull(type, fieldCode, updateKey);
-    } else if (pageReader.isNull(column)) {
+    } else if (reader.isNull(column)) {
       setBoolean(type, fieldCode, updateKey, false, option);
     } else {
-      setBoolean(type, fieldCode, updateKey, pageReader.getBoolean(column), option);
+      setBoolean(type, fieldCode, updateKey, reader.getBoolean(column), option);
     }
   }
 
@@ -79,10 +79,10 @@ public class KintoneColumnVisitor implements ColumnVisitor {
     String fieldCode = getFieldCode(column);
     if (isPreferNull(column)) {
       setNull(type, fieldCode, updateKey);
-    } else if (pageReader.isNull(column)) {
+    } else if (reader.isNull(column)) {
       setLong(type, fieldCode, updateKey, 0, option);
     } else {
-      setLong(type, fieldCode, updateKey, pageReader.getLong(column), option);
+      setLong(type, fieldCode, updateKey, reader.getLong(column), option);
     }
   }
 
@@ -97,10 +97,10 @@ public class KintoneColumnVisitor implements ColumnVisitor {
     String fieldCode = getFieldCode(column);
     if (isPreferNull(column)) {
       setNull(type, fieldCode, updateKey);
-    } else if (pageReader.isNull(column)) {
+    } else if (reader.isNull(column)) {
       setDouble(type, fieldCode, updateKey, 0, option);
     } else {
-      setDouble(type, fieldCode, updateKey, pageReader.getDouble(column), option);
+      setDouble(type, fieldCode, updateKey, reader.getDouble(column), option);
     }
   }
 
@@ -117,10 +117,10 @@ public class KintoneColumnVisitor implements ColumnVisitor {
     String fieldCode = getFieldCode(column);
     if (isPreferNull(column)) {
       setNull(type, fieldCode, updateKey);
-    } else if (pageReader.isNull(column)) {
+    } else if (reader.isNull(column)) {
       setString(type, fieldCode, updateKey, "", option);
     } else {
-      setString(type, fieldCode, updateKey, pageReader.getString(column), option);
+      setString(type, fieldCode, updateKey, reader.getString(column), option);
     }
   }
 
@@ -135,10 +135,10 @@ public class KintoneColumnVisitor implements ColumnVisitor {
     String fieldCode = getFieldCode(column);
     if (isPreferNull(column)) {
       setNull(type, fieldCode, updateKey);
-    } else if (pageReader.isNull(column)) {
+    } else if (reader.isNull(column)) {
       setTimestamp(type, fieldCode, updateKey, Timestamp.ofInstant(Instant.EPOCH), option);
     } else {
-      setTimestamp(type, fieldCode, updateKey, pageReader.getTimestamp(column), option);
+      setTimestamp(type, fieldCode, updateKey, reader.getTimestamp(column), option);
     }
   }
 
@@ -153,10 +153,10 @@ public class KintoneColumnVisitor implements ColumnVisitor {
     String fieldCode = getFieldCode(column);
     if (isPreferNull(column)) {
       setNull(type, fieldCode, updateKey);
-    } else if (pageReader.isNull(column)) {
+    } else if (reader.isNull(column)) {
       setJson(type, fieldCode, updateKey, ValueFactory.newString(""), option);
     } else {
-      setJson(type, fieldCode, updateKey, pageReader.getJson(column), option);
+      setJson(type, fieldCode, updateKey, reader.getJson(column), option);
     }
   }
 
@@ -251,7 +251,7 @@ public class KintoneColumnVisitor implements ColumnVisitor {
   }
 
   private KintoneColumnOption getOption(Column column) {
-    return columnOptions.get(column.getName());
+    return options.get(column.getName());
   }
 
   private UpdateKey getUpdateKey(Column column) {
@@ -259,10 +259,10 @@ public class KintoneColumnVisitor implements ColumnVisitor {
   }
 
   private boolean isIgnoreNull(Column column) {
-    return ignoreNulls && pageReader.isNull(column);
+    return ignoreNulls && reader.isNull(column);
   }
 
   private boolean isPreferNull(Column column) {
-    return preferNulls && pageReader.isNull(column);
+    return preferNulls && reader.isNull(column);
   }
 }
