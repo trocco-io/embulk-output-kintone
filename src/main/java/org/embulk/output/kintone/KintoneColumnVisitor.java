@@ -56,9 +56,9 @@ public class KintoneColumnVisitor implements ColumnVisitor {
       return;
     }
     KintoneColumnOption option = getOption(column);
+    UpdateKey updateKey = getUpdateKey(column);
     KintoneColumnType type = KintoneColumnType.getType(option, KintoneColumnType.NUMBER);
     String fieldCode = getFieldCode(column);
-    UpdateKey updateKey = getUpdateKey(column);
     if (isPreferNull(column)) {
       setNull(type, fieldCode, updateKey);
     } else if (pageReader.isNull(column)) {
@@ -74,9 +74,9 @@ public class KintoneColumnVisitor implements ColumnVisitor {
       return;
     }
     KintoneColumnOption option = getOption(column);
+    UpdateKey updateKey = getUpdateKey(column);
     KintoneColumnType type = KintoneColumnType.getType(option, KintoneColumnType.NUMBER);
     String fieldCode = getFieldCode(column);
-    UpdateKey updateKey = getUpdateKey(column);
     if (isPreferNull(column)) {
       setNull(type, fieldCode, updateKey);
     } else if (pageReader.isNull(column)) {
@@ -92,9 +92,9 @@ public class KintoneColumnVisitor implements ColumnVisitor {
       return;
     }
     KintoneColumnOption option = getOption(column);
+    UpdateKey updateKey = getUpdateKey(column);
     KintoneColumnType type = KintoneColumnType.getType(option, KintoneColumnType.NUMBER);
     String fieldCode = getFieldCode(column);
-    UpdateKey updateKey = getUpdateKey(column);
     if (isPreferNull(column)) {
       setNull(type, fieldCode, updateKey);
     } else if (pageReader.isNull(column)) {
@@ -110,9 +110,11 @@ public class KintoneColumnVisitor implements ColumnVisitor {
       return;
     }
     KintoneColumnOption option = getOption(column);
-    KintoneColumnType type = KintoneColumnType.getType(option, KintoneColumnType.MULTI_LINE_TEXT);
-    String fieldCode = getFieldCode(column);
     UpdateKey updateKey = getUpdateKey(column);
+    KintoneColumnType defaultType =
+        updateKey != null ? KintoneColumnType.SINGLE_LINE_TEXT : KintoneColumnType.MULTI_LINE_TEXT;
+    KintoneColumnType type = KintoneColumnType.getType(option, defaultType);
+    String fieldCode = getFieldCode(column);
     if (isPreferNull(column)) {
       setNull(type, fieldCode, updateKey);
     } else if (pageReader.isNull(column)) {
@@ -128,9 +130,9 @@ public class KintoneColumnVisitor implements ColumnVisitor {
       return;
     }
     KintoneColumnOption option = getOption(column);
+    UpdateKey updateKey = getUpdateKey(column);
     KintoneColumnType type = KintoneColumnType.getType(option, KintoneColumnType.DATETIME);
     String fieldCode = getFieldCode(column);
-    UpdateKey updateKey = getUpdateKey(column);
     if (isPreferNull(column)) {
       setNull(type, fieldCode, updateKey);
     } else if (pageReader.isNull(column)) {
@@ -146,9 +148,9 @@ public class KintoneColumnVisitor implements ColumnVisitor {
       return;
     }
     KintoneColumnOption option = getOption(column);
+    UpdateKey updateKey = getUpdateKey(column);
     KintoneColumnType type = KintoneColumnType.getType(option, KintoneColumnType.MULTI_LINE_TEXT);
     String fieldCode = getFieldCode(column);
-    UpdateKey updateKey = getUpdateKey(column);
     if (isPreferNull(column)) {
       setNull(type, fieldCode, updateKey);
     } else if (pageReader.isNull(column)) {
