@@ -4,6 +4,7 @@ import static org.embulk.spi.util.RetryExecutor.retryExecutor;
 
 import com.fasterxml.jackson.databind.JsonNode;
 import com.fasterxml.jackson.databind.ObjectMapper;
+import com.google.common.collect.Maps;
 import com.kintone.client.KintoneClient;
 import com.kintone.client.KintoneClientBuilder;
 import com.kintone.client.api.record.GetRecordsByCursorResponseBody;
@@ -15,14 +16,18 @@ import com.kintone.client.model.record.RecordForUpdate;
 import com.kintone.client.model.record.UpdateKey;
 import java.io.IOException;
 import java.lang.invoke.MethodHandles;
+import java.math.BigDecimal;
 import java.util.ArrayList;
 import java.util.Arrays;
 import java.util.Collections;
 import java.util.List;
 import java.util.Map;
 import java.util.Objects;
+import java.util.TreeMap;
+import java.util.function.Function;
 import java.util.function.Supplier;
 import java.util.stream.Collectors;
+import org.apache.commons.lang3.tuple.Pair;
 import org.embulk.config.ConfigException;
 import org.embulk.config.TaskReport;
 import org.embulk.spi.Exec;
@@ -46,6 +51,7 @@ public class KintonePageOutput implements TransactionalPageOutput {
           );
   private static final int UPSERT_BATCH_SIZE = 10000;
   private static final int CHUNK_SIZE = 100;
+  private final Map<String, Pair<FieldType, FieldType>> wrongTypeFields = new TreeMap<>();
   private final PluginTask task;
   private final PageReader reader;
   private KintoneClient client;
@@ -98,6 +104,12 @@ public class KintonePageOutput implements TransactionalPageOutput {
 
   @Override
   public TaskReport commit() {
+    wrongTypeFields.forEach(
+        (key, value) ->
+            LOGGER.warn(
+                String.format(
+                    "Field type of %s is expected %s but actual %s",
+                    key, value.getLeft(), value.getRight())));
     return Exec.newTaskReport();
   }
 
@@ -196,6 +208,7 @@ public class KintonePageOutput implements TransactionalPageOutput {
       Record record = new Record();
       visitor.setRecord(record);
       reader.getSchema().visitColumns(visitor);
+      putWrongTypeFields(record);
       records.add(record);
       if (records.size() == CHUNK_SIZE) {
         insert(records);
@@ -224,6 +237,7 @@ public class KintonePageOutput implements TransactionalPageOutput {
       visitor.setRecord(record);
       visitor.setUpdateKey(updateKey);
       reader.getSchema().visitColumns(visitor);
+      putWrongTypeFields(record);
       if (updateKey.getValue() == null || updateKey.getValue().toString().isEmpty()) {
         LOGGER.warn("Record skipped because no update key value was specified");
         continue;
@@ -257,6 +271,7 @@ public class KintonePageOutput implements TransactionalPageOutput {
       visitor.setRecord(record);
       visitor.setUpdateKey(updateKey);
       reader.getSchema().visitColumns(visitor);
+      putWrongTypeFields(record);
       records.add(record);
       updateKeys.add(updateKey);
       if (records.size() == UPSERT_BATCH_SIZE) {
@@ -274,7 +289,7 @@ public class KintonePageOutput implements TransactionalPageOutput {
     if (records.size() != updateKeys.size()) {
       throw new RuntimeException("records.size() != updateKeys.size()");
     }
-    List<Object> existingValues = executeWithRetry(() -> getExistingValuesByUpdateKey(updateKeys));
+    List<String> existingValues = executeWithRetry(() -> getExistingValuesByUpdateKey(updateKeys));
     List<Record> insertRecords = new ArrayList<>();
     List<RecordForUpdate> updateRecords = new ArrayList<>();
     for (int i = 0; i < records.size(); i++) {
@@ -301,7 +316,7 @@ public class KintonePageOutput implements TransactionalPageOutput {
     }
   }
 
-  private List<Object> getExistingValuesByUpdateKey(List<UpdateKey> updateKeys) {
+  private List<String> getExistingValuesByUpdateKey(List<UpdateKey> updateKeys) {
     String fieldCode =
         updateKeys.stream()
             .map(UpdateKey::getField)
@@ -311,8 +326,13 @@ public class KintonePageOutput implements TransactionalPageOutput {
     if (fieldCode == null) {
       return Collections.emptyList();
     }
-    FieldType fieldType = formFields.get(fieldCode).getType();
-    if (!Arrays.asList(FieldType.SINGLE_LINE_TEXT, FieldType.NUMBER).contains(fieldType)) {
+    Function<Record, String> fieldValueAsString;
+    FieldType fieldType = getFieldType(fieldCode);
+    if (fieldType == FieldType.SINGLE_LINE_TEXT) {
+      fieldValueAsString = record -> record.getSingleLineTextFieldValue(fieldCode);
+    } else if (fieldType == FieldType.NUMBER) {
+      fieldValueAsString = record -> toString(record.getNumberFieldValue(fieldCode));
+    } else {
       throw new ConfigException("The update_key must be 'SINGLE_LINE_TEXT' or 'NUMBER'.");
     }
     List<String> queryValues =
@@ -340,22 +360,35 @@ public class KintonePageOutput implements TransactionalPageOutput {
       }
     }
     return allRecords.stream()
-        .map(
-            (r) -> {
-              switch (fieldType) {
-                case SINGLE_LINE_TEXT:
-                  return r.getSingleLineTextFieldValue(fieldCode);
-                case NUMBER:
-                  return r.getNumberFieldValue(fieldCode);
-                default:
-                  return null;
-              }
-            })
+        .map(fieldValueAsString)
         .filter(Objects::nonNull)
         .collect(Collectors.toList());
   }
 
-  private boolean existsRecord(List<Object> existingValues, UpdateKey updateKey) {
-    return existingValues.stream().anyMatch(v -> v.equals(updateKey.getValue()));
+  private boolean existsRecord(List<String> existingValues, UpdateKey updateKey) {
+    String value = toString(updateKey.getValue());
+    return value != null && existingValues.stream().anyMatch(v -> v.equals(value));
+  }
+
+  private void putWrongTypeFields(Record record) {
+    record.getFieldCodes(true).stream()
+        .map(
+            fieldCode ->
+                Maps.immutableEntry(
+                    fieldCode, Pair.of(record.getFieldType(fieldCode), getFieldType(fieldCode))))
+        .filter(entry -> entry.getValue().getLeft() != entry.getValue().getRight())
+        .forEach(entry -> wrongTypeFields.put(entry.getKey(), entry.getValue()));
+  }
+
+  private FieldType getFieldType(String fieldCode) {
+    connectIfNeeded(task);
+    FieldProperty field = formFields.get(fieldCode);
+    return field == null ? null : field.getType();
+  }
+
+  private static String toString(Object value) {
+    return value == null
+        ? null
+        : value instanceof BigDecimal ? ((BigDecimal) value).toPlainString() : value.toString();
   }
 }
