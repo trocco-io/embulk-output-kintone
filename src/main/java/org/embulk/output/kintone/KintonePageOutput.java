@@ -113,7 +113,7 @@ public class KintonePageOutput implements TransactionalPageOutput {
     return Exec.newTaskReport();
   }
 
-  public void connectIfNeeded(PluginTask task) {
+  public void connectIfNeeded() {
     if (client != null) {
       return; // Already connected
     }
@@ -144,7 +144,7 @@ public class KintonePageOutput implements TransactionalPageOutput {
   }
 
   private <T> T executeWithRetry(Supplier<T> operation) {
-    connectIfNeeded(task);
+    connectIfNeeded();
     KintoneRetryOption retryOption = task.getRetryOptions();
     try {
       return retryExecutor()
@@ -381,7 +381,7 @@ public class KintonePageOutput implements TransactionalPageOutput {
   }
 
   private FieldType getFieldType(String fieldCode) {
-    connectIfNeeded(task);
+    connectIfNeeded();
     FieldProperty field = formFields.get(fieldCode);
     return field == null ? null : field.getType();
   }
