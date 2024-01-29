@@ -7,7 +7,6 @@ import com.kintone.client.model.FileBody;
 import com.kintone.client.model.Group;
 import com.kintone.client.model.Organization;
 import com.kintone.client.model.User;
-import com.kintone.client.model.record.CalcFieldValue;
 import com.kintone.client.model.record.CheckBoxFieldValue;
 import com.kintone.client.model.record.DateFieldValue;
 import com.kintone.client.model.record.DateTimeFieldValue;
@@ -94,7 +93,6 @@ public class DeserializerTest {
     tableRow.putField("文字列（複数行）", new MultiLineTextFieldValue("テスト\nです。"));
     tableRow.putField("リッチエディター", new RichTextFieldValue("<a href=\"https://www.cybozu.com\">サイボウズ</a>"));
     tableRow.putField("数値", new NumberFieldValue(new BigDecimal("123")));
-    tableRow.putField("計算", new CalcFieldValue(new BigDecimal("456")));
     tableRow.putField("チェックボックス", new CheckBoxFieldValue("選択肢1", "選択肢2"));
     tableRow.putField("ラジオボタン", new RadioButtonFieldValue("選択肢3"));
     tableRow.putField("複数選択", new MultiSelectFieldValue("選択肢4", "選択肢5"));
@@ -118,7 +116,6 @@ public class DeserializerTest {
     tableRow.putField("文字列（複数行）", new MultiLineTextFieldValue(null));
     tableRow.putField("リッチエディター", new RichTextFieldValue(null));
     tableRow.putField("数値", new NumberFieldValue(null));
-    tableRow.putField("計算", new CalcFieldValue((BigDecimal) null));
     tableRow.putField("チェックボックス（空）", new CheckBoxFieldValue());
     tableRow.putField("チェックボックス（null要素）", new CheckBoxFieldValue(null, null));
     tableRow.putField("ラジオボタン", new RadioButtonFieldValue(null));

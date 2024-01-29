@@ -33,6 +33,7 @@ import com.kintone.client.model.record.TableRow;
 import com.kintone.client.model.record.TimeFieldValue;
 import com.kintone.client.model.record.UserSelectFieldValue;
 import java.io.IOException;
+import java.lang.invoke.MethodHandles;
 import java.math.BigDecimal;
 import java.time.LocalDate;
 import java.time.LocalTime;
@@ -46,8 +47,12 @@ import java.util.function.Function;
 import java.util.stream.Collectors;
 import java.util.stream.Stream;
 import java.util.stream.StreamSupport;
+import org.slf4j.Logger;
+import org.slf4j.LoggerFactory;
 
 public class Deserializer {
+  private static final Logger LOGGER =
+      LoggerFactory.getLogger(MethodHandles.lookup().lookupClass());
   private static final JsonNode NULL = new TextNode(null);
   private final ObjectMapper mapper = new ObjectMapper();
 
@@ -130,7 +135,10 @@ public class Deserializer {
   }
 
   private CalcFieldValue deserializeCalc(JsonParser parser, DeserializationContext context) {
-    return new CalcFieldValue((BigDecimal) read(parser, BigDecimal::new));
+    LOGGER.warn(
+        String.format(
+            "Ignore field: %s", new CalcFieldValue((BigDecimal) read(parser, BigDecimal::new))));
+    return null;
   }
 
   private CheckBoxFieldValue deserializeCheckBox(
