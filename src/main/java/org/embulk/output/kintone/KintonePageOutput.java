@@ -113,7 +113,7 @@ public class KintonePageOutput implements TransactionalPageOutput {
     return Exec.newTaskReport();
   }
 
-  public void connectIfNeeded() {
+  private void connectIfNeeded() {
     if (client != null) {
       return; // Already connected
     }
@@ -365,11 +365,6 @@ public class KintonePageOutput implements TransactionalPageOutput {
         .collect(Collectors.toList());
   }
 
-  private boolean existsRecord(List<String> existingValues, UpdateKey updateKey) {
-    String value = toString(updateKey.getValue());
-    return value != null && existingValues.stream().anyMatch(v -> v.equals(value));
-  }
-
   private void putWrongTypeFields(Record record) {
     record.getFieldCodes(true).stream()
         .map(
@@ -384,6 +379,11 @@ public class KintonePageOutput implements TransactionalPageOutput {
     connectIfNeeded();
     FieldProperty field = formFields.get(fieldCode);
     return field == null ? null : field.getType();
+  }
+
+  private static boolean existsRecord(List<String> existingValues, UpdateKey updateKey) {
+    String value = toString(updateKey.getValue());
+    return value != null && existingValues.stream().anyMatch(v -> v.equals(value));
   }
 
   private static String toString(Object value) {
