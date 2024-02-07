@@ -56,6 +56,19 @@ out:
     date_time: {field_code: "datetime", type: "DATETIME"}
 ```
 
+For reduce expanded SUBTABLE
+```yaml
+out:
+  ...
+  reduce_key: id
+  column_options:
+    id: {field_code: "id", type: "NUMBER"}
+    ...
+    table: {field_code: "table", type: "SUBTABLE", sort_columns: [{name: number, order: asc}, {name: text, order: desc}]}
+    table.number: {field_code: "number_in_table", type: "NUMBER"}
+    table.text: {field_code: "text_in_table", type: "SINGLE_LINE_TEXT"}
+```
+
 ## Build
 
 ```
