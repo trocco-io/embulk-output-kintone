@@ -141,7 +141,7 @@ public enum ReduceType {
 
   public static MapValue value(Long id, MapValue value, MapValue sortValue) {
     ValueFactory.MapBuilder builder = ValueFactory.newMapBuilder();
-    builder.put(ID, id == null ? NIL : ValueFactory.newInteger(id));
+    builder.put(ID, id == null ? NIL : ValueFactory.newString(id.toString()));
     builder.put(VALUE, value == null ? ValueFactory.emptyMap() : value);
     builder.put(KEY_SET, value == null ? ValueFactory.emptyArray() : keySet(value));
     builder.put(SORT_VALUE, sortValue == null ? ValueFactory.emptyMap() : sortValue);
