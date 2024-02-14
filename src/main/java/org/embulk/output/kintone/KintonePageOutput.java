@@ -203,6 +203,7 @@ public class KintonePageOutput implements TransactionalPageOutput {
     KintoneColumnVisitor visitor =
         new KintoneColumnVisitor(
             reader,
+            task.getDerivedColumns(),
             task.getColumnOptions(),
             task.getPreferNulls(),
             task.getIgnoreNulls(),
@@ -229,6 +230,7 @@ public class KintonePageOutput implements TransactionalPageOutput {
     KintoneColumnVisitor visitor =
         new KintoneColumnVisitor(
             reader,
+            task.getDerivedColumns(),
             task.getColumnOptions(),
             task.getPreferNulls(),
             task.getIgnoreNulls(),
@@ -264,6 +266,7 @@ public class KintonePageOutput implements TransactionalPageOutput {
     KintoneColumnVisitor visitor =
         new KintoneColumnVisitor(
             reader,
+            task.getDerivedColumns(),
             task.getColumnOptions(),
             task.getPreferNulls(),
             task.getIgnoreNulls(),

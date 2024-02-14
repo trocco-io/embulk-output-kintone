@@ -16,6 +16,7 @@ import java.time.LocalTime;
 import java.time.ZonedDateTime;
 import java.util.AbstractMap;
 import java.util.Arrays;
+import java.util.Collections;
 import java.util.List;
 import java.util.Map;
 import java.util.function.Function;
@@ -581,6 +582,7 @@ public class KintoneColumnVisitorTest {
     Schema schema = build(Schema.builder());
     return new KintoneColumnVisitorVerifier(
         schema,
+        Collections.emptySet(),
         build(ImmutableMap.builder()),
         reduceKeyName,
         updateKeyName,
@@ -592,6 +594,7 @@ public class KintoneColumnVisitorTest {
     Schema schema = build(Schema.builder());
     return new KintoneColumnVisitorVerifier(
         schema,
+        Collections.emptySet(),
         build(ImmutableMap.builder()),
         preferNulls,
         ignoreNulls,

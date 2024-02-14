@@ -5,6 +5,7 @@ import com.kintone.client.model.record.Record;
 import com.kintone.client.model.record.UpdateKey;
 import java.time.Instant;
 import java.util.Map;
+import java.util.Set;
 import org.embulk.spi.Column;
 import org.embulk.spi.ColumnVisitor;
 import org.embulk.spi.PageReader;
@@ -14,6 +15,7 @@ import org.msgpack.value.ValueFactory;
 
 public class KintoneColumnVisitor implements ColumnVisitor {
   private final PageReader reader;
+  private final Set<Column> derived;
   private final Map<String, KintoneColumnOption> options;
   private final boolean preferNulls;
   private final boolean ignoreNulls;
@@ -24,21 +26,24 @@ public class KintoneColumnVisitor implements ColumnVisitor {
 
   public KintoneColumnVisitor(
       PageReader reader,
+      Set<Column> derived,
       Map<String, KintoneColumnOption> options,
       boolean preferNulls,
       boolean ignoreNulls,
       String reduceKeyName) {
-    this(reader, options, preferNulls, ignoreNulls, reduceKeyName, null);
+    this(reader, derived, options, preferNulls, ignoreNulls, reduceKeyName, null);
   }
 
   public KintoneColumnVisitor(
       PageReader reader,
+      Set<Column> derived,
       Map<String, KintoneColumnOption> options,
       boolean preferNulls,
       boolean ignoreNulls,
       String reduceKeyName,
       String updateKeyName) {
     this.reader = reader;
+    this.derived = derived;
     this.options = options;
     this.preferNulls = preferNulls;
     this.ignoreNulls = ignoreNulls;
@@ -153,7 +158,9 @@ public class KintoneColumnVisitor implements ColumnVisitor {
     }
     KintoneColumnOption option = getOption(column);
     UpdateKey updateKey = getUpdateKey(column);
-    KintoneColumnType type = KintoneColumnType.getType(option, KintoneColumnType.MULTI_LINE_TEXT);
+    KintoneColumnType defaultType =
+        isDerived(column) ? KintoneColumnType.SUBTABLE : KintoneColumnType.MULTI_LINE_TEXT;
+    KintoneColumnType type = KintoneColumnType.getType(option, defaultType);
     String fieldCode = getFieldCode(column);
     if (isPreferNull(column)) {
       setNull(type, fieldCode, updateKey);
@@ -264,6 +271,10 @@ public class KintoneColumnVisitor implements ColumnVisitor {
 
   private boolean isReduced(Column column) {
     return reduceKeyName != null && column.getName().matches("^.*\\..*$");
+  }
+
+  private boolean isDerived(Column column) {
+    return reduceKeyName != null && derived.contains(column);
   }
 
   private boolean isIgnoreNull(Column column) {

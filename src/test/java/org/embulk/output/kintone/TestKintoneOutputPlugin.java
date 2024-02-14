@@ -1,5 +1,10 @@
 package org.embulk.output.kintone;
 
+import static org.mockito.Mockito.inOrder;
+import static org.mockito.Mockito.spy;
+import static org.mockito.Mockito.verify;
+import static org.mockito.Mockito.when;
+
 import com.google.common.io.Resources;
 import com.kintone.client.Json;
 import com.kintone.client.model.record.Record;
@@ -14,12 +19,15 @@ import java.util.Arrays;
 import java.util.Collections;
 import java.util.List;
 import java.util.Objects;
+import java.util.Set;
 import java.util.concurrent.atomic.AtomicReference;
 import java.util.function.Function;
 import java.util.stream.Collectors;
 import org.embulk.config.ConfigDiff;
 import org.embulk.config.ConfigSource;
 import org.embulk.config.TaskSource;
+import org.embulk.spi.Column;
+import org.embulk.spi.Exec;
 import org.embulk.spi.OutputPlugin;
 import org.embulk.spi.Schema;
 import org.embulk.spi.TransactionalPageOutput;
@@ -27,6 +35,7 @@ import org.embulk.spi.json.JsonParser;
 import org.embulk.test.EmbulkTests;
 import org.embulk.test.TestingEmbulk;
 import org.junit.Rule;
+import org.mockito.InOrder;
 import org.msgpack.value.Value;
 
 public class TestKintoneOutputPlugin extends KintoneOutputPlugin {
@@ -105,9 +114,17 @@ public class TestKintoneOutputPlugin extends KintoneOutputPlugin {
       Schema schema,
       int taskCount,
       OutputPlugin.Control control) {
+    String test = config.get(String.class, "domain");
+    PluginTask spyTask = spy(config.loadConfig(PluginTask.class));
+    ConfigSource spyConfig = spy(config);
+    when(spyConfig.loadConfig(PluginTask.class)).thenReturn(spyTask);
     AtomicReference<ConfigDiff> configDiff = new AtomicReference<>();
     verifier.runWithMock(
-        () -> configDiff.set(super.transaction(config, schema, taskCount, control)));
+        () -> configDiff.set(super.transaction(spyConfig, schema, taskCount, control)));
+    verify(spyConfig).loadConfig(PluginTask.class);
+    InOrder inOrderTask = inOrder(spyTask);
+    inOrderTask.verify(spyTask).setDerivedColumns(Collections.emptySet());
+    inOrderTask.verify(spyTask).setDerivedColumns(getDerivedColumns(test));
     return configDiff.get();
   }
 
@@ -139,6 +156,16 @@ public class TestKintoneOutputPlugin extends KintoneOutputPlugin {
         getValues(test, preferNulls, ignoreNulls),
         getAddRecords(test, mode, preferNulls, ignoreNulls),
         getUpdateRecords(test, mode, preferNulls, ignoreNulls, field));
+  }
+
+  private static Set<Column> getDerivedColumns(String test) {
+    String name = String.format("%s/derived_columns.json", test);
+    String json = existsResource(name) ? readResource(name) : null;
+    return json == null || json.isEmpty()
+        ? Collections.emptySet()
+        : PARSER.parse(json).asArrayValue().list().stream()
+            .map(value -> Exec.getModelManager().readObject(Column.class, value.toJson()))
+            .collect(Collectors.toSet());
   }
 
   private static List<String> getValues(String test, boolean preferNulls, boolean ignoreNulls) {

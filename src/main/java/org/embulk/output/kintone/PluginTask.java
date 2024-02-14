@@ -3,9 +3,11 @@ package org.embulk.output.kintone;
 import java.util.List;
 import java.util.Map;
 import java.util.Optional;
+import java.util.Set;
 import org.embulk.config.Config;
 import org.embulk.config.ConfigDefault;
 import org.embulk.config.Task;
+import org.embulk.spi.Column;
 
 public interface PluginTask extends Task {
   @Config("domain")
@@ -81,4 +83,8 @@ public interface PluginTask extends Task {
   @Config("retry_options")
   @ConfigDefault("{}")
   KintoneRetryOption getRetryOptions();
+
+  Set<Column> getDerivedColumns();
+
+  void setDerivedColumns(Set<Column> columns);
 }

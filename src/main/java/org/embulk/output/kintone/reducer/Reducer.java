@@ -65,6 +65,8 @@ public class Reducer {
             .collect(Collectors.toList());
     size = schema.size();
     this.schema = schema(task, schema);
+    this.task.setDerivedColumns(
+        range().mapToObj(this.schema::getColumn).collect(Collectors.toSet()));
   }
 
   public ConfigDiff reduce(List<TaskReport> taskReports, Column column) {
@@ -253,7 +255,7 @@ public class Reducer {
   }
 
   private static Type type(PluginTask task, String name) {
-    return KintoneColumnType.getType(task.getColumnOptions().get(name), null)
+    return KintoneColumnType.getType(task.getColumnOptions().get(name), KintoneColumnType.SUBTABLE)
             == KintoneColumnType.SUBTABLE
         ? Types.JSON
         : Types.STRING;
