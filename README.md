@@ -56,7 +56,8 @@ out:
     date_time: {field_code: "datetime", type: "DATETIME"}
 ```
 
-For reduce expanded SUBTABLE
+### For reduce expanded SUBTABLE
+
 ```yaml
 out:
   ...
@@ -68,6 +69,38 @@ out:
     table.number: {field_code: "number_in_table", type: "NUMBER"}
     table.text: {field_code: "text_in_table", type: "SINGLE_LINE_TEXT"}
 ```
+
+#### KINTONE
+
+| Form                      | Field Code      |
+| ------------------------- | --------------- |
+| Table's own               | table           |
+| NUMBER In Table           | number_in_table |
+| SINGLE_LINE_TEXT In Table | text_in_table   |
+
+#### INPUT CSV
+
+```csv
+id,table.number,table.text
+1,0,test0
+1,1,test1
+2,0,test0
+```
+
+#### RESULT
+
+ID:1
+
+| NUMBER        | SINGLE_LINE_TEXT |
+| ------------- | ---------------- |
+| 0             | test0            |
+| 1             | test1            |
+
+ID:2
+
+| NUMBER        | SINGLE_LINE_TEXT |
+| ------------- | ---------------- |
+| 0             | test0            |
 
 ## Build
 
