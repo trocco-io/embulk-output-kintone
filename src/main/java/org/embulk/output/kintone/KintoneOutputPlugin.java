@@ -16,7 +16,6 @@ public class KintoneOutputPlugin implements OutputPlugin {
   public ConfigDiff transaction(
       ConfigSource config, Schema schema, int taskCount, OutputPlugin.Control control) {
     PluginTask task = config.loadConfig(PluginTask.class);
-
     control.run(task.dump());
     return Exec.newConfigDiff();
   }
@@ -34,7 +33,6 @@ public class KintoneOutputPlugin implements OutputPlugin {
   @Override
   public TransactionalPageOutput open(TaskSource taskSource, Schema schema, int taskIndex) {
     PluginTask task = taskSource.loadTask(PluginTask.class);
-
     KintoneMode mode = KintoneMode.getKintoneModeByValue(task.getMode());
     switch (mode) {
       case INSERT:

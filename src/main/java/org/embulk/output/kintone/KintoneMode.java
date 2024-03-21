@@ -6,7 +6,6 @@ public enum KintoneMode {
   INSERT("insert"),
   UPDATE("update"),
   UPSERT("upsert");
-
   private final String value;
 
   KintoneMode(String value) {

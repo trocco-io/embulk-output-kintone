@@ -19,8 +19,6 @@ import com.kintone.client.api.record.GetRecordsByCursorResponseBody;
 import com.kintone.client.model.app.field.FieldProperty;
 import com.kintone.client.model.app.field.NumberFieldProperty;
 import com.kintone.client.model.app.field.SingleLineTextFieldProperty;
-import com.kintone.client.model.record.DateTimeFieldValue;
-import com.kintone.client.model.record.FieldType;
 import com.kintone.client.model.record.FieldValue;
 import com.kintone.client.model.record.NumberFieldValue;
 import com.kintone.client.model.record.Record;
@@ -28,7 +26,6 @@ import com.kintone.client.model.record.RecordForUpdate;
 import com.kintone.client.model.record.SingleLineTextFieldValue;
 import com.kintone.client.model.record.UpdateKey;
 import java.math.BigDecimal;
-import java.time.ZoneId;
 import java.util.Collection;
 import java.util.Collections;
 import java.util.List;
@@ -191,9 +188,7 @@ public class KintonePageOutputVerifier implements TransactionalPageOutput {
       String domain, int index, String fieldCode, FieldValue actual, FieldValue expected) {
     String reason = String.format("%s:%d:%s", domain, index, fieldCode);
     assertThat(reason, actual.getType(), is(expected.getType()));
-    // spotless:off
-    assertThat(reason, actual, is(expected.getType().equals(FieldType.DATETIME) ? new DateTimeFieldValue(((DateTimeFieldValue) expected).getValue().withZoneSameInstant(ZoneId.of("UTC"))) : expected));
-    // spotless:on
+    assertThat(reason, actual, is(expected));
   }
 
   private static void assertRecordForUpdates(
@@ -217,7 +212,7 @@ public class KintonePageOutputVerifier implements TransactionalPageOutput {
       String domain, int index, UpdateKey actual, UpdateKey expected) {
     String reason = String.format("%s:%d", domain, index);
     assertThat(reason, actual.getField(), is(expected.getField()));
-    assertThat(reason, actual.getValue(), is(expected.getValue().toString()));
+    assertThat(reason, actual.getValue(), is(expected.getValue()));
   }
 
   public interface Runnable {

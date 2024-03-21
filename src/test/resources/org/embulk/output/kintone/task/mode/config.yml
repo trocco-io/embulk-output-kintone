@@ -2,36 +2,129 @@ column_options:
   boolean_single_line_text:
     field_code: boolean_single_line_text
     type: SINGLE_LINE_TEXT
+  boolean:
+    field_code: boolean
+    type: NUMBER
   long_single_line_text:
     field_code: long_single_line_text
     type: SINGLE_LINE_TEXT
   long:
     field_code: long
     type: NUMBER
+  long_date:
+    field_code: long_date
+    type: DATE
+  long_date_jst:
+    field_code: long_date_jst
+    type: DATE
+    timezone: Asia/Tokyo
+  long_date_pst:
+    field_code: long_date_pst
+    type: DATE
+    timezone: US/Pacific
+  long_time:
+    field_code: long_time
+    type: TIME
+  long_time_jst:
+    field_code: long_time_jst
+    type: TIME
+    timezone: Asia/Tokyo
+  long_time_pst:
+    field_code: long_time_pst
+    type: TIME
+    timezone: US/Pacific
+  long_datetime:
+    field_code: long_datetime
+    type: DATETIME
   double_single_line_text:
     field_code: double_single_line_text
     type: SINGLE_LINE_TEXT
   double:
     field_code: double
     type: NUMBER
+  double_date:
+    field_code: double_date
+    type: DATE
+  double_date_jst:
+    field_code: double_date_jst
+    type: DATE
+    timezone: Asia/Tokyo
+  double_date_pst:
+    field_code: double_date_pst
+    type: DATE
+    timezone: US/Pacific
+  double_time:
+    field_code: double_time
+    type: TIME
+  double_time_jst:
+    field_code: double_time_jst
+    type: TIME
+    timezone: Asia/Tokyo
+  double_time_pst:
+    field_code: double_time_pst
+    type: TIME
+    timezone: US/Pacific
+  double_datetime:
+    field_code: double_datetime
+    type: DATETIME
   string_single_line_text:
     field_code: string_single_line_text
     type: SINGLE_LINE_TEXT
   string:
     field_code: string
     type: MULTI_LINE_TEXT
+  string_rich_text:
+    field_code: string_rich_text
+    type: RICH_TEXT
   string_number:
     field_code: string_number
     type: NUMBER
   string_check_box:
     field_code: string_check_box
     type: CHECK_BOX
+  string_radio_button:
+    field_code: string_radio_button
+    type: RADIO_BUTTON
+  string_multi_select:
+    field_code: string_multi_select
+    type: MULTI_SELECT
   string_drop_down:
     field_code: string_drop_down
     type: DROP_DOWN
+  string_date:
+    field_code: string_date
+    type: DATE
+  string_date_jst:
+    field_code: string_date_jst
+    type: DATE
+    timezone: Asia/Tokyo
+  string_date_pst:
+    field_code: string_date_pst
+    type: DATE
+    timezone: US/Pacific
+  string_time:
+    field_code: string_time
+    type: TIME
+  string_time_jst:
+    field_code: string_time_jst
+    type: TIME
+    timezone: Asia/Tokyo
+  string_time_pst:
+    field_code: string_time_pst
+    type: TIME
+    timezone: US/Pacific
+  string_datetime:
+    field_code: string_datetime
+    type: DATETIME
   string_link:
     field_code: string_link
     type: LINK
+  timestamp_single_line_text:
+    field_code: timestamp_single_line_text
+    type: SINGLE_LINE_TEXT
+  timestamp_number:
+    field_code: timestamp_number
+    type: NUMBER
   timestamp_date:
     field_code: timestamp_date
     type: DATE
@@ -42,6 +135,17 @@ column_options:
   timestamp_date_pst:
     field_code: timestamp_date_pst
     type: DATE
+    timezone: US/Pacific
+  timestamp_time:
+    field_code: timestamp_time
+    type: TIME
+  timestamp_time_jst:
+    field_code: timestamp_time_jst
+    type: TIME
+    timezone: Asia/Tokyo
+  timestamp_time_pst:
+    field_code: timestamp_time_pst
+    type: TIME
     timezone: US/Pacific
   timestamp:
     field_code: timestamp

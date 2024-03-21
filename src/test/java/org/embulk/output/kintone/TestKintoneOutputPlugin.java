@@ -41,13 +41,15 @@ public class TestKintoneOutputPlugin extends KintoneOutputPlugin {
     String test = taskSource.get(String.class, "Domain");
     String mode = taskSource.get(String.class, "Mode");
     String field = taskSource.get(String.class, "UpdateKeyName");
+    boolean preferNulls = taskSource.get(boolean.class, "PreferNulls");
+    boolean ignoreNulls = taskSource.get(boolean.class, "IgnoreNulls");
     return new KintonePageOutputVerifier(
         super.open(taskSource, schema, taskIndex),
         test,
         field,
-        getValues(test),
-        getAddRecords(test, mode),
-        getUpdateRecords(test, mode, field));
+        getValues(test, preferNulls, ignoreNulls),
+        getAddRecords(test, mode, preferNulls, ignoreNulls),
+        getUpdateRecords(test, mode, preferNulls, ignoreNulls, field));
   }
 
   protected void runOutput(String configName, String inputName) throws Exception {
@@ -89,8 +91,11 @@ public class TestKintoneOutputPlugin extends KintoneOutputPlugin {
     return embulk.configLoader().fromYamlString(string);
   }
 
-  private static List<String> getValues(String test) {
-    String name = String.format("%s/values.json", test);
+  private static List<String> getValues(String test, boolean preferNulls, boolean ignoreNulls) {
+    String name =
+        String.format(
+            "%s/values%s.json",
+            test, ignoreNulls ? "_ignore_nulls" : preferNulls ? "_prefer_nulls" : "");
     String json = existsResource(name) ? readResource(name) : null;
     return json == null || json.isEmpty()
         ? Collections.emptyList()
@@ -99,8 +104,12 @@ public class TestKintoneOutputPlugin extends KintoneOutputPlugin {
             .collect(Collectors.toList());
   }
 
-  private static List<Record> getAddRecords(String test, String mode) {
-    String name = String.format("%s/%s_add_records.jsonl", test, mode);
+  private static List<Record> getAddRecords(
+      String test, String mode, boolean preferNulls, boolean ignoreNulls) {
+    String name =
+        String.format(
+            "%s/%s_add%s_records.jsonl",
+            test, mode, ignoreNulls ? "_ignore_nulls" : preferNulls ? "_prefer_nulls" : "");
     String jsonl = existsResource(name) ? readResource(name) : null;
     return jsonl == null || jsonl.isEmpty()
         ? Collections.emptyList()
@@ -109,9 +118,13 @@ public class TestKintoneOutputPlugin extends KintoneOutputPlugin {
             .collect(Collectors.toList());
   }
 
-  private static List<RecordForUpdate> getUpdateRecords(String test, String mode, String field) {
+  private static List<RecordForUpdate> getUpdateRecords(
+      String test, String mode, boolean preferNulls, boolean ignoreNulls, String field) {
     Function<Record, UpdateKey> key = getKey(field);
-    String name = String.format("%s/%s_update_records.jsonl", test, mode);
+    String name =
+        String.format(
+            "%s/%s_update%s_records.jsonl",
+            test, mode, ignoreNulls ? "_ignore_nulls" : preferNulls ? "_prefer_nulls" : "");
     String jsonl = existsResource(name) ? readResource(name) : null;
     return jsonl == null || jsonl.isEmpty()
         ? Collections.emptyList()
