@@ -119,6 +119,9 @@ column_options:
   string_link:
     field_code: string_link
     type: LINK
+  string_subtable:
+    field_code: string_subtable
+    type: SUBTABLE
   timestamp_single_line_text:
     field_code: timestamp_single_line_text
     type: SINGLE_LINE_TEXT
@@ -156,3 +159,6 @@ column_options:
   json:
     field_code: json
     type: MULTI_LINE_TEXT
+  json_subtable:
+    field_code: json_subtable
+    type: SUBTABLE

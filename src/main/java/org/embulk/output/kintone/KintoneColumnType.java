@@ -29,6 +29,7 @@ import java.time.ZonedDateTime;
 import java.util.Arrays;
 import java.util.Collections;
 import java.util.List;
+import org.embulk.output.kintone.deserializer.Deserializer;
 import org.embulk.spi.time.Timestamp;
 import org.msgpack.value.Value;
 
@@ -306,9 +307,10 @@ public enum KintoneColumnType {
 
     @Override
     public SubtableFieldValue getFieldValue(String value, KintoneColumnOption option) {
-      throw new UnsupportedOperationException();
+      return DESERIALIZER.deserialize(value.isEmpty() ? "[]" : value, SubtableFieldValue.class);
     }
   };
+  private static final Deserializer DESERIALIZER = new Deserializer();
   private static final Timestamp EPOCH = Timestamp.ofInstant(Instant.EPOCH);
 
   public static KintoneColumnType getType(
