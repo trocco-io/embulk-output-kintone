@@ -1,5 +1,11 @@
 package org.embulk.output.kintone;
 
+import static org.embulk.output.kintone.KintoneColumnTypeTest.date;
+import static org.embulk.output.kintone.KintoneColumnTypeTest.dateTime;
+import static org.embulk.output.kintone.KintoneColumnTypeTest.list;
+import static org.embulk.output.kintone.KintoneColumnTypeTest.number;
+import static org.embulk.output.kintone.KintoneColumnTypeTest.rows;
+import static org.embulk.output.kintone.KintoneColumnTypeTest.time;
 import static org.embulk.output.kintone.deserializer.DeserializerTest.assertTableRows;
 import static org.hamcrest.MatcherAssert.assertThat;
 import static org.hamcrest.Matchers.is;
@@ -8,19 +14,11 @@ import static org.junit.Assert.assertThrows;
 
 import com.google.common.collect.ImmutableMap;
 import com.kintone.client.model.record.FieldType;
-import com.kintone.client.model.record.TableRow;
-import java.math.BigDecimal;
 import java.time.Instant;
-import java.time.LocalDate;
-import java.time.LocalTime;
-import java.time.ZonedDateTime;
 import java.util.AbstractMap;
-import java.util.Arrays;
 import java.util.Collections;
-import java.util.List;
 import java.util.Map;
 import java.util.function.Function;
-import java.util.stream.Collectors;
 import org.embulk.output.kintone.deserializer.DeserializerTest;
 import org.embulk.spi.Page;
 import org.embulk.spi.Schema;
@@ -929,31 +927,6 @@ public class KintoneColumnVisitorTest {
         .setJson("JSON|SUBTABLE.SINGLE_LINE_TEXT", ValueFactory.newString("def"))
         .addRecord()
         .build();
-  }
-
-  private static BigDecimal number(String value) {
-    return new BigDecimal(value);
-  }
-
-  @SafeVarargs
-  private static <T> List<T> list(T... a) {
-    return Arrays.asList(a);
-  }
-
-  private static List<TableRow> rows(Long... ids) {
-    return Arrays.stream(ids).map(DeserializerTest::tableRow).collect(Collectors.toList());
-  }
-
-  private static LocalDate date(CharSequence text) {
-    return LocalDate.parse(text);
-  }
-
-  private static LocalTime time(CharSequence text) {
-    return LocalTime.parse(text);
-  }
-
-  private static ZonedDateTime dateTime(CharSequence text) {
-    return ZonedDateTime.parse(text);
   }
 
   private static Timestamp timestamp(CharSequence text) {

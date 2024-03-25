@@ -32,6 +32,8 @@ import java.util.List;
 import java.util.stream.Collectors;
 import org.embulk.output.kintone.deserializer.Deserializer;
 import org.embulk.spi.time.Timestamp;
+import org.embulk.spi.type.Type;
+import org.embulk.spi.type.Types;
 import org.msgpack.value.Value;
 import org.msgpack.value.ValueFactory;
 
@@ -61,6 +63,11 @@ public enum KintoneColumnType {
     public Value asValue(FieldValue value) {
       return ValueFactory.newString(((SingleLineTextFieldValue) value).getValue());
     }
+
+    @Override
+    protected List<Type> getSupportedTypes() {
+      return Arrays.asList(Types.BOOLEAN, Types.LONG, Types.DOUBLE, Types.TIMESTAMP, Types.JSON);
+    }
   },
   MULTI_LINE_TEXT {
     @Override
@@ -77,6 +84,11 @@ public enum KintoneColumnType {
     public Value asValue(FieldValue value) {
       return ValueFactory.newString(((MultiLineTextFieldValue) value).getValue());
     }
+
+    @Override
+    protected List<Type> getSupportedTypes() {
+      return Arrays.asList(Types.BOOLEAN, Types.LONG, Types.DOUBLE, Types.TIMESTAMP, Types.JSON);
+    }
   },
   RICH_TEXT {
     @Override
@@ -92,6 +104,11 @@ public enum KintoneColumnType {
     @Override
     public Value asValue(FieldValue value) {
       return ValueFactory.newString(((RichTextFieldValue) value).getValue());
+    }
+
+    @Override
+    protected List<Type> getSupportedTypes() {
+      return Arrays.asList(Types.BOOLEAN, Types.LONG, Types.DOUBLE, Types.TIMESTAMP, Types.JSON);
     }
   },
   NUMBER {
@@ -129,6 +146,11 @@ public enum KintoneColumnType {
     public Value asValue(FieldValue value) {
       return ValueFactory.newString(((NumberFieldValue) value).getValue().toString());
     }
+
+    @Override
+    protected List<Type> getSupportedTypes() {
+      return Arrays.asList(Types.BOOLEAN, Types.LONG, Types.DOUBLE, Types.TIMESTAMP);
+    }
   },
   CHECK_BOX {
     @Override
@@ -147,6 +169,11 @@ public enum KintoneColumnType {
           ((CheckBoxFieldValue) value)
               .getValues().stream().map(ValueFactory::newString).collect(Collectors.toList()));
     }
+
+    @Override
+    protected List<Type> getSupportedTypes() {
+      return Collections.emptyList();
+    }
   },
   RADIO_BUTTON {
     @Override
@@ -162,6 +189,11 @@ public enum KintoneColumnType {
     @Override
     public Value asValue(FieldValue value) {
       return ValueFactory.newString(((RadioButtonFieldValue) value).getValue());
+    }
+
+    @Override
+    protected List<Type> getSupportedTypes() {
+      return Collections.emptyList();
     }
   },
   MULTI_SELECT {
@@ -181,6 +213,11 @@ public enum KintoneColumnType {
           ((MultiSelectFieldValue) value)
               .getValues().stream().map(ValueFactory::newString).collect(Collectors.toList()));
     }
+
+    @Override
+    protected List<Type> getSupportedTypes() {
+      return Collections.emptyList();
+    }
   },
   DROP_DOWN {
     @Override
@@ -196,6 +233,11 @@ public enum KintoneColumnType {
     @Override
     public Value asValue(FieldValue value) {
       return ValueFactory.newString(((DropDownFieldValue) value).getValue());
+    }
+
+    @Override
+    protected List<Type> getSupportedTypes() {
+      return Collections.emptyList();
     }
   },
   USER_SELECT {
@@ -213,6 +255,11 @@ public enum KintoneColumnType {
     public Value asValue(FieldValue value) {
       throw new UnsupportedOperationException();
     }
+
+    @Override
+    protected List<Type> getSupportedTypes() {
+      return Collections.emptyList();
+    }
   },
   ORGANIZATION_SELECT {
     @Override
@@ -229,6 +276,11 @@ public enum KintoneColumnType {
     public Value asValue(FieldValue value) {
       throw new UnsupportedOperationException();
     }
+
+    @Override
+    protected List<Type> getSupportedTypes() {
+      return Collections.emptyList();
+    }
   },
   GROUP_SELECT {
     @Override
@@ -244,6 +296,11 @@ public enum KintoneColumnType {
     @Override
     public Value asValue(FieldValue value) {
       throw new UnsupportedOperationException();
+    }
+
+    @Override
+    protected List<Type> getSupportedTypes() {
+      return Collections.emptyList();
     }
   },
   DATE {
@@ -282,6 +339,11 @@ public enum KintoneColumnType {
     public Value asValue(FieldValue value) {
       return ValueFactory.newString(((DateFieldValue) value).getValue().toString());
     }
+
+    @Override
+    protected List<Type> getSupportedTypes() {
+      return Arrays.asList(Types.LONG, Types.DOUBLE, Types.TIMESTAMP);
+    }
   },
   TIME {
     @Override
@@ -319,6 +381,11 @@ public enum KintoneColumnType {
     public Value asValue(FieldValue value) {
       return ValueFactory.newString(((TimeFieldValue) value).getValue().toString());
     }
+
+    @Override
+    protected List<Type> getSupportedTypes() {
+      return Arrays.asList(Types.LONG, Types.DOUBLE, Types.TIMESTAMP);
+    }
   },
   DATETIME {
     @Override
@@ -352,6 +419,11 @@ public enum KintoneColumnType {
     public Value asValue(FieldValue value) {
       return ValueFactory.newString(((DateTimeFieldValue) value).getValue().toString());
     }
+
+    @Override
+    protected List<Type> getSupportedTypes() {
+      return Arrays.asList(Types.LONG, Types.DOUBLE, Types.TIMESTAMP);
+    }
   },
   LINK {
     @Override
@@ -367,6 +439,11 @@ public enum KintoneColumnType {
     @Override
     public Value asValue(FieldValue value) {
       return ValueFactory.newString(((LinkFieldValue) value).getValue());
+    }
+
+    @Override
+    protected List<Type> getSupportedTypes() {
+      return Collections.emptyList();
     }
   },
   FILE {
@@ -384,6 +461,11 @@ public enum KintoneColumnType {
     public Value asValue(FieldValue value) {
       throw new UnsupportedOperationException();
     }
+
+    @Override
+    protected List<Type> getSupportedTypes() {
+      return Collections.emptyList();
+    }
   },
   SUBTABLE {
     @Override
@@ -400,6 +482,11 @@ public enum KintoneColumnType {
     public Value asValue(FieldValue value) {
       throw new UnsupportedOperationException();
     }
+
+    @Override
+    protected List<Type> getSupportedTypes() {
+      return Collections.singletonList(Types.JSON);
+    }
   };
   private static final Deserializer DESERIALIZER = new Deserializer();
   private static final Timestamp EPOCH = Timestamp.ofInstant(Instant.EPOCH);
@@ -412,25 +499,45 @@ public enum KintoneColumnType {
   public abstract FieldValue getFieldValue();
 
   public FieldValue getFieldValue(boolean value, KintoneColumnOption option) {
-    return getFieldValue(String.valueOf(value), option);
+    if (getSupportedTypes().contains(Types.BOOLEAN)) {
+      return getFieldValue(String.valueOf(value), option);
+    } else {
+      throw new UnsupportedOperationException();
+    }
   }
 
   public FieldValue getFieldValue(long value, KintoneColumnOption option) {
-    return getFieldValue(String.valueOf(value), option);
+    if (getSupportedTypes().contains(Types.LONG)) {
+      return getFieldValue(String.valueOf(value), option);
+    } else {
+      throw new UnsupportedOperationException();
+    }
   }
 
   public FieldValue getFieldValue(double value, KintoneColumnOption option) {
-    return getFieldValue(String.valueOf(value), option);
+    if (getSupportedTypes().contains(Types.DOUBLE)) {
+      return getFieldValue(String.valueOf(value), option);
+    } else {
+      throw new UnsupportedOperationException();
+    }
   }
 
   public abstract FieldValue getFieldValue(String value, KintoneColumnOption option);
 
   public FieldValue getFieldValue(Timestamp value, KintoneColumnOption option) {
-    return getFieldValue(value.getInstant().toString(), option);
+    if (getSupportedTypes().contains(Types.TIMESTAMP)) {
+      return getFieldValue(value.getInstant().toString(), option);
+    } else {
+      throw new UnsupportedOperationException();
+    }
   }
 
   public FieldValue getFieldValue(Value value, KintoneColumnOption option) {
-    return getFieldValue(value.toJson(), option);
+    if (getSupportedTypes().contains(Types.JSON)) {
+      return getFieldValue(value.toJson(), option);
+    } else {
+      throw new UnsupportedOperationException();
+    }
   }
 
   public void setUpdateKey(UpdateKey updateKey, String field) {
@@ -442,6 +549,8 @@ public enum KintoneColumnType {
   }
 
   public abstract Value asValue(FieldValue value);
+
+  protected abstract List<Type> getSupportedTypes();
 
   private static List<String> asList(String value, KintoneColumnOption option) {
     return value.isEmpty()
