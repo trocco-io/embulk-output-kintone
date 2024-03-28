@@ -1,0 +1,343 @@
+sort_columns:
+- name: double_single_line_text
+  order: asc
+- name: string_number
+  order: asc
+- name: timestamp
+  order: asc
+column_options:
+  double_single_line_text:
+    field_code: double_single_line_text
+    type: SINGLE_LINE_TEXT
+  string_number:
+    field_code: string_number
+    type: NUMBER
+  timestamp:
+    field_code: timestamp
+    type: DATETIME
+  json:
+    field_code: json
+    type: MULTI_LINE_TEXT
+    sort_columns:
+      - name: $id
+        order: asc
+  json.boolean_single_line_text:
+    field_code: json_boolean_single_line_text
+    type: SINGLE_LINE_TEXT
+  json.boolean:
+    field_code: json_boolean
+    type: NUMBER
+  json.long_single_line_text:
+    field_code: json_long_single_line_text
+    type: SINGLE_LINE_TEXT
+  json.long:
+    field_code: json_long
+    type: NUMBER
+  json.long_date:
+    field_code: json_long_date
+    type: DATE
+  json.long_date_jst:
+    field_code: json_long_date_jst
+    type: DATE
+    timezone: Asia/Tokyo
+  json.long_date_pst:
+    field_code: json_long_date_pst
+    type: DATE
+    timezone: US/Pacific
+  json.long_time:
+    field_code: json_long_time
+    type: TIME
+  json.long_time_jst:
+    field_code: json_long_time_jst
+    type: TIME
+    timezone: Asia/Tokyo
+  json.long_time_pst:
+    field_code: json_long_time_pst
+    type: TIME
+    timezone: US/Pacific
+  json.long_datetime:
+    field_code: json_long_datetime
+    type: DATETIME
+  json.double_single_line_text:
+    field_code: json_double_single_line_text
+    type: SINGLE_LINE_TEXT
+  json.double:
+    field_code: json_double
+    type: NUMBER
+  json.double_date:
+    field_code: json_double_date
+    type: DATE
+  json.double_date_jst:
+    field_code: json_double_date_jst
+    type: DATE
+    timezone: Asia/Tokyo
+  json.double_date_pst:
+    field_code: json_double_date_pst
+    type: DATE
+    timezone: US/Pacific
+  json.double_time:
+    field_code: json_double_time
+    type: TIME
+  json.double_time_jst:
+    field_code: json_double_time_jst
+    type: TIME
+    timezone: Asia/Tokyo
+  json.double_time_pst:
+    field_code: json_double_time_pst
+    type: TIME
+    timezone: US/Pacific
+  json.double_datetime:
+    field_code: json_double_datetime
+    type: DATETIME
+  json.string_single_line_text:
+    field_code: json_string_single_line_text
+    type: SINGLE_LINE_TEXT
+  json.string:
+    field_code: json_string
+    type: MULTI_LINE_TEXT
+  json.string_rich_text:
+    field_code: json_string_rich_text
+    type: RICH_TEXT
+  json.string_number:
+    field_code: json_string_number
+    type: NUMBER
+  json.string_check_box:
+    field_code: json_string_check_box
+    type: CHECK_BOX
+  json.string_radio_button:
+    field_code: json_string_radio_button
+    type: RADIO_BUTTON
+  json.string_multi_select:
+    field_code: json_string_multi_select
+    type: MULTI_SELECT
+  json.string_drop_down:
+    field_code: json_string_drop_down
+    type: DROP_DOWN
+  json.string_date:
+    field_code: json_string_date
+    type: DATE
+  json.string_date_jst:
+    field_code: json_string_date_jst
+    type: DATE
+    timezone: Asia/Tokyo
+  json.string_date_pst:
+    field_code: json_string_date_pst
+    type: DATE
+    timezone: US/Pacific
+  json.string_time:
+    field_code: json_string_time
+    type: TIME
+  json.string_time_jst:
+    field_code: json_string_time_jst
+    type: TIME
+    timezone: Asia/Tokyo
+  json.string_time_pst:
+    field_code: json_string_time_pst
+    type: TIME
+    timezone: US/Pacific
+  json.string_datetime:
+    field_code: json_string_datetime
+    type: DATETIME
+  json.string_link:
+    field_code: json_string_link
+    type: LINK
+  json.timestamp_single_line_text:
+    field_code: json_timestamp_single_line_text
+    type: SINGLE_LINE_TEXT
+  json.timestamp_number:
+    field_code: json_timestamp_number
+    type: NUMBER
+  json.timestamp_date:
+    field_code: json_timestamp_date
+    type: DATE
+  json.timestamp_date_jst:
+    field_code: json_timestamp_date_jst
+    type: DATE
+    timezone: Asia/Tokyo
+  json.timestamp_date_pst:
+    field_code: json_timestamp_date_pst
+    type: DATE
+    timezone: US/Pacific
+  json.timestamp_time:
+    field_code: json_timestamp_time
+    type: TIME
+  json.timestamp_time_jst:
+    field_code: json_timestamp_time_jst
+    type: TIME
+    timezone: Asia/Tokyo
+  json.timestamp_time_pst:
+    field_code: json_timestamp_time_pst
+    type: TIME
+    timezone: US/Pacific
+  json.timestamp:
+    field_code: json_timestamp
+    type: DATETIME
+  json.json_single_line_text:
+    field_code: json_json_single_line_text
+    type: SINGLE_LINE_TEXT
+  json.json:
+    field_code: json_json
+    type: MULTI_LINE_TEXT
+  json_subtable:
+    field_code: json_subtable
+    type: SUBTABLE
+    sort_columns:
+      - name: $id
+        order: desc
+  json_subtable.boolean_single_line_text:
+    field_code: json_subtable_boolean_single_line_text
+    type: SINGLE_LINE_TEXT
+  json_subtable.boolean:
+    field_code: json_subtable_boolean
+    type: NUMBER
+  json_subtable.long_single_line_text:
+    field_code: json_subtable_long_single_line_text
+    type: SINGLE_LINE_TEXT
+  json_subtable.long:
+    field_code: json_subtable_long
+    type: NUMBER
+  json_subtable.long_date:
+    field_code: json_subtable_long_date
+    type: DATE
+  json_subtable.long_date_jst:
+    field_code: json_subtable_long_date_jst
+    type: DATE
+    timezone: Asia/Tokyo
+  json_subtable.long_date_pst:
+    field_code: json_subtable_long_date_pst
+    type: DATE
+    timezone: US/Pacific
+  json_subtable.long_time:
+    field_code: json_subtable_long_time
+    type: TIME
+  json_subtable.long_time_jst:
+    field_code: json_subtable_long_time_jst
+    type: TIME
+    timezone: Asia/Tokyo
+  json_subtable.long_time_pst:
+    field_code: json_subtable_long_time_pst
+    type: TIME
+    timezone: US/Pacific
+  json_subtable.long_datetime:
+    field_code: json_subtable_long_datetime
+    type: DATETIME
+  json_subtable.double_single_line_text:
+    field_code: json_subtable_double_single_line_text
+    type: SINGLE_LINE_TEXT
+  json_subtable.double:
+    field_code: json_subtable_double
+    type: NUMBER
+  json_subtable.double_date:
+    field_code: json_subtable_double_date
+    type: DATE
+  json_subtable.double_date_jst:
+    field_code: json_subtable_double_date_jst
+    type: DATE
+    timezone: Asia/Tokyo
+  json_subtable.double_date_pst:
+    field_code: json_subtable_double_date_pst
+    type: DATE
+    timezone: US/Pacific
+  json_subtable.double_time:
+    field_code: json_subtable_double_time
+    type: TIME
+  json_subtable.double_time_jst:
+    field_code: json_subtable_double_time_jst
+    type: TIME
+    timezone: Asia/Tokyo
+  json_subtable.double_time_pst:
+    field_code: json_subtable_double_time_pst
+    type: TIME
+    timezone: US/Pacific
+  json_subtable.double_datetime:
+    field_code: json_subtable_double_datetime
+    type: DATETIME
+  json_subtable.string_single_line_text:
+    field_code: json_subtable_string_single_line_text
+    type: SINGLE_LINE_TEXT
+  json_subtable.string:
+    field_code: json_subtable_string
+    type: MULTI_LINE_TEXT
+  json_subtable.string_rich_text:
+    field_code: json_subtable_string_rich_text
+    type: RICH_TEXT
+  json_subtable.string_number:
+    field_code: json_subtable_string_number
+    type: NUMBER
+  json_subtable.string_check_box:
+    field_code: json_subtable_string_check_box
+    type: CHECK_BOX
+  json_subtable.string_radio_button:
+    field_code: json_subtable_string_radio_button
+    type: RADIO_BUTTON
+  json_subtable.string_multi_select:
+    field_code: json_subtable_string_multi_select
+    type: MULTI_SELECT
+  json_subtable.string_drop_down:
+    field_code: json_subtable_string_drop_down
+    type: DROP_DOWN
+  json_subtable.string_date:
+    field_code: json_subtable_string_date
+    type: DATE
+  json_subtable.string_date_jst:
+    field_code: json_subtable_string_date_jst
+    type: DATE
+    timezone: Asia/Tokyo
+  json_subtable.string_date_pst:
+    field_code: json_subtable_string_date_pst
+    type: DATE
+    timezone: US/Pacific
+  json_subtable.string_time:
+    field_code: json_subtable_string_time
+    type: TIME
+  json_subtable.string_time_jst:
+    field_code: json_subtable_string_time_jst
+    type: TIME
+    timezone: Asia/Tokyo
+  json_subtable.string_time_pst:
+    field_code: json_subtable_string_time_pst
+    type: TIME
+    timezone: US/Pacific
+  json_subtable.string_datetime:
+    field_code: json_subtable_string_datetime
+    type: DATETIME
+  json_subtable.string_link:
+    field_code: json_subtable_string_link
+    type: LINK
+  json_subtable.timestamp_single_line_text:
+    field_code: json_subtable_timestamp_single_line_text
+    type: SINGLE_LINE_TEXT
+  json_subtable.timestamp_number:
+    field_code: json_subtable_timestamp_number
+    type: NUMBER
+  json_subtable.timestamp_date:
+    field_code: json_subtable_timestamp_date
+    type: DATE
+  json_subtable.timestamp_date_jst:
+    field_code: json_subtable_timestamp_date_jst
+    type: DATE
+    timezone: Asia/Tokyo
+  json_subtable.timestamp_date_pst:
+    field_code: json_subtable_timestamp_date_pst
+    type: DATE
+    timezone: US/Pacific
+  json_subtable.timestamp_time:
+    field_code: json_subtable_timestamp_time
+    type: TIME
+  json_subtable.timestamp_time_jst:
+    field_code: json_subtable_timestamp_time_jst
+    type: TIME
+    timezone: Asia/Tokyo
+  json_subtable.timestamp_time_pst:
+    field_code: json_subtable_timestamp_time_pst
+    type: TIME
+    timezone: US/Pacific
+  json_subtable.timestamp:
+    field_code: json_subtable_timestamp
+    type: DATETIME
+  json_subtable.json_single_line_text:
+    field_code: json_subtable_json_single_line_text
+    type: SINGLE_LINE_TEXT
+  json_subtable.json:
+    field_code: json_subtable_json
+    type: MULTI_LINE_TEXT

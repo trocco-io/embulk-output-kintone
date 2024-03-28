@@ -1,10 +1,13 @@
 package org.embulk.output.kintone;
 
+import java.util.List;
 import java.util.Map;
 import java.util.Optional;
+import java.util.Set;
 import org.embulk.config.Config;
 import org.embulk.config.ConfigDefault;
 import org.embulk.config.Task;
+import org.embulk.spi.Column;
 
 public interface PluginTask extends Task {
   @Config("domain")
@@ -57,7 +60,31 @@ public interface PluginTask extends Task {
   @ConfigDefault("null")
   Optional<String> getUpdateKeyName();
 
+  @Config("reduce_key")
+  @ConfigDefault("null")
+  Optional<String> getReduceKeyName();
+
+  @Config("sort_columns")
+  @ConfigDefault("[]")
+  List<KintoneSortColumn> getSortColumns();
+
+  @Config("max_sort_tmp_files")
+  @ConfigDefault("null")
+  Optional<Integer> getMaxSortTmpFiles();
+
+  @Config("max_sort_memory")
+  @ConfigDefault("null")
+  Optional<Long> getMaxSortMemory();
+
+  @Config("chunk_size")
+  @ConfigDefault("100")
+  Integer getChunkSize();
+
   @Config("retry_options")
   @ConfigDefault("{}")
   KintoneRetryOption getRetryOptions();
+
+  Set<Column> getDerivedColumns();
+
+  void setDerivedColumns(Set<Column> columns);
 }

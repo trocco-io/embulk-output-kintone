@@ -4,6 +4,7 @@ import com.kintone.client.model.record.FieldType;
 import com.kintone.client.model.record.Record;
 import com.kintone.client.model.record.UpdateKey;
 import java.util.Map;
+import java.util.Set;
 import java.util.function.BiConsumer;
 import javax.validation.UnexpectedTypeException;
 import org.embulk.spi.Column;
@@ -18,22 +19,31 @@ public class KintoneColumnVisitorVerifier {
   private final KintoneColumnVisitor visitor;
 
   public KintoneColumnVisitorVerifier(
-      Schema schema, Map<String, KintoneColumnOption> options, String updateKeyName, Page page) {
-    this(schema, options, false, false, updateKeyName, page);
+      Schema schema,
+      Set<Column> derived,
+      Map<String, KintoneColumnOption> options,
+      String reduceKeyName,
+      String updateKeyName,
+      Page page) {
+    this(schema, derived, options, false, false, reduceKeyName, updateKeyName, page);
   }
 
   public KintoneColumnVisitorVerifier(
       Schema schema,
+      Set<Column> derived,
       Map<String, KintoneColumnOption> options,
       boolean preferNulls,
       boolean ignoreNulls,
+      String reduceKeyName,
       String updateKeyName,
       Page page) {
     this.schema = schema;
     this.options = options;
     reader = new PageReader(schema);
     reader.setPage(page);
-    visitor = new KintoneColumnVisitor(reader, options, preferNulls, ignoreNulls, updateKeyName);
+    visitor =
+        new KintoneColumnVisitor(
+            reader, derived, options, preferNulls, ignoreNulls, reduceKeyName, updateKeyName);
   }
 
   public void verify() {

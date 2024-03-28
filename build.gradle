@@ -28,6 +28,7 @@ targetCompatibility = 1.8
 
 dependencies {
     compileOnly "org.embulk:embulk-core:0.9.23"
+    implementation "com.google.code.externalsortinginjava:externalsortinginjava:0.6.2"
     implementation project(path: ":shadow-kintone-java-client", configuration: "shadow")
 
     testImplementation "junit:junit:4.+"

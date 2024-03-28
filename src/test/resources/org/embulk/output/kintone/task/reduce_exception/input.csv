@@ -1,0 +1,13 @@
+double_single_line_text:double,string_number:string,json.$id:long,json.double_single_line_text:double,json.string_number:string,json_subtable.$id:long,json_subtable.double_single_line_text:double,json_subtable.string_number:string
+123,456,1,123,456,,,
+123,456,2,123,456,,,
+123,456,3,456,123,,,
+123,456,4,456,123,,,
+123,456,5,456,123,7,123,456
+123,456,6,456,123,8,456,123
+456,123,7,123,456,1,123,456
+456,123,8,123,456,2,456,123
+456,123,,,,3,456,123
+456,123,,,,4,123,456
+456,123,,,,5,456,123
+456,123,,,,6,123,456

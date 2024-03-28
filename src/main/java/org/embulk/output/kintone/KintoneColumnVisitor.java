@@ -5,6 +5,7 @@ import com.kintone.client.model.record.Record;
 import com.kintone.client.model.record.UpdateKey;
 import java.time.Instant;
 import java.util.Map;
+import java.util.Set;
 import org.embulk.spi.Column;
 import org.embulk.spi.ColumnVisitor;
 import org.embulk.spi.PageReader;
@@ -14,31 +15,39 @@ import org.msgpack.value.ValueFactory;
 
 public class KintoneColumnVisitor implements ColumnVisitor {
   private final PageReader reader;
+  private final Set<Column> derived;
   private final Map<String, KintoneColumnOption> options;
   private final boolean preferNulls;
   private final boolean ignoreNulls;
+  private final String reduceKeyName;
   private final String updateKeyName;
   private Record record;
   private UpdateKey updateKey;
 
   public KintoneColumnVisitor(
       PageReader reader,
+      Set<Column> derived,
       Map<String, KintoneColumnOption> options,
       boolean preferNulls,
-      boolean ignoreNulls) {
-    this(reader, options, preferNulls, ignoreNulls, null);
+      boolean ignoreNulls,
+      String reduceKeyName) {
+    this(reader, derived, options, preferNulls, ignoreNulls, reduceKeyName, null);
   }
 
   public KintoneColumnVisitor(
       PageReader reader,
+      Set<Column> derived,
       Map<String, KintoneColumnOption> options,
       boolean preferNulls,
       boolean ignoreNulls,
+      String reduceKeyName,
       String updateKeyName) {
     this.reader = reader;
+    this.derived = derived;
     this.options = options;
     this.preferNulls = preferNulls;
     this.ignoreNulls = ignoreNulls;
+    this.reduceKeyName = reduceKeyName;
     this.updateKeyName = updateKeyName;
   }
 
@@ -52,7 +61,7 @@ public class KintoneColumnVisitor implements ColumnVisitor {
 
   @Override
   public void booleanColumn(Column column) {
-    if (isIgnoreNull(column)) {
+    if (isReduced(column) || isIgnoreNull(column)) {
       return;
     }
     KintoneColumnOption option = getOption(column);
@@ -70,7 +79,7 @@ public class KintoneColumnVisitor implements ColumnVisitor {
 
   @Override
   public void longColumn(Column column) {
-    if (isIgnoreNull(column)) {
+    if (isReduced(column) || isIgnoreNull(column)) {
       return;
     }
     KintoneColumnOption option = getOption(column);
@@ -88,7 +97,7 @@ public class KintoneColumnVisitor implements ColumnVisitor {
 
   @Override
   public void doubleColumn(Column column) {
-    if (isIgnoreNull(column)) {
+    if (isReduced(column) || isIgnoreNull(column)) {
       return;
     }
     KintoneColumnOption option = getOption(column);
@@ -106,7 +115,7 @@ public class KintoneColumnVisitor implements ColumnVisitor {
 
   @Override
   public void stringColumn(Column column) {
-    if (isIgnoreNull(column)) {
+    if (isReduced(column) || isIgnoreNull(column)) {
       return;
     }
     KintoneColumnOption option = getOption(column);
@@ -126,7 +135,7 @@ public class KintoneColumnVisitor implements ColumnVisitor {
 
   @Override
   public void timestampColumn(Column column) {
-    if (isIgnoreNull(column)) {
+    if (isReduced(column) || isIgnoreNull(column)) {
       return;
     }
     KintoneColumnOption option = getOption(column);
@@ -144,12 +153,14 @@ public class KintoneColumnVisitor implements ColumnVisitor {
 
   @Override
   public void jsonColumn(Column column) {
-    if (isIgnoreNull(column)) {
+    if (isReduced(column) || isIgnoreNull(column)) {
       return;
     }
     KintoneColumnOption option = getOption(column);
     UpdateKey updateKey = getUpdateKey(column);
-    KintoneColumnType type = KintoneColumnType.getType(option, KintoneColumnType.MULTI_LINE_TEXT);
+    KintoneColumnType defaultType =
+        isDerived(column) ? KintoneColumnType.SUBTABLE : KintoneColumnType.MULTI_LINE_TEXT;
+    KintoneColumnType type = KintoneColumnType.getType(option, defaultType);
     String fieldCode = getFieldCode(column);
     if (isPreferNull(column)) {
       setNull(type, fieldCode, updateKey);
@@ -256,6 +267,14 @@ public class KintoneColumnVisitor implements ColumnVisitor {
 
   private UpdateKey getUpdateKey(Column column) {
     return updateKeyName != null && updateKeyName.equals(column.getName()) ? updateKey : null;
+  }
+
+  private boolean isReduced(Column column) {
+    return reduceKeyName != null && column.getName().matches("^.*\\..*$");
+  }
+
+  private boolean isDerived(Column column) {
+    return reduceKeyName != null && derived.contains(column);
   }
 
   private boolean isIgnoreNull(Column column) {
