@@ -137,7 +137,8 @@ public class TestKintoneOutputPlugin extends KintoneOutputPlugin {
     return new KintonePageOutputVerifier(
         test,
         field,
-        getValues(test, preferNulls, ignoreNulls),
+        getValues(test, mode, preferNulls, ignoreNulls, field),
+        getAddValues(test, mode, preferNulls, ignoreNulls, field),
         getAddRecords(test, mode, preferNulls, ignoreNulls),
         getUpdateRecords(test, mode, preferNulls, ignoreNulls, field));
   }
@@ -153,7 +154,8 @@ public class TestKintoneOutputPlugin extends KintoneOutputPlugin {
         super.open(taskSource, schema, taskIndex),
         test,
         field,
-        getValues(test, preferNulls, ignoreNulls),
+        getValues(test, mode, preferNulls, ignoreNulls, field),
+        getAddValues(test, mode, preferNulls, ignoreNulls, field),
         getAddRecords(test, mode, preferNulls, ignoreNulls),
         getUpdateRecords(test, mode, preferNulls, ignoreNulls, field));
   }
@@ -168,11 +170,32 @@ public class TestKintoneOutputPlugin extends KintoneOutputPlugin {
             .collect(Collectors.toSet());
   }
 
-  private static List<String> getValues(String test, boolean preferNulls, boolean ignoreNulls) {
+  private static List<String> getValues(
+      String test, String mode, boolean preferNulls, boolean ignoreNulls, String field) {
     String name =
         String.format(
-            "%s/values%s.json",
-            test, ignoreNulls ? "_ignore_nulls" : preferNulls ? "_prefer_nulls" : "");
+            "%s/%s%s%s_values.json",
+            test,
+            mode,
+            ignoreNulls ? "_ignore_nulls" : preferNulls ? "_prefer_nulls" : "",
+            format(field));
+    String json = existsResource(name) ? readResource(name) : null;
+    return json == null || json.isEmpty()
+        ? Collections.emptyList()
+        : PARSER.parse(json).asArrayValue().list().stream()
+            .map(Value::toJson)
+            .collect(Collectors.toList());
+  }
+
+  private static List<String> getAddValues(
+      String test, String mode, boolean preferNulls, boolean ignoreNulls, String field) {
+    String name =
+        String.format(
+            "%s/%s%s%s_add_values.json",
+            test,
+            mode,
+            ignoreNulls ? "_ignore_nulls" : preferNulls ? "_prefer_nulls" : "",
+            format(field));
     String json = existsResource(name) ? readResource(name) : null;
     return json == null || json.isEmpty()
         ? Collections.emptyList()
@@ -185,7 +208,7 @@ public class TestKintoneOutputPlugin extends KintoneOutputPlugin {
       String test, String mode, boolean preferNulls, boolean ignoreNulls) {
     String name =
         String.format(
-            "%s/%s_add%s_records.jsonl",
+            "%s/%s%s_add_records.jsonl",
             test, mode, ignoreNulls ? "_ignore_nulls" : preferNulls ? "_prefer_nulls" : "");
     String jsonl = existsResource(name) ? readResource(name) : null;
     return jsonl == null || jsonl.isEmpty()
@@ -200,7 +223,7 @@ public class TestKintoneOutputPlugin extends KintoneOutputPlugin {
     Function<Record, UpdateKey> key = getKey(field);
     String name =
         String.format(
-            "%s/%s_update%s_records.jsonl",
+            "%s/%s%s_update_records.jsonl",
             test, mode, ignoreNulls ? "_ignore_nulls" : preferNulls ? "_prefer_nulls" : "");
     String jsonl = existsResource(name) ? readResource(name) : null;
     return jsonl == null || jsonl.isEmpty()
@@ -209,6 +232,10 @@ public class TestKintoneOutputPlugin extends KintoneOutputPlugin {
             .map(s -> Json.parse(s, Record.class))
             .map(record -> new RecordForUpdate(key.apply(record), record.removeField(field)))
             .collect(Collectors.toList());
+  }
+
+  private static String format(String string) {
+    return string == null ? "" : String.format("_%s", string.replace('$', '_'));
   }
 
   private static Function<Record, UpdateKey> getKey(String field) {

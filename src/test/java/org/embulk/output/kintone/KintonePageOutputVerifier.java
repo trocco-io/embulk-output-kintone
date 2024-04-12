@@ -3,24 +3,13 @@ package org.embulk.output.kintone;
 import static org.embulk.output.kintone.deserializer.DeserializerTest.assertTableRows;
 import static org.hamcrest.MatcherAssert.assertThat;
 import static org.hamcrest.Matchers.is;
-import static org.mockito.ArgumentMatchers.anyList;
 import static org.mockito.ArgumentMatchers.eq;
-import static org.mockito.ArgumentMatchers.matches;
 import static org.mockito.Mockito.CALLS_REAL_METHODS;
 import static org.mockito.Mockito.atLeast;
-import static org.mockito.Mockito.mock;
 import static org.mockito.Mockito.mockStatic;
 import static org.mockito.Mockito.verify;
-import static org.mockito.Mockito.when;
 
-import com.kintone.client.AppClient;
-import com.kintone.client.KintoneClient;
-import com.kintone.client.KintoneClientBuilder;
 import com.kintone.client.RecordClient;
-import com.kintone.client.api.record.GetRecordsByCursorResponseBody;
-import com.kintone.client.model.app.field.FieldProperty;
-import com.kintone.client.model.app.field.NumberFieldProperty;
-import com.kintone.client.model.app.field.SingleLineTextFieldProperty;
 import com.kintone.client.model.record.FieldType;
 import com.kintone.client.model.record.FieldValue;
 import com.kintone.client.model.record.NumberFieldValue;
@@ -33,7 +22,7 @@ import java.math.BigDecimal;
 import java.util.Collection;
 import java.util.Collections;
 import java.util.List;
-import java.util.Map;
+import java.util.function.Function;
 import java.util.stream.Collectors;
 import java.util.stream.IntStream;
 import org.embulk.config.TaskReport;
@@ -44,12 +33,15 @@ import org.embulk.spi.Page;
 import org.embulk.spi.TransactionalPageOutput;
 import org.mockito.ArgumentCaptor;
 import org.mockito.MockedStatic;
+import org.msgpack.value.StringValue;
+import org.msgpack.value.ValueFactory;
 
 public class KintonePageOutputVerifier implements TransactionalPageOutput {
   private final TransactionalPageOutput transactionalPageOutput;
   private final String domain;
   private final String field;
   private final List<String> values;
+  private final List<String> addValues;
   private final List<Record> addRecords;
   private final List<RecordForUpdate> updateRecords;
 
@@ -57,9 +49,10 @@ public class KintonePageOutputVerifier implements TransactionalPageOutput {
       String domain,
       String field,
       List<String> values,
+      List<String> addValues,
       List<Record> addRecords,
       List<RecordForUpdate> updateRecords) {
-    this(null, domain, field, values, addRecords, updateRecords);
+    this(null, domain, field, values, addValues, addRecords, updateRecords);
   }
 
   public KintonePageOutputVerifier(
@@ -67,12 +60,14 @@ public class KintonePageOutputVerifier implements TransactionalPageOutput {
       String domain,
       String field,
       List<String> values,
+      List<String> addValues,
       List<Record> addRecords,
       List<RecordForUpdate> updateRecords) {
     this.transactionalPageOutput = transactionalPageOutput;
     this.domain = domain;
     this.field = field;
     this.values = values;
+    this.addValues = addValues;
     this.addRecords = addRecords;
     this.updateRecords = updateRecords;
   }
@@ -105,7 +100,7 @@ public class KintonePageOutputVerifier implements TransactionalPageOutput {
     return transactionalPageOutput.commit();
   }
 
-  public void runWithMock(Runnable runnable) {
+  public void runWithMock(MockClient.Runnable runnable) {
     try {
       runWithMockExec(runnable);
     } catch (Exception e) {
@@ -113,7 +108,7 @@ public class KintonePageOutputVerifier implements TransactionalPageOutput {
     }
   }
 
-  private void runWithMockExec(Runnable runnable) throws Exception {
+  private void runWithMockExec(MockClient.Runnable runnable) throws Exception {
     BufferAllocator bufferAllocator = PooledBufferAllocator.create(1024 * 1024);
     try (MockedStatic<Exec> mocked = mockStatic(Exec.class, CALLS_REAL_METHODS)) {
       mocked.when(Exec::getBufferAllocator).thenReturn(bufferAllocator);
@@ -121,37 +116,11 @@ public class KintonePageOutputVerifier implements TransactionalPageOutput {
     }
   }
 
-  private void runWithMockClient(Runnable runnable) throws Exception {
-    @SuppressWarnings("unchecked")
-    Map<String, FieldProperty> mockFormFields = mock(Map.class);
-    when(mockFormFields.get(matches("^.*_single_line_text$")))
-        .thenReturn(new SingleLineTextFieldProperty());
-    when(mockFormFields.get(matches("^.*_number$"))).thenReturn(new NumberFieldProperty());
-    AppClient mockAppClient = mock(AppClient.class);
-    when(mockAppClient.getFormFields(eq(0L))).thenReturn(mockFormFields);
-    GetRecordsByCursorResponseBody mockGetRecordsByCursorResponseBody =
-        mock(GetRecordsByCursorResponseBody.class);
-    when(mockGetRecordsByCursorResponseBody.getRecords())
-        .thenReturn(updateRecords.stream().map(this::getRecord).collect(Collectors.toList()));
-    when(mockGetRecordsByCursorResponseBody.hasNext()).thenReturn(false);
-    RecordClient mockRecordClient = mock(RecordClient.class);
-    when(mockRecordClient.createCursor(eq(0L), eq(getFields()), eq(getQuery()))).thenReturn("id");
-    when(mockRecordClient.getRecordsByCursor(eq("id")))
-        .thenReturn(mockGetRecordsByCursorResponseBody);
-    when(mockRecordClient.addRecords(eq(0L), anyList())).thenReturn(Collections.emptyList());
-    when(mockRecordClient.updateRecords(eq(0L), anyList())).thenReturn(Collections.emptyList());
-    KintoneClient mockKintoneClient = mock(KintoneClient.class);
-    when(mockKintoneClient.app()).thenReturn(mockAppClient);
-    when(mockKintoneClient.record()).thenReturn(mockRecordClient);
-    KintoneClientBuilder mockKintoneClientBuilder = mock(KintoneClientBuilder.class);
-    when(mockKintoneClientBuilder.authByApiToken(eq("token"))).thenReturn(mockKintoneClientBuilder);
-    when(mockKintoneClientBuilder.build()).thenReturn(mockKintoneClient);
-    try (MockedStatic<KintoneClientBuilder> mocked = mockStatic(KintoneClientBuilder.class)) {
-      mocked
-          .when(() -> KintoneClientBuilder.create(String.format("https://%s", domain)))
-          .thenReturn(mockKintoneClientBuilder);
-      runnable.run();
-    }
+  private void runWithMockClient(MockClient.Runnable runnable) throws Exception {
+    assertValues(domain, getValues(), sorted(values));
+    MockClient mockClient = new MockClient(domain, getRecords(), getFields(), getQuery());
+    RecordClient mockRecordClient = mockClient.getMockRecordClient();
+    mockClient.run(runnable);
     @SuppressWarnings("unchecked")
     ArgumentCaptor<List<Record>> addRecordsArgumentCaptor = ArgumentCaptor.forClass(List.class);
     verify(mockRecordClient, atLeast(0)).addRecords(eq(0L), addRecordsArgumentCaptor.capture());
@@ -174,6 +143,27 @@ public class KintonePageOutputVerifier implements TransactionalPageOutput {
         updateRecords);
   }
 
+  private List<String> getValues() {
+    if (values.isEmpty() || updateRecords.isEmpty()) {
+      return values;
+    }
+    Function<FieldValue, StringValue> toValue =
+        value ->
+            field.matches("^.*_number$")
+                ? ValueFactory.newString(((NumberFieldValue) value).getValue().toPlainString())
+                : ValueFactory.newString(((SingleLineTextFieldValue) value).getValue());
+    List<String> values =
+        getRecords().stream()
+            .map(record -> toValue.apply(record.getFieldValue(field)).toJson())
+            .collect(Collectors.toList());
+    values.addAll(addValues);
+    return sorted(values);
+  }
+
+  private List<Record> getRecords() {
+    return updateRecords.stream().map(this::getRecord).collect(Collectors.toList());
+  }
+
   private Record getRecord(RecordForUpdate updateRecord) {
     UpdateKey key = updateRecord.getUpdateKey();
     String field = key.getField();
@@ -192,6 +182,18 @@ public class KintonePageOutputVerifier implements TransactionalPageOutput {
 
   private String getQuery() {
     return String.format("%s in (%s)", field, String.join(",", values));
+  }
+
+  private static void assertValues(String domain, List<String> actual, List<String> expected) {
+    assertThat(domain, actual.size(), is(expected.size()));
+    // spotless:off
+    IntStream.range(0, actual.size()).forEach(index -> assertValue(domain, index, actual.get(index), expected.get(index)));
+    // spotless:on
+  }
+
+  private static void assertValue(String domain, int index, String actual, String expected) {
+    String reason = String.format("%s:%d", domain, index);
+    assertThat(reason, actual, is(expected));
   }
 
   private static void assertRecords(String domain, List<Record> actual, List<Record> expected) {
@@ -245,20 +247,32 @@ public class KintonePageOutputVerifier implements TransactionalPageOutput {
   private static void assertRecordForUpdate(
       String domain, int index, RecordForUpdate actual, RecordForUpdate expected) {
     String reason = String.format("%s:%d", domain, index);
-    assertThat(reason, actual.getId(), is(expected.getId()));
-    assertUpdateKey(domain, index, actual.getUpdateKey(), expected.getUpdateKey());
+    assertId(domain, index, actual, expected);
+    assertUpdateKey(domain, index, actual, expected);
     assertRecord(domain, index, actual.getRecord(), expected.getRecord());
     assertThat(reason, actual.getRevision(), is(expected.getRevision()));
   }
 
-  private static void assertUpdateKey(
-      String domain, int index, UpdateKey actual, UpdateKey expected) {
+  private static void assertId(
+      String domain, int index, RecordForUpdate actual, RecordForUpdate expected) {
+    if (actual.getUpdateKey() != null && expected.getUpdateKey() != null) {
+      return;
+    }
     String reason = String.format("%s:%d", domain, index);
-    assertThat(reason, actual.getField(), is(expected.getField()));
-    assertThat(reason, actual.getValue(), is(expected.getValue()));
+    assertThat(reason, actual.getId(), is(expected.getId()));
   }
 
-  public interface Runnable {
-    void run() throws Exception;
+  private static void assertUpdateKey(
+      String domain, int index, RecordForUpdate actual, RecordForUpdate expected) {
+    if (actual.getId() != null && expected.getId() != null) {
+      return;
+    }
+    String reason = String.format("%s:%d", domain, index);
+    assertThat(reason, actual.getUpdateKey().getField(), is(expected.getUpdateKey().getField()));
+    assertThat(reason, actual.getUpdateKey().getValue(), is(expected.getUpdateKey().getValue()));
+  }
+
+  private static <T> List<T> sorted(List<T> list) {
+    return list.stream().sorted().collect(Collectors.toList());
   }
 }

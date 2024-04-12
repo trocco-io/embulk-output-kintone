@@ -13,6 +13,7 @@ import com.kintone.client.model.record.MultiSelectFieldValue;
 import com.kintone.client.model.record.NumberFieldValue;
 import com.kintone.client.model.record.OrganizationSelectFieldValue;
 import com.kintone.client.model.record.RadioButtonFieldValue;
+import com.kintone.client.model.record.Record;
 import com.kintone.client.model.record.RichTextFieldValue;
 import com.kintone.client.model.record.SingleLineTextFieldValue;
 import com.kintone.client.model.record.SubtableFieldValue;
@@ -47,6 +48,11 @@ public enum KintoneColumnType {
     @Override
     public SingleLineTextFieldValue getFieldValue(String value, KintoneColumnOption option) {
       return new SingleLineTextFieldValue(value);
+    }
+
+    @Override
+    public Object getValue(Record record, String fieldCode) {
+      return record.getSingleLineTextFieldValue(fieldCode);
     }
 
     @Override
@@ -133,6 +139,11 @@ public enum KintoneColumnType {
     }
 
     @Override
+    public Object getValue(Record record, String fieldCode) {
+      return record.getNumberFieldValue(fieldCode);
+    }
+
+    @Override
     public void setUpdateKey(UpdateKey updateKey, String field) {
       updateKey.setField(field);
     }
@@ -144,7 +155,7 @@ public enum KintoneColumnType {
 
     @Override
     public Value asValue(FieldValue value) {
-      return ValueFactory.newString(((NumberFieldValue) value).getValue().toString());
+      return ValueFactory.newString(((NumberFieldValue) value).getValue().toPlainString());
     }
 
     @Override
@@ -538,6 +549,10 @@ public enum KintoneColumnType {
     } else {
       throw new UnsupportedOperationException();
     }
+  }
+
+  public Object getValue(Record Record, String fieldCode) {
+    throw new UnsupportedOperationException();
   }
 
   public void setUpdateKey(UpdateKey updateKey, String field) {
