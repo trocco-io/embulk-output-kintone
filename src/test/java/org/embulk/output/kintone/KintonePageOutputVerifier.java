@@ -27,6 +27,7 @@ import java.util.stream.Collectors;
 import java.util.stream.IntStream;
 import org.embulk.config.TaskReport;
 import org.embulk.deps.buffer.PooledBufferAllocator;
+import org.embulk.output.kintone.record.Id;
 import org.embulk.spi.BufferAllocator;
 import org.embulk.spi.Exec;
 import org.embulk.spi.Page;
@@ -152,10 +153,12 @@ public class KintonePageOutputVerifier implements TransactionalPageOutput {
             field.matches("^.*_number$")
                 ? ValueFactory.newString(((NumberFieldValue) value).getValue().toPlainString())
                 : ValueFactory.newString(((SingleLineTextFieldValue) value).getValue());
-    List<String> values =
-        getRecords().stream()
-            .map(record -> toValue.apply(record.getFieldValue(field)).toJson())
-            .collect(Collectors.toList());
+    Function<Record, String> toJson =
+        record ->
+            Id.FIELD.equals(field)
+                ? ValueFactory.newString(record.getId().toString()).toJson()
+                : toValue.apply(record.getFieldValue(field)).toJson();
+    List<String> values = getRecords().stream().map(toJson).collect(Collectors.toList());
     values.addAll(addValues);
     return sorted(values);
   }
@@ -165,7 +168,16 @@ public class KintonePageOutputVerifier implements TransactionalPageOutput {
   }
 
   private Record getRecord(RecordForUpdate updateRecord) {
+    Long id = updateRecord.getId();
     UpdateKey key = updateRecord.getUpdateKey();
+    return id != null ? getRecord(id) : getRecord(key);
+  }
+
+  private Record getRecord(Long id) {
+    return new Record(id, null);
+  }
+
+  private Record getRecord(UpdateKey key) {
     String field = key.getField();
     Object value = key.getValue();
     return new Record()

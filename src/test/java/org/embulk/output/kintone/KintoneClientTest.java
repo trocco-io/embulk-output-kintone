@@ -9,6 +9,7 @@ import org.embulk.config.ConfigException;
 import org.embulk.config.ConfigSource;
 import org.embulk.output.kintone.util.Lazy;
 import org.embulk.spi.Schema;
+import org.embulk.spi.type.Type;
 import org.embulk.spi.type.Types;
 import org.junit.Before;
 import org.junit.Test;
@@ -30,13 +31,17 @@ public class KintoneClientTest extends TestKintoneOutputPlugin {
     assertConfigException("When mode is insert, require no update_key.");
     merge(config("update_key: string_single_line_text"));
     assertConfigException("When mode is insert, require no update_key.");
+    merge(config("update_key: $id"));
+    assertConfigException("When mode is insert, require no update_key.", id(Types.LONG));
+    merge(config("update_key: null"));
+    runWithMockClient(Lazy::get, id(Types.STRING));
   }
 
   @Test
   public void testUpdate() {
     merge(config("mode: update"));
     merge(config("update_key: null"));
-    assertConfigException("When mode is update, require update_key.");
+    assertConfigException("When mode is update, require update_key or id column.");
     merge(config("update_key: non_existing_column"));
     assertConfigException("The column 'non_existing_column' for update does not exist.");
     merge(config("update_key: non_existing_field"));
@@ -47,13 +52,17 @@ public class KintoneClientTest extends TestKintoneOutputPlugin {
     runWithMockClient(Lazy::get);
     merge(config("update_key: string_single_line_text"));
     runWithMockClient(Lazy::get);
+    merge(config("update_key: $id"));
+    runWithMockClient(Lazy::get, id(Types.LONG));
+    merge(config("update_key: null"));
+    assertConfigException("The id column must be 'long'.", id(Types.STRING));
   }
 
   @Test
   public void testUpsert() {
     merge(config("mode: upsert"));
     merge(config("update_key: null"));
-    assertConfigException("When mode is upsert, require update_key.");
+    assertConfigException("When mode is upsert, require update_key or id column.");
     merge(config("update_key: non_existing_column"));
     assertConfigException("The column 'non_existing_column' for update does not exist.");
     merge(config("update_key: non_existing_field"));
@@ -64,6 +73,10 @@ public class KintoneClientTest extends TestKintoneOutputPlugin {
     runWithMockClient(Lazy::get);
     merge(config("update_key: string_single_line_text"));
     runWithMockClient(Lazy::get);
+    merge(config("update_key: $id"));
+    runWithMockClient(Lazy::get, id(Types.LONG));
+    merge(config("update_key: null"));
+    assertConfigException("The id column must be 'long'.", id(Types.STRING));
   }
 
   private void assertConfigException(String message) {
@@ -110,6 +123,10 @@ public class KintoneClientTest extends TestKintoneOutputPlugin {
         .add("long_number", Types.LONG)
         .add("string_single_line_text", Types.STRING)
         .build();
+  }
+
+  private static Schema.Builder id(Type type) {
+    return builder().add("$id", type);
   }
 
   private static Schema.Builder builder() {

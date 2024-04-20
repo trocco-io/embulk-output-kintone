@@ -7,6 +7,7 @@ import java.util.Set;
 import org.embulk.config.Config;
 import org.embulk.config.ConfigDefault;
 import org.embulk.config.Task;
+import org.embulk.output.kintone.record.Skip;
 import org.embulk.spi.Column;
 
 public interface PluginTask extends Task {
@@ -51,6 +52,10 @@ public interface PluginTask extends Task {
   @Config("ignore_nulls")
   @ConfigDefault("\"false\"")
   boolean getIgnoreNulls();
+
+  @Config("skip_if_non_existing_id_or_update_key")
+  @ConfigDefault("\"auto\"")
+  Skip getSkipIfNonExistingIdOrUpdateKey();
 
   @Config("mode")
   @ConfigDefault("\"insert\"")

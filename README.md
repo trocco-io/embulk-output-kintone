@@ -26,6 +26,7 @@ kintone output plugin for Embulk stores app records from kintone.
 - **max_sort_memory**: Maximum memory usage for sorting input records (bytes in long, default is the estimated available memory, which is the approximate value of the JVM's current free memory)
 - **prefer_nulls**: Whether to set fields to null instead of default value of type when column is null (boolean, default is `false`)
 - **ignore_nulls**: Whether to completely ignore fields when column is null (boolean, default is `false`)
+- **skip_if_non_existing_id_or_update_key**: Skip policy if id or update key of record does not exist (string `auto`, `never` or `always`, default is `auto`)
 - **column_options** advanced: a key-value pairs where key is a column name and value is options for the column.
     - **field_code**: field code (string, required)
     - **type**: field type (string, required). See [this page](https://cybozu.dev/ja/kintone/docs/overview/field-types/#field-type-update) for list of available types. However, following types are not yet supported
