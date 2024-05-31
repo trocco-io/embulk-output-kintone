@@ -44,7 +44,7 @@ public class KintoneColumnVisitorTest {
   public void test() {
     KintoneColumnVisitorVerifier verifier = verifier(null, "STRING|SINGLE_LINE_TEXT");
     verifier.verify(
-        (record, updateKey) -> {
+        (record, idOrUpdateKey) -> {
           assertThat(record.getSingleLineTextFieldValue("BOOLEAN|SINGLE_LINE_TEXT"), is("false"));
           assertThat(record.getNumberFieldValue("BOOLEAN"), is(number("0")));
           assertThat(record.getSingleLineTextFieldValue("LONG|SINGLE_LINE_TEXT"), is("0"));
@@ -104,11 +104,11 @@ public class KintoneColumnVisitorTest {
           assertThat(record.getSubtableFieldValue("JSON|SUBTABLE"), is(list()));
           assertThat(
               record.getSingleLineTextFieldValue("JSON|SUBTABLE.SINGLE_LINE_TEXT"), is("\"\""));
-          assertThat(updateKey.getField(), is("STRING|SINGLE_LINE_TEXT"));
-          assertThat(updateKey.getValue(), is(""));
+          assertThat(idOrUpdateKey.getField(), is("STRING|SINGLE_LINE_TEXT"));
+          assertThat(idOrUpdateKey.getValue(), is(""));
         });
     verifier.verify(
-        (record, updateKey) -> {
+        (record, idOrUpdateKey) -> {
           assertThat(record.getSingleLineTextFieldValue("BOOLEAN|SINGLE_LINE_TEXT"), is("false"));
           assertThat(record.getNumberFieldValue("BOOLEAN"), is(number("0")));
           assertThat(record.getSingleLineTextFieldValue("LONG|SINGLE_LINE_TEXT"), is("0"));
@@ -168,11 +168,11 @@ public class KintoneColumnVisitorTest {
           assertThat(record.getSubtableFieldValue("JSON|SUBTABLE"), is(list()));
           assertThat(
               record.getSingleLineTextFieldValue("JSON|SUBTABLE.SINGLE_LINE_TEXT"), is("\"\""));
-          assertThat(updateKey.getField(), is("STRING|SINGLE_LINE_TEXT"));
-          assertThat(updateKey.getValue(), is(""));
+          assertThat(idOrUpdateKey.getField(), is("STRING|SINGLE_LINE_TEXT"));
+          assertThat(idOrUpdateKey.getValue(), is(""));
         });
     verifier.verify(
-        (record, updateKey) -> {
+        (record, idOrUpdateKey) -> {
           assertThat(record.getSingleLineTextFieldValue("BOOLEAN|SINGLE_LINE_TEXT"), is("true"));
           assertThat(record.getNumberFieldValue("BOOLEAN"), is(number("1")));
           assertThat(record.getSingleLineTextFieldValue("LONG|SINGLE_LINE_TEXT"), is("123"));
@@ -233,11 +233,11 @@ public class KintoneColumnVisitorTest {
           assertTableRows(record.getSubtableFieldValue("JSON|SUBTABLE"), rows(0L, 1L, 2L));
           assertThat(
               record.getSingleLineTextFieldValue("JSON|SUBTABLE.SINGLE_LINE_TEXT"), is("\"abc\""));
-          assertThat(updateKey.getField(), is("STRING|SINGLE_LINE_TEXT"));
-          assertThat(updateKey.getValue(), is("abc"));
+          assertThat(idOrUpdateKey.getField(), is("STRING|SINGLE_LINE_TEXT"));
+          assertThat(idOrUpdateKey.getValue(), is("abc"));
         });
     verifier.verify(
-        (record, updateKey) -> {
+        (record, idOrUpdateKey) -> {
           assertThat(record.getSingleLineTextFieldValue("BOOLEAN|SINGLE_LINE_TEXT"), is("false"));
           assertThat(record.getNumberFieldValue("BOOLEAN"), is(number("0")));
           assertThat(record.getSingleLineTextFieldValue("LONG|SINGLE_LINE_TEXT"), is("456"));
@@ -298,8 +298,8 @@ public class KintoneColumnVisitorTest {
           assertTableRows(record.getSubtableFieldValue("JSON|SUBTABLE"), rows(3L, 4L, 5L));
           assertThat(
               record.getSingleLineTextFieldValue("JSON|SUBTABLE.SINGLE_LINE_TEXT"), is("\"def\""));
-          assertThat(updateKey.getField(), is("STRING|SINGLE_LINE_TEXT"));
-          assertThat(updateKey.getValue(), is("def"));
+          assertThat(idOrUpdateKey.getField(), is("STRING|SINGLE_LINE_TEXT"));
+          assertThat(idOrUpdateKey.getValue(), is("def"));
         });
   }
 
@@ -307,7 +307,7 @@ public class KintoneColumnVisitorTest {
   public void testPreferNulls() {
     KintoneColumnVisitorVerifier verifier = verifier(null, "LONG", true, false);
     verifier.verify(
-        (record, updateKey) -> {
+        (record, idOrUpdateKey) -> {
           assertThat(
               record.getFieldType("BOOLEAN|SINGLE_LINE_TEXT"), is(FieldType.SINGLE_LINE_TEXT));
           assertThat(record.getFieldType("BOOLEAN"), is(FieldType.NUMBER));
@@ -415,8 +415,8 @@ public class KintoneColumnVisitorTest {
           assertThat(record.getSubtableFieldValue("JSON|SUBTABLE"), is(list()));
           assertThat(
               record.getSingleLineTextFieldValue("JSON|SUBTABLE.SINGLE_LINE_TEXT"), nullValue());
-          assertThat(updateKey.getField(), is("LONG"));
-          assertThat(updateKey.getValue(), nullValue());
+          assertThat(idOrUpdateKey.getField(), is("LONG"));
+          assertThat(idOrUpdateKey.getValue(), nullValue());
         });
   }
 
@@ -424,7 +424,7 @@ public class KintoneColumnVisitorTest {
   public void testIgnoreNulls() {
     KintoneColumnVisitorVerifier verifier = verifier("JSON", "JSON", false, true);
     verifier.verify(
-        (record, updateKey) -> {
+        (record, idOrUpdateKey) -> {
           assertThat(record.getFieldValue("BOOLEAN|SINGLE_LINE_TEXT"), nullValue());
           assertThat(record.getFieldValue("BOOLEAN"), nullValue());
           assertThat(record.getFieldValue("LONG|SINGLE_LINE_TEXT"), nullValue());
@@ -475,8 +475,8 @@ public class KintoneColumnVisitorTest {
           assertThat(record.getFieldValue("JSON"), nullValue());
           assertThat(record.getFieldValue("JSON|SUBTABLE"), nullValue());
           assertThat(record.getFieldValue("JSON|SUBTABLE.SINGLE_LINE_TEXT"), nullValue());
-          assertThat(updateKey.getField(), nullValue());
-          assertThat(updateKey.getValue(), nullValue());
+          assertThat(idOrUpdateKey.getField(), nullValue());
+          assertThat(idOrUpdateKey.getValue(), nullValue());
         },
         true);
   }
@@ -485,7 +485,7 @@ public class KintoneColumnVisitorTest {
   public void testReduceKey() {
     KintoneColumnVisitorVerifier verifier = verifier("JSON|SUBTABLE", null);
     verifier.verify(
-        (record, updateKey) -> {
+        (record, idOrUpdateKey) -> {
           assertThat(record.getSingleLineTextFieldValue("BOOLEAN|SINGLE_LINE_TEXT"), is("false"));
           assertThat(record.getNumberFieldValue("BOOLEAN"), is(number("0")));
           assertThat(record.getSingleLineTextFieldValue("LONG|SINGLE_LINE_TEXT"), is("0"));
@@ -544,8 +544,8 @@ public class KintoneColumnVisitorTest {
           assertThat(record.getMultiLineTextFieldValue("JSON"), is("\"\""));
           assertThat(record.getSubtableFieldValue("JSON|SUBTABLE"), is(list()));
           assertThat(record.getFieldValue("JSON|SUBTABLE.SINGLE_LINE_TEXT"), nullValue());
-          assertThat(updateKey.getField(), nullValue());
-          assertThat(updateKey.getValue(), nullValue());
+          assertThat(idOrUpdateKey.getField(), nullValue());
+          assertThat(idOrUpdateKey.getValue(), nullValue());
         },
         true);
   }
@@ -555,24 +555,24 @@ public class KintoneColumnVisitorTest {
     assertThrows(UnsupportedOperationException.class, () -> verifier(null, "TIMESTAMP").verify());
     KintoneColumnVisitorVerifier verifier = verifier(null, "TIMESTAMP|NUMBER");
     verifier.verify(
-        (record, updateKey) -> {
-          assertThat(updateKey.getField(), is("TIMESTAMP|NUMBER"));
-          assertThat(updateKey.getValue(), is(number("0")));
+        (record, idOrUpdateKey) -> {
+          assertThat(idOrUpdateKey.getField(), is("TIMESTAMP|NUMBER"));
+          assertThat(idOrUpdateKey.getValue(), is(number("0")));
         });
     verifier.verify(
-        (record, updateKey) -> {
-          assertThat(updateKey.getField(), is("TIMESTAMP|NUMBER"));
-          assertThat(updateKey.getValue(), is(number("0")));
+        (record, idOrUpdateKey) -> {
+          assertThat(idOrUpdateKey.getField(), is("TIMESTAMP|NUMBER"));
+          assertThat(idOrUpdateKey.getValue(), is(number("0")));
         });
     verifier.verify(
-        (record, updateKey) -> {
-          assertThat(updateKey.getField(), is("TIMESTAMP|NUMBER"));
-          assertThat(updateKey.getValue(), is(number("946684799")));
+        (record, idOrUpdateKey) -> {
+          assertThat(idOrUpdateKey.getField(), is("TIMESTAMP|NUMBER"));
+          assertThat(idOrUpdateKey.getValue(), is(number("946684799")));
         });
     verifier.verify(
-        (record, updateKey) -> {
-          assertThat(updateKey.getField(), is("TIMESTAMP|NUMBER"));
-          assertThat(updateKey.getValue(), is(number("946684800")));
+        (record, idOrUpdateKey) -> {
+          assertThat(idOrUpdateKey.getField(), is("TIMESTAMP|NUMBER"));
+          assertThat(idOrUpdateKey.getValue(), is(number("946684800")));
         });
   }
 

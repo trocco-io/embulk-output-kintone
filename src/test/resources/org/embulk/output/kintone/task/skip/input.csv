@@ -1,0 +1,7 @@
+$id:long,long_number:long,string_single_line_text:string,boolean:boolean,long:long,double:double,string:string,timestamp:timestamp,json:json
+123,123,abc,true,123,123,abc,1999-12-31 23:59:59.000 +0000,"""abc"""
+,,,,,,,,
+456,456,def,false,456,456,def,2000-01-01 00:00:00.000 +0000,"""def"""
+,,,,,,,,
+789,789,ghi,,789,789,ghi,,"""ghi"""
+,,,,,,,,

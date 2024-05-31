@@ -13,6 +13,7 @@ import com.kintone.client.model.record.MultiSelectFieldValue;
 import com.kintone.client.model.record.NumberFieldValue;
 import com.kintone.client.model.record.OrganizationSelectFieldValue;
 import com.kintone.client.model.record.RadioButtonFieldValue;
+import com.kintone.client.model.record.Record;
 import com.kintone.client.model.record.RichTextFieldValue;
 import com.kintone.client.model.record.SingleLineTextFieldValue;
 import com.kintone.client.model.record.SubtableFieldValue;
@@ -34,6 +35,8 @@ import org.embulk.output.kintone.deserializer.Deserializer;
 import org.embulk.spi.time.Timestamp;
 import org.embulk.spi.type.Type;
 import org.embulk.spi.type.Types;
+import org.msgpack.value.ArrayValue;
+import org.msgpack.value.StringValue;
 import org.msgpack.value.Value;
 import org.msgpack.value.ValueFactory;
 
@@ -50,6 +53,11 @@ public enum KintoneColumnType {
     }
 
     @Override
+    public String getValue(Record record, String fieldCode) {
+      return record.getSingleLineTextFieldValue(fieldCode);
+    }
+
+    @Override
     public void setUpdateKey(UpdateKey updateKey, String field) {
       updateKey.setField(field);
     }
@@ -60,7 +68,7 @@ public enum KintoneColumnType {
     }
 
     @Override
-    public Value asValue(FieldValue value) {
+    public StringValue asValue(FieldValue value) {
       return ValueFactory.newString(((SingleLineTextFieldValue) value).getValue());
     }
 
@@ -81,7 +89,7 @@ public enum KintoneColumnType {
     }
 
     @Override
-    public Value asValue(FieldValue value) {
+    public StringValue asValue(FieldValue value) {
       return ValueFactory.newString(((MultiLineTextFieldValue) value).getValue());
     }
 
@@ -102,7 +110,7 @@ public enum KintoneColumnType {
     }
 
     @Override
-    public Value asValue(FieldValue value) {
+    public StringValue asValue(FieldValue value) {
       return ValueFactory.newString(((RichTextFieldValue) value).getValue());
     }
 
@@ -133,6 +141,11 @@ public enum KintoneColumnType {
     }
 
     @Override
+    public BigDecimal getValue(Record record, String fieldCode) {
+      return record.getNumberFieldValue(fieldCode);
+    }
+
+    @Override
     public void setUpdateKey(UpdateKey updateKey, String field) {
       updateKey.setField(field);
     }
@@ -143,8 +156,8 @@ public enum KintoneColumnType {
     }
 
     @Override
-    public Value asValue(FieldValue value) {
-      return ValueFactory.newString(((NumberFieldValue) value).getValue().toString());
+    public StringValue asValue(FieldValue value) {
+      return ValueFactory.newString(((NumberFieldValue) value).getValue().toPlainString());
     }
 
     @Override
@@ -164,7 +177,7 @@ public enum KintoneColumnType {
     }
 
     @Override
-    public Value asValue(FieldValue value) {
+    public ArrayValue asValue(FieldValue value) {
       return ValueFactory.newArray(
           ((CheckBoxFieldValue) value)
               .getValues().stream().map(ValueFactory::newString).collect(Collectors.toList()));
@@ -187,7 +200,7 @@ public enum KintoneColumnType {
     }
 
     @Override
-    public Value asValue(FieldValue value) {
+    public StringValue asValue(FieldValue value) {
       return ValueFactory.newString(((RadioButtonFieldValue) value).getValue());
     }
 
@@ -208,7 +221,7 @@ public enum KintoneColumnType {
     }
 
     @Override
-    public Value asValue(FieldValue value) {
+    public ArrayValue asValue(FieldValue value) {
       return ValueFactory.newArray(
           ((MultiSelectFieldValue) value)
               .getValues().stream().map(ValueFactory::newString).collect(Collectors.toList()));
@@ -231,7 +244,7 @@ public enum KintoneColumnType {
     }
 
     @Override
-    public Value asValue(FieldValue value) {
+    public StringValue asValue(FieldValue value) {
       return ValueFactory.newString(((DropDownFieldValue) value).getValue());
     }
 
@@ -336,7 +349,7 @@ public enum KintoneColumnType {
     }
 
     @Override
-    public Value asValue(FieldValue value) {
+    public StringValue asValue(FieldValue value) {
       return ValueFactory.newString(((DateFieldValue) value).getValue().toString());
     }
 
@@ -378,7 +391,7 @@ public enum KintoneColumnType {
     }
 
     @Override
-    public Value asValue(FieldValue value) {
+    public StringValue asValue(FieldValue value) {
       return ValueFactory.newString(((TimeFieldValue) value).getValue().toString());
     }
 
@@ -416,7 +429,7 @@ public enum KintoneColumnType {
     }
 
     @Override
-    public Value asValue(FieldValue value) {
+    public StringValue asValue(FieldValue value) {
       return ValueFactory.newString(((DateTimeFieldValue) value).getValue().toString());
     }
 
@@ -437,7 +450,7 @@ public enum KintoneColumnType {
     }
 
     @Override
-    public Value asValue(FieldValue value) {
+    public StringValue asValue(FieldValue value) {
       return ValueFactory.newString(((LinkFieldValue) value).getValue());
     }
 
@@ -538,6 +551,10 @@ public enum KintoneColumnType {
     } else {
       throw new UnsupportedOperationException();
     }
+  }
+
+  public Object getValue(Record Record, String fieldCode) {
+    throw new UnsupportedOperationException();
   }
 
   public void setUpdateKey(UpdateKey updateKey, String field) {

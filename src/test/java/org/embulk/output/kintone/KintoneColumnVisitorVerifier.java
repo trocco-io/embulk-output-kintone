@@ -2,11 +2,11 @@ package org.embulk.output.kintone;
 
 import com.kintone.client.model.record.FieldType;
 import com.kintone.client.model.record.Record;
-import com.kintone.client.model.record.UpdateKey;
 import java.util.Map;
 import java.util.Set;
 import java.util.function.BiConsumer;
 import javax.validation.UnexpectedTypeException;
+import org.embulk.output.kintone.record.IdOrUpdateKey;
 import org.embulk.spi.Column;
 import org.embulk.spi.Page;
 import org.embulk.spi.PageReader;
@@ -50,21 +50,21 @@ public class KintoneColumnVisitorVerifier {
     verify((record, updateKey) -> {});
   }
 
-  public void verify(BiConsumer<Record, UpdateKey> consumer) {
+  public void verify(BiConsumer<Record, IdOrUpdateKey> consumer) {
     verify(consumer, false);
   }
 
-  public void verify(BiConsumer<Record, UpdateKey> consumer, boolean nullable) {
+  public void verify(BiConsumer<Record, IdOrUpdateKey> consumer, boolean nullable) {
     if (!reader.nextRecord()) {
       throw new IllegalStateException();
     }
     Record record = new Record();
     visitor.setRecord(record);
-    UpdateKey updateKey = new UpdateKey();
-    visitor.setUpdateKey(updateKey);
+    IdOrUpdateKey idOrUpdateKey = new IdOrUpdateKey();
+    visitor.setIdOrUpdateKey(idOrUpdateKey);
     schema.visitColumns(visitor);
     schema.getColumns().forEach(column -> verify(record, column, nullable));
-    consumer.accept(record, updateKey);
+    consumer.accept(record, idOrUpdateKey);
   }
 
   private void verify(Record record, Column column, boolean nullable) {

@@ -26,6 +26,8 @@ import java.util.stream.Collectors;
 import org.embulk.config.ConfigDiff;
 import org.embulk.config.ConfigSource;
 import org.embulk.config.TaskSource;
+import org.embulk.output.kintone.record.Id;
+import org.embulk.output.kintone.record.Skip;
 import org.embulk.spi.Column;
 import org.embulk.spi.Exec;
 import org.embulk.spi.OutputPlugin;
@@ -132,14 +134,16 @@ public class TestKintoneOutputPlugin extends KintoneOutputPlugin {
     String test = config.get(String.class, "domain");
     String mode = config.get(String.class, "mode");
     String field = config.get(String.class, "update_key", null);
+    Skip skip = config.get(Skip.class, "skip_if_non_existing_id_or_update_key");
     boolean preferNulls = config.get(boolean.class, "prefer_nulls", false);
     boolean ignoreNulls = config.get(boolean.class, "ignore_nulls", false);
     return new KintonePageOutputVerifier(
         test,
         field,
-        getValues(test, preferNulls, ignoreNulls),
-        getAddRecords(test, mode, preferNulls, ignoreNulls),
-        getUpdateRecords(test, mode, preferNulls, ignoreNulls, field));
+        getValues(test, mode, skip, preferNulls, ignoreNulls, field),
+        getAddValues(test, mode, skip, preferNulls, ignoreNulls, field),
+        getAddRecords(test, mode, skip, preferNulls, ignoreNulls),
+        getUpdateRecords(test, mode, skip, preferNulls, ignoreNulls, field));
   }
 
   private TransactionalPageOutput openWithVerifier(
@@ -147,15 +151,17 @@ public class TestKintoneOutputPlugin extends KintoneOutputPlugin {
     String test = taskSource.get(String.class, "Domain");
     String mode = taskSource.get(String.class, "Mode");
     String field = taskSource.get(String.class, "UpdateKeyName");
+    Skip skip = taskSource.get(Skip.class, "SkipIfNonExistingIdOrUpdateKey");
     boolean preferNulls = taskSource.get(boolean.class, "PreferNulls");
     boolean ignoreNulls = taskSource.get(boolean.class, "IgnoreNulls");
     return new KintonePageOutputVerifier(
         super.open(taskSource, schema, taskIndex),
         test,
         field,
-        getValues(test, preferNulls, ignoreNulls),
-        getAddRecords(test, mode, preferNulls, ignoreNulls),
-        getUpdateRecords(test, mode, preferNulls, ignoreNulls, field));
+        getValues(test, mode, skip, preferNulls, ignoreNulls, field),
+        getAddValues(test, mode, skip, preferNulls, ignoreNulls, field),
+        getAddRecords(test, mode, skip, preferNulls, ignoreNulls),
+        getUpdateRecords(test, mode, skip, preferNulls, ignoreNulls, field));
   }
 
   private static Set<Column> getDerivedColumns(String test) {
@@ -168,11 +174,34 @@ public class TestKintoneOutputPlugin extends KintoneOutputPlugin {
             .collect(Collectors.toSet());
   }
 
-  private static List<String> getValues(String test, boolean preferNulls, boolean ignoreNulls) {
+  private static List<String> getValues(
+      String test, String mode, Skip skip, boolean preferNulls, boolean ignoreNulls, String field) {
     String name =
         String.format(
-            "%s/values%s.json",
-            test, ignoreNulls ? "_ignore_nulls" : preferNulls ? "_prefer_nulls" : "");
+            "%s/%s%s%s%s_values.json",
+            test,
+            mode,
+            format(skip),
+            ignoreNulls ? "_ignore_nulls" : preferNulls ? "_prefer_nulls" : "",
+            format(field));
+    String json = existsResource(name) ? readResource(name) : null;
+    return json == null || json.isEmpty()
+        ? Collections.emptyList()
+        : PARSER.parse(json).asArrayValue().list().stream()
+            .map(Value::toJson)
+            .collect(Collectors.toList());
+  }
+
+  private static List<String> getAddValues(
+      String test, String mode, Skip skip, boolean preferNulls, boolean ignoreNulls, String field) {
+    String name =
+        String.format(
+            "%s/%s%s%s%s_add_values.json",
+            test,
+            mode,
+            format(skip),
+            ignoreNulls ? "_ignore_nulls" : preferNulls ? "_prefer_nulls" : "",
+            format(field));
     String json = existsResource(name) ? readResource(name) : null;
     return json == null || json.isEmpty()
         ? Collections.emptyList()
@@ -182,11 +211,14 @@ public class TestKintoneOutputPlugin extends KintoneOutputPlugin {
   }
 
   private static List<Record> getAddRecords(
-      String test, String mode, boolean preferNulls, boolean ignoreNulls) {
+      String test, String mode, Skip skip, boolean preferNulls, boolean ignoreNulls) {
     String name =
         String.format(
-            "%s/%s_add%s_records.jsonl",
-            test, mode, ignoreNulls ? "_ignore_nulls" : preferNulls ? "_prefer_nulls" : "");
+            "%s/%s%s%s_add_records.jsonl",
+            test,
+            mode,
+            format(skip),
+            ignoreNulls ? "_ignore_nulls" : preferNulls ? "_prefer_nulls" : "");
     String jsonl = existsResource(name) ? readResource(name) : null;
     return jsonl == null || jsonl.isEmpty()
         ? Collections.emptyList()
@@ -196,19 +228,35 @@ public class TestKintoneOutputPlugin extends KintoneOutputPlugin {
   }
 
   private static List<RecordForUpdate> getUpdateRecords(
-      String test, String mode, boolean preferNulls, boolean ignoreNulls, String field) {
+      String test, String mode, Skip skip, boolean preferNulls, boolean ignoreNulls, String field) {
     Function<Record, UpdateKey> key = getKey(field);
+    Function<Record, RecordForUpdate> forUpdate =
+        record ->
+            Id.FIELD.equals(field)
+                ? new RecordForUpdate(record.getId(), Record.newFrom(record))
+                : new RecordForUpdate(key.apply(record), record.removeField(field));
     String name =
         String.format(
-            "%s/%s_update%s_records.jsonl",
-            test, mode, ignoreNulls ? "_ignore_nulls" : preferNulls ? "_prefer_nulls" : "");
+            "%s/%s%s%s_update_records.jsonl",
+            test,
+            mode,
+            format(skip),
+            ignoreNulls ? "_ignore_nulls" : preferNulls ? "_prefer_nulls" : "");
     String jsonl = existsResource(name) ? readResource(name) : null;
     return jsonl == null || jsonl.isEmpty()
         ? Collections.emptyList()
         : Arrays.stream(jsonl.split("\\r?\\n|\\r"))
             .map(s -> Json.parse(s, Record.class))
-            .map(record -> new RecordForUpdate(key.apply(record), record.removeField(field)))
+            .map(forUpdate)
             .collect(Collectors.toList());
+  }
+
+  private static String format(Skip skip) {
+    return skip == Skip.AUTO ? "" : String.format("_%s_skip", skip.name().toLowerCase());
+  }
+
+  private static String format(String string) {
+    return string == null ? "" : String.format("_%s", string.replace('$', '_'));
   }
 
   private static Function<Record, UpdateKey> getKey(String field) {
