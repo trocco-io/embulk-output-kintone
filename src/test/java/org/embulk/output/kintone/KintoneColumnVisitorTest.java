@@ -2,10 +2,13 @@ package org.embulk.output.kintone;
 
 import static org.embulk.output.kintone.KintoneColumnTypeTest.date;
 import static org.embulk.output.kintone.KintoneColumnTypeTest.dateTime;
+import static org.embulk.output.kintone.KintoneColumnTypeTest.groups;
 import static org.embulk.output.kintone.KintoneColumnTypeTest.list;
 import static org.embulk.output.kintone.KintoneColumnTypeTest.number;
+import static org.embulk.output.kintone.KintoneColumnTypeTest.organizations;
 import static org.embulk.output.kintone.KintoneColumnTypeTest.rows;
 import static org.embulk.output.kintone.KintoneColumnTypeTest.time;
+import static org.embulk.output.kintone.KintoneColumnTypeTest.users;
 import static org.embulk.output.kintone.deserializer.DeserializerTest.assertTableRows;
 import static org.hamcrest.MatcherAssert.assertThat;
 import static org.hamcrest.Matchers.is;
@@ -87,6 +90,10 @@ public class KintoneColumnVisitorTest {
               is(dateTime("1970-01-01T00:00:00Z")));
           assertThat(record.getLinkFieldValue("STRING|LINK"), is(""));
           assertThat(record.getSubtableFieldValue("STRING|SUBTABLE"), is(list()));
+          assertThat(record.getUserSelectFieldValue("STRING|USER_SELECT"), is(list()));
+          assertThat(
+              record.getOrganizationSelectFieldValue("STRING|ORGANIZATION_SELECT"), is(list()));
+          assertThat(record.getGroupSelectFieldValue("STRING|GROUP_SELECT"), is(list()));
           assertThat(
               record.getSingleLineTextFieldValue("TIMESTAMP|SINGLE_LINE_TEXT"),
               is("1970-01-01T00:00:00Z"));
@@ -151,6 +158,10 @@ public class KintoneColumnVisitorTest {
               is(dateTime("1970-01-01T00:00:00Z")));
           assertThat(record.getLinkFieldValue("STRING|LINK"), is(""));
           assertThat(record.getSubtableFieldValue("STRING|SUBTABLE"), is(list()));
+          assertThat(record.getUserSelectFieldValue("STRING|USER_SELECT"), is(list()));
+          assertThat(
+              record.getOrganizationSelectFieldValue("STRING|ORGANIZATION_SELECT"), is(list()));
+          assertThat(record.getGroupSelectFieldValue("STRING|GROUP_SELECT"), is(list()));
           assertThat(
               record.getSingleLineTextFieldValue("TIMESTAMP|SINGLE_LINE_TEXT"),
               is("1970-01-01T00:00:00Z"));
@@ -217,6 +228,14 @@ public class KintoneColumnVisitorTest {
           assertThat(record.getLinkFieldValue("STRING|LINK"), is("abc"));
           assertTableRows(record.getSubtableFieldValue("STRING|SUBTABLE"), rows(0L, 1L, 2L));
           assertThat(
+              record.getUserSelectFieldValue("STRING|USER_SELECT"), is(users("user1", "user2")));
+          assertThat(
+              record.getOrganizationSelectFieldValue("STRING|ORGANIZATION_SELECT"),
+              is(organizations("org1", "org2")));
+          assertThat(
+              record.getGroupSelectFieldValue("STRING|GROUP_SELECT"),
+              is(groups("group1", "group2")));
+          assertThat(
               record.getSingleLineTextFieldValue("TIMESTAMP|SINGLE_LINE_TEXT"),
               is("1999-12-31T23:59:59Z"));
           assertThat(record.getNumberFieldValue("TIMESTAMP|NUMBER"), is(number("946684799")));
@@ -281,6 +300,14 @@ public class KintoneColumnVisitorTest {
               is(dateTime("2000-01-01T00:00:00Z")));
           assertThat(record.getLinkFieldValue("STRING|LINK"), is("def"));
           assertTableRows(record.getSubtableFieldValue("STRING|SUBTABLE"), rows(3L, 4L, 5L));
+          assertThat(
+              record.getUserSelectFieldValue("STRING|USER_SELECT"), is(users("user3", "user4")));
+          assertThat(
+              record.getOrganizationSelectFieldValue("STRING|ORGANIZATION_SELECT"),
+              is(organizations("org3", "org4")));
+          assertThat(
+              record.getGroupSelectFieldValue("STRING|GROUP_SELECT"),
+              is(groups("group3", "group4")));
           assertThat(
               record.getSingleLineTextFieldValue("TIMESTAMP|SINGLE_LINE_TEXT"),
               is("2000-01-01T00:00:00Z"));
@@ -348,6 +375,10 @@ public class KintoneColumnVisitorTest {
           assertThat(record.getFieldType("STRING|DATETIME"), is(FieldType.DATETIME));
           assertThat(record.getFieldType("STRING|LINK"), is(FieldType.LINK));
           assertThat(record.getFieldType("STRING|SUBTABLE"), is(FieldType.SUBTABLE));
+          assertThat(record.getFieldType("STRING|USER_SELECT"), is(FieldType.USER_SELECT));
+          assertThat(
+              record.getFieldType("STRING|ORGANIZATION_SELECT"), is(FieldType.ORGANIZATION_SELECT));
+          assertThat(record.getFieldType("STRING|GROUP_SELECT"), is(FieldType.GROUP_SELECT));
           assertThat(
               record.getFieldType("TIMESTAMP|SINGLE_LINE_TEXT"), is(FieldType.SINGLE_LINE_TEXT));
           assertThat(record.getFieldType("TIMESTAMP|NUMBER"), is(FieldType.NUMBER));
@@ -401,6 +432,10 @@ public class KintoneColumnVisitorTest {
           assertThat(record.getDateTimeFieldValue("STRING|DATETIME"), nullValue());
           assertThat(record.getLinkFieldValue("STRING|LINK"), nullValue());
           assertThat(record.getSubtableFieldValue("STRING|SUBTABLE"), is(list()));
+          assertThat(record.getUserSelectFieldValue("STRING|USER_SELECT"), is(list()));
+          assertThat(
+              record.getOrganizationSelectFieldValue("STRING|ORGANIZATION_SELECT"), is(list()));
+          assertThat(record.getGroupSelectFieldValue("STRING|GROUP_SELECT"), is(list()));
           assertThat(record.getSingleLineTextFieldValue("TIMESTAMP|SINGLE_LINE_TEXT"), nullValue());
           assertThat(record.getNumberFieldValue("TIMESTAMP|NUMBER"), nullValue());
           assertThat(record.getDateFieldValue("TIMESTAMP|DATE"), nullValue());
@@ -462,6 +497,9 @@ public class KintoneColumnVisitorTest {
           assertThat(record.getFieldValue("STRING|DATETIME"), nullValue());
           assertThat(record.getFieldValue("STRING|LINK"), nullValue());
           assertThat(record.getFieldValue("STRING|SUBTABLE"), nullValue());
+          assertThat(record.getFieldValue("STRING|USER_SELECT"), nullValue());
+          assertThat(record.getFieldValue("STRING|ORGANIZATION_SELECT"), nullValue());
+          assertThat(record.getFieldValue("STRING|GROUP_SELECT"), nullValue());
           assertThat(record.getFieldValue("TIMESTAMP|SINGLE_LINE_TEXT"), nullValue());
           assertThat(record.getFieldValue("TIMESTAMP|NUMBER"), nullValue());
           assertThat(record.getFieldValue("TIMESTAMP|DATE"), nullValue());
@@ -528,6 +566,10 @@ public class KintoneColumnVisitorTest {
               is(dateTime("1970-01-01T00:00:00Z")));
           assertThat(record.getLinkFieldValue("STRING|LINK"), is(""));
           assertThat(record.getSubtableFieldValue("STRING|SUBTABLE"), is(list()));
+          assertThat(record.getUserSelectFieldValue("STRING|USER_SELECT"), is(list()));
+          assertThat(
+              record.getOrganizationSelectFieldValue("STRING|ORGANIZATION_SELECT"), is(list()));
+          assertThat(record.getGroupSelectFieldValue("STRING|GROUP_SELECT"), is(list()));
           assertThat(
               record.getSingleLineTextFieldValue("TIMESTAMP|SINGLE_LINE_TEXT"),
               is("1970-01-01T00:00:00Z"));
@@ -640,6 +682,9 @@ public class KintoneColumnVisitorTest {
         .add("STRING|DATETIME", Types.STRING)
         .add("STRING|LINK", Types.STRING)
         .add("STRING|SUBTABLE", Types.STRING)
+        .add("STRING|USER_SELECT", Types.STRING)
+        .add("STRING|ORGANIZATION_SELECT", Types.STRING)
+        .add("STRING|GROUP_SELECT", Types.STRING)
         .add("TIMESTAMP|SINGLE_LINE_TEXT", Types.TIMESTAMP)
         .add("TIMESTAMP|NUMBER", Types.TIMESTAMP)
         .add("TIMESTAMP|DATE", Types.TIMESTAMP)
@@ -696,6 +741,12 @@ public class KintoneColumnVisitorTest {
         .put(build("STRING|DATETIME", it -> it.setType("DATETIME")))
         .put(build("STRING|LINK", it -> it.setType("LINK")))
         .put(build("STRING|SUBTABLE", it -> it.setType("SUBTABLE")))
+        .put(build("STRING|USER_SELECT", it -> it.setType("USER_SELECT").setValueSeparator(",")))
+        .put(
+            build(
+                "STRING|ORGANIZATION_SELECT",
+                it -> it.setType("ORGANIZATION_SELECT").setValueSeparator(",")))
+        .put(build("STRING|GROUP_SELECT", it -> it.setType("GROUP_SELECT").setValueSeparator(",")))
         .put(build("TIMESTAMP|SINGLE_LINE_TEXT", it -> it.setType("SINGLE_LINE_TEXT")))
         .put(build("TIMESTAMP|NUMBER", it -> it.setType("NUMBER")))
         .put(build("TIMESTAMP|DATE", it -> it.setType("DATE").setTimezone("UTC")))
@@ -757,6 +808,9 @@ public class KintoneColumnVisitorTest {
         .setNull("STRING|DATETIME")
         .setNull("STRING|LINK")
         .setNull("STRING|SUBTABLE")
+        .setNull("STRING|USER_SELECT")
+        .setNull("STRING|ORGANIZATION_SELECT")
+        .setNull("STRING|GROUP_SELECT")
         .setNull("TIMESTAMP|SINGLE_LINE_TEXT")
         .setNull("TIMESTAMP|NUMBER")
         .setNull("TIMESTAMP|DATE")
@@ -808,6 +862,9 @@ public class KintoneColumnVisitorTest {
         .setString("STRING|DATETIME", "")
         .setString("STRING|LINK", "")
         .setString("STRING|SUBTABLE", "")
+        .setString("STRING|USER_SELECT", "")
+        .setString("STRING|ORGANIZATION_SELECT", "")
+        .setString("STRING|GROUP_SELECT", "")
         .setTimestamp("TIMESTAMP|SINGLE_LINE_TEXT", Timestamp.ofInstant(Instant.EPOCH))
         .setTimestamp("TIMESTAMP|NUMBER", Timestamp.ofInstant(Instant.EPOCH))
         .setTimestamp("TIMESTAMP|DATE", Timestamp.ofInstant(Instant.EPOCH))
@@ -859,6 +916,9 @@ public class KintoneColumnVisitorTest {
         .setString("STRING|DATETIME", "1999-12-31T23:59:59Z")
         .setString("STRING|LINK", "abc")
         .setString("STRING|SUBTABLE", String.format("[%s,%s,%s]", ROWS[0], ROWS[1], ROWS[2]))
+        .setString("STRING|USER_SELECT", "user1,user2")
+        .setString("STRING|ORGANIZATION_SELECT", "org1,org2")
+        .setString("STRING|GROUP_SELECT", "group1,group2")
         .setTimestamp("TIMESTAMP|SINGLE_LINE_TEXT", timestamp("1999-12-31T23:59:59Z"))
         .setTimestamp("TIMESTAMP|NUMBER", timestamp("1999-12-31T23:59:59Z"))
         .setTimestamp("TIMESTAMP|DATE", timestamp("1999-12-31T23:59:59Z"))
@@ -911,6 +971,9 @@ public class KintoneColumnVisitorTest {
         .setString("STRING|DATETIME", "2000-01-01T00:00:00Z")
         .setString("STRING|LINK", "def")
         .setString("STRING|SUBTABLE", String.format("[%s,%s,%s]", ROWS[3], ROWS[4], ROWS[5]))
+        .setString("STRING|USER_SELECT", "user3,user4")
+        .setString("STRING|ORGANIZATION_SELECT", "org3,org4")
+        .setString("STRING|GROUP_SELECT", "group3,group4")
         .setTimestamp("TIMESTAMP|SINGLE_LINE_TEXT", timestamp("2000-01-01T00:00:00Z"))
         .setTimestamp("TIMESTAMP|NUMBER", timestamp("2000-01-01T00:00:00Z"))
         .setTimestamp("TIMESTAMP|DATE", timestamp("2000-01-01T00:00:00Z"))
