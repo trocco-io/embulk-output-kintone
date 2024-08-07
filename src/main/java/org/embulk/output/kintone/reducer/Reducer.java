@@ -25,12 +25,14 @@ import org.apache.commons.csv.CSVRecord;
 import org.apache.commons.csv.QuoteMode;
 import org.embulk.config.ConfigDiff;
 import org.embulk.config.TaskReport;
+import org.embulk.output.kintone.KintoneClient;
 import org.embulk.output.kintone.KintoneColumnOption;
 import org.embulk.output.kintone.KintoneColumnType;
 import org.embulk.output.kintone.KintoneOutputPlugin;
 import org.embulk.output.kintone.KintonePageOutput;
 import org.embulk.output.kintone.KintoneSortColumn;
 import org.embulk.output.kintone.PluginTask;
+import org.embulk.output.kintone.util.Lazy;
 import org.embulk.spi.Column;
 import org.embulk.spi.Exec;
 import org.embulk.spi.PageBuilder;
@@ -55,6 +57,7 @@ public class Reducer {
   private final List<Integer> indices;
   private final int size;
   private final Schema schema;
+  private final Lazy<KintoneClient> client;
 
   public Reducer(PluginTask task, Schema schema) {
     this.task = task;
@@ -67,6 +70,7 @@ public class Reducer {
     this.schema = schema(task, schema);
     this.task.setDerivedColumns(
         range().mapToObj(this.schema::getColumn).collect(Collectors.toSet()));
+    this.client = KintoneClient.lazy(() -> task, schema);
   }
 
   public ConfigDiff reduce(List<TaskReport> taskReports, Column column) {
@@ -164,7 +168,8 @@ public class Reducer {
   }
 
   private MapValue value(CSVRecord record, Column column) {
-    return ReduceType.value(column, record.toList(), task.getColumnOptions().get(column.getName()));
+    return ReduceType.value(
+        column, record.toList(), task.getColumnOptions().get(column.getName()), client);
   }
 
   private MapValue sortValue(CSVRecord record, int index) {
