@@ -21,20 +21,26 @@ import static org.hamcrest.MatcherAssert.assertThat;
 import static org.hamcrest.Matchers.is;
 import static org.junit.Assert.assertThrows;
 
+import com.kintone.client.model.Group;
+import com.kintone.client.model.Organization;
+import com.kintone.client.model.User;
 import com.kintone.client.model.record.CheckBoxFieldValue;
 import com.kintone.client.model.record.DateFieldValue;
 import com.kintone.client.model.record.DateTimeFieldValue;
 import com.kintone.client.model.record.DropDownFieldValue;
+import com.kintone.client.model.record.GroupSelectFieldValue;
 import com.kintone.client.model.record.LinkFieldValue;
 import com.kintone.client.model.record.MultiLineTextFieldValue;
 import com.kintone.client.model.record.MultiSelectFieldValue;
 import com.kintone.client.model.record.NumberFieldValue;
+import com.kintone.client.model.record.OrganizationSelectFieldValue;
 import com.kintone.client.model.record.RadioButtonFieldValue;
 import com.kintone.client.model.record.RichTextFieldValue;
 import com.kintone.client.model.record.SingleLineTextFieldValue;
 import com.kintone.client.model.record.SubtableFieldValue;
 import com.kintone.client.model.record.TableRow;
 import com.kintone.client.model.record.TimeFieldValue;
+import com.kintone.client.model.record.UserSelectFieldValue;
 import java.math.BigDecimal;
 import java.time.Instant;
 import java.time.LocalDate;
@@ -83,6 +89,9 @@ public class KintoneColumnTypeTest {
     assertThat(((RadioButtonFieldValue) RADIO_BUTTON.getFieldValue("", null)).getValue(), is(""));
     assertThat(((MultiSelectFieldValue) MULTI_SELECT.getFieldValue("", null)).getValues(), is(list()));
     assertThat(((DropDownFieldValue) DROP_DOWN.getFieldValue("", null)).getValue(), is(""));
+    assertThat(((UserSelectFieldValue) USER_SELECT.getFieldValue("", null)).getValues(), is(users()));
+    assertThat(((OrganizationSelectFieldValue) ORGANIZATION_SELECT.getFieldValue("", null)).getValues(), is(organizations()));
+    assertThat(((GroupSelectFieldValue) GROUP_SELECT.getFieldValue("", null)).getValues(), is(groups()));
     assertThat(((DateFieldValue) DATE.getFieldValue(0L, null)).getValue(), is(date("1970-01-01")));
     assertThat(((DateFieldValue) DATE.getFieldValue(0.0d, null)).getValue(), is(date("1970-01-01")));
     assertThat(((DateFieldValue) DATE.getFieldValue("", null)).getValue(), is(date("1970-01-01")));
@@ -128,19 +137,16 @@ public class KintoneColumnTypeTest {
     assertThrows(UnsupportedOperationException.class, () -> USER_SELECT.getFieldValue(false, null));
     assertThrows(UnsupportedOperationException.class, () -> USER_SELECT.getFieldValue(0L, null));
     assertThrows(UnsupportedOperationException.class, () -> USER_SELECT.getFieldValue(0.0d, null));
-    assertThrows(UnsupportedOperationException.class, () -> USER_SELECT.getFieldValue("", null));
     assertThrows(UnsupportedOperationException.class, () -> USER_SELECT.getFieldValue(EPOCH, null));
     assertThrows(UnsupportedOperationException.class, () -> USER_SELECT.getFieldValue(EMPTY, null));
     assertThrows(UnsupportedOperationException.class, () -> ORGANIZATION_SELECT.getFieldValue(false, null));
     assertThrows(UnsupportedOperationException.class, () -> ORGANIZATION_SELECT.getFieldValue(0L, null));
     assertThrows(UnsupportedOperationException.class, () -> ORGANIZATION_SELECT.getFieldValue(0.0d, null));
-    assertThrows(UnsupportedOperationException.class, () -> ORGANIZATION_SELECT.getFieldValue("", null));
     assertThrows(UnsupportedOperationException.class, () -> ORGANIZATION_SELECT.getFieldValue(EPOCH, null));
     assertThrows(UnsupportedOperationException.class, () -> ORGANIZATION_SELECT.getFieldValue(EMPTY, null));
     assertThrows(UnsupportedOperationException.class, () -> GROUP_SELECT.getFieldValue(false, null));
     assertThrows(UnsupportedOperationException.class, () -> GROUP_SELECT.getFieldValue(0L, null));
     assertThrows(UnsupportedOperationException.class, () -> GROUP_SELECT.getFieldValue(0.0d, null));
-    assertThrows(UnsupportedOperationException.class, () -> GROUP_SELECT.getFieldValue("", null));
     assertThrows(UnsupportedOperationException.class, () -> GROUP_SELECT.getFieldValue(EPOCH, null));
     assertThrows(UnsupportedOperationException.class, () -> GROUP_SELECT.getFieldValue(EMPTY, null));
     assertThrows(UnsupportedOperationException.class, () -> DATE.getFieldValue(false, null));
@@ -178,6 +184,18 @@ public class KintoneColumnTypeTest {
 
   public static List<TableRow> rows(Long... ids) {
     return Arrays.stream(ids).map(DeserializerTest::tableRow).collect(Collectors.toList());
+  }
+
+  public static List<User> users(String... codes) {
+    return Arrays.stream(codes).map(User::new).collect(Collectors.toList());
+  }
+
+  public static List<Organization> organizations(String... codes) {
+    return Arrays.stream(codes).map(Organization::new).collect(Collectors.toList());
+  }
+
+  public static List<Group> groups(String... codes) {
+    return Arrays.stream(codes).map(Group::new).collect(Collectors.toList());
   }
 
   public static LocalDate date(CharSequence text) {
