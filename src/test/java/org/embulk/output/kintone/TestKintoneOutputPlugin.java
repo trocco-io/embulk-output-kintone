@@ -29,7 +29,7 @@ import org.embulk.config.TaskSource;
 import org.embulk.output.kintone.record.Id;
 import org.embulk.output.kintone.record.Skip;
 import org.embulk.spi.Column;
-import org.embulk.spi.Exec;
+import org.embulk.spi.ExecInternal;
 import org.embulk.spi.OutputPlugin;
 import org.embulk.spi.Schema;
 import org.embulk.spi.TransactionalPageOutput;
@@ -170,7 +170,7 @@ public class TestKintoneOutputPlugin extends KintoneOutputPlugin {
     return json == null || json.isEmpty()
         ? Collections.emptySet()
         : PARSER.parse(json).asArrayValue().list().stream()
-            .map(value -> Exec.getModelManager().readObject(Column.class, value.toJson()))
+            .map(value -> ExecInternal.getModelManager().readObject(Column.class, value.toJson()))
             .collect(Collectors.toSet());
   }
 

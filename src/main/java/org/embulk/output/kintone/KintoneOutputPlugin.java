@@ -12,8 +12,12 @@ import org.embulk.spi.Exec;
 import org.embulk.spi.OutputPlugin;
 import org.embulk.spi.Schema;
 import org.embulk.spi.TransactionalPageOutput;
+import org.embulk.util.config.ConfigMapperFactory;
 
 public class KintoneOutputPlugin implements OutputPlugin {
+  private static final ConfigMapperFactory CONFIG_MAPPER_FACTORY =
+      ConfigMapperFactory.builder().addDefaultModules().build();
+
   @Override
   public ConfigDiff transaction(
       ConfigSource config, Schema schema, int taskCount, OutputPlugin.Control control) {
