@@ -3,8 +3,10 @@ package org.embulk.output.kintone;
 import com.kintone.client.KintoneClientBuilder;
 import com.kintone.client.RecordClient;
 import com.kintone.client.model.app.field.FieldProperty;
+import com.kintone.client.model.app.field.SubtableFieldProperty;
 import com.kintone.client.model.record.FieldType;
 import java.io.IOException;
+import java.util.LinkedHashMap;
 import java.util.Map;
 import java.util.function.Supplier;
 import org.embulk.config.ConfigException;
@@ -49,7 +51,23 @@ public class KintoneClient implements AutoCloseable {
     }
     client = builder.build();
     fields = client.app().getFormFields(task.getAppId());
+    Map<String, FieldProperty> fieldVisitor = new LinkedHashMap<>();
+    fields.forEach(
+        (field, fieldProperty) -> KintoneClient.addSubTableFields(fieldVisitor, fieldProperty));
+    fields.putAll(fieldVisitor);
     KintoneMode.of(task).validate(task, this);
+  }
+
+  private static void addSubTableFields(
+      Map<String, FieldProperty> visitor, FieldProperty fieldProperty) {
+    if (fieldProperty instanceof SubtableFieldProperty) {
+      SubtableFieldProperty subtableFieldProperty = (SubtableFieldProperty) fieldProperty;
+      Map<String, FieldProperty> subFields = subtableFieldProperty.getFields();
+      visitor.putAll(subFields);
+      subFields.forEach(
+          (subField, subFieldProperty) ->
+              KintoneClient.addSubTableFields(visitor, subFieldProperty));
+    }
   }
 
   public void validateIdOrUpdateKey(String columnName) {
