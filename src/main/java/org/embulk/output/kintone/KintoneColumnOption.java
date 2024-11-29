@@ -1,9 +1,9 @@
 package org.embulk.output.kintone;
 
 import java.util.List;
-import org.embulk.config.Config;
-import org.embulk.config.ConfigDefault;
-import org.embulk.config.Task;
+import org.embulk.util.config.Config;
+import org.embulk.util.config.ConfigDefault;
+import org.embulk.util.config.Task;
 
 public interface KintoneColumnOption extends Task {
   @Config("type")
