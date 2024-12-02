@@ -1,5 +1,6 @@
 package org.embulk.output.kintone;
 
+import com.fasterxml.jackson.databind.node.ObjectNode;
 import java.util.Collections;
 import java.util.List;
 import org.embulk.config.TaskSource;
@@ -62,6 +63,16 @@ public class KintoneColumnOptionBuilder {
 
       @Override
       public TaskSource dump() {
+        return null;
+      }
+
+      @Override
+      public ObjectNode toObjectNode() {
+        return null;
+      }
+
+      @Override
+      public TaskSource toTaskSource() {
         return null;
       }
     };
