@@ -1,12 +1,15 @@
 package org.embulk.output.kintone;
 
-import static org.embulk.util.retryhelper.RetryExecutor.retryExecutor;
+import static org.embulk.output.kintone.KintoneOutputPlugin.CONFIG_MAPPER_FACTORY;
 
 import com.fasterxml.jackson.databind.JsonNode;
 import com.fasterxml.jackson.databind.ObjectMapper;
 import com.google.common.collect.Maps;
 import com.kintone.client.api.record.GetRecordsByCursorResponseBody;
 import com.kintone.client.exception.KintoneApiRuntimeException;
+import com.kintone.client.model.Group;
+import com.kintone.client.model.Organization;
+import com.kintone.client.model.User;
 import com.kintone.client.model.record.CheckBoxFieldValue;
 import com.kintone.client.model.record.DateFieldValue;
 import com.kintone.client.model.record.DateTimeFieldValue;
@@ -45,11 +48,11 @@ import org.embulk.output.kintone.record.Id;
 import org.embulk.output.kintone.record.IdOrUpdateKey;
 import org.embulk.output.kintone.record.Skip;
 import org.embulk.output.kintone.util.Lazy;
-import org.embulk.spi.Exec;
 import org.embulk.spi.Page;
 import org.embulk.spi.PageReader;
 import org.embulk.spi.Schema;
 import org.embulk.spi.TransactionalPageOutput;
+import org.embulk.util.retryhelper.RetryExecutor;
 import org.embulk.util.retryhelper.RetryGiveupException;
 import org.embulk.util.retryhelper.Retryable;
 import org.slf4j.Logger;
@@ -73,20 +76,18 @@ public class KintonePageOutput implements TransactionalPageOutput {
   private final PageReader reader;
   private final Lazy<KintoneClient> client;
   private final ErrorFileLogger errorFileLogger;
-  private final int taskIndex;
 
   public KintonePageOutput(PluginTask task, Schema schema) {
     this(task, schema, 0);
   }
 
+  @SuppressWarnings("deprecation") // TODO: For compatibility with Embulk v0.9
   public KintonePageOutput(PluginTask task, Schema schema, int taskIndex) {
     this.task = task;
-    this.taskIndex = taskIndex;
-    reader = new PageReader(schema);
+    reader = new PageReader(schema); // TODO: Use Exec#getPageReader
     client = KintoneClient.lazy(() -> task, schema);
-
     // Initialize error file logger
-    this.errorFileLogger =
+    errorFileLogger =
         new ErrorFileLogger(task.getErrorRecordsDetailOutputFile().orElse(null), taskIndex);
   }
 
@@ -110,7 +111,6 @@ public class KintonePageOutput implements TransactionalPageOutput {
         LOGGER.error("Failed to close error file logger", e);
       }
     }
-
     client.get().close();
   }
 
@@ -124,10 +124,11 @@ public class KintonePageOutput implements TransactionalPageOutput {
     wrongTypeFields.forEach(
         (key, value) ->
             LOGGER.warn(
-                String.format(
-                    "Field type of %s is expected %s but actual %s",
-                    key, value.getLeft(), value.getRight())));
-    return Exec.newTaskReport();
+                "Field type of {} is expected {} but actual {}",
+                key,
+                value.getLeft(),
+                value.getRight()));
+    return CONFIG_MAPPER_FACTORY.newTaskReport();
   }
 
   private void insert(List<Record> records) {
@@ -145,10 +146,11 @@ public class KintonePageOutput implements TransactionalPageOutput {
   private <T> T executeWithRetry(Supplier<T> operation, List<?> records) {
     KintoneRetryOption retryOption = task.getRetryOptions();
     try {
-      return retryExecutor()
+      return RetryExecutor.builder()
           .withRetryLimit(retryOption.getLimit())
-          .withInitialRetryWait(retryOption.getInitialWaitMillis())
-          .withMaxRetryWait(retryOption.getMaxWaitMillis())
+          .withInitialRetryWaitMillis(retryOption.getInitialWaitMillis())
+          .withMaxRetryWaitMillis(retryOption.getMaxWaitMillis())
+          .build()
           .runInterruptible(
               new Retryable<T>() {
                 @Override
@@ -318,27 +320,20 @@ public class KintonePageOutput implements TransactionalPageOutput {
         recordForUpdate = idOrUpdateKey.forUpdate(record);
       } else if (skip == Skip.ALWAYS && idOrUpdateKey.isPresent()) {
         LOGGER.warn(
-            "Record skipped because non existing id or update key '"
-                + idOrUpdateKey.getValue()
-                + "' was specified");
+            "Record skipped because non existing id or update key '{}' was specified",
+            idOrUpdateKey);
         continue;
       } else if (skip == Skip.ALWAYS && !idOrUpdateKey.isPresent()) {
         LOGGER.warn("Record skipped because no id or update key value was specified");
         continue;
       } else if (skip == Skip.AUTO && idOrUpdateKey.isIdPresent()) {
-        LOGGER.warn(
-            "Record skipped because non existing id '"
-                + idOrUpdateKey.getValue()
-                + "' was specified");
+        LOGGER.warn("Record skipped because non existing id '{}' was specified", idOrUpdateKey);
         continue;
       } else if (skip == Skip.AUTO && !isId && !idOrUpdateKey.isUpdateKeyPresent()) {
         LOGGER.warn("Record skipped because no update key value was specified");
         continue;
       } else if (idOrUpdateKey.isIdPresent()) {
-        LOGGER.warn(
-            "Record inserted though non existing id '"
-                + idOrUpdateKey.getValue()
-                + "' was specified");
+        LOGGER.warn("Record inserted though non existing id '{}' was specified", idOrUpdateKey);
       } else if (!isId && !idOrUpdateKey.isUpdateKeyPresent()) {
         LOGGER.warn("Record inserted though no update key value was specified");
       }
@@ -444,7 +439,8 @@ public class KintonePageOutput implements TransactionalPageOutput {
    *
    * @param fieldName Field name in format like "records[14].TINY_TEXT_10.value" or
    *     "records[0].field_code"
-   * @return Record index (e.g., 14 for "records[14].TINY_TEXT_10.value"), or -1 if cannot be parsed
+   * @return Record index (e.g., 14 for "records[14].TINY_TEXT_10.value"), or -1 if you cannot be
+   *     parsed
    *     <p>Examples: - "records[14].TINY_TEXT_10.value" -> returns 14 - "records[0].field_code" ->
    *     returns 0 - "records[123].some_field" -> returns 123 - "invalid_format" -> returns -1 -
    *     "records[].field" -> returns -1
@@ -453,17 +449,15 @@ public class KintonePageOutput implements TransactionalPageOutput {
     if (!fieldName.startsWith("records[")) {
       return -1;
     }
-
     int startIdx = fieldName.indexOf('[') + 1;
     int endIdx = fieldName.indexOf(']');
     if (startIdx <= 0 || endIdx <= startIdx) {
       return -1;
     }
-
     try {
       return Integer.parseInt(fieldName.substring(startIdx, endIdx));
     } catch (NumberFormatException ex) {
-      LOGGER.warn("Failed to parse record index from error field: " + fieldName);
+      LOGGER.warn("Failed to parse record index from error field: {}", fieldName);
       return -1;
     }
   }
@@ -478,26 +472,22 @@ public class KintonePageOutput implements TransactionalPageOutput {
    */
   private String buildErrorMessage(String baseMessage, String fieldName, JsonNode fieldError) {
     StringBuilder fullMessage = new StringBuilder(baseMessage);
-
     // Extract field name (].{field} part)
     int endIdx = fieldName.indexOf(']');
     if (endIdx != -1 && endIdx + 2 < fieldName.length()) {
       String affectedField = fieldName.substring(endIdx + 2);
-
       if (fieldError.has("messages")) {
         fieldError
             .get("messages")
             .forEach(
-                msg -> {
-                  fullMessage
-                      .append(" ")
-                      .append(affectedField)
-                      .append(": ")
-                      .append(msg.textValue());
-                });
+                msg ->
+                    fullMessage
+                        .append(" ")
+                        .append(affectedField)
+                        .append(": ")
+                        .append(msg.textValue()));
       }
     }
-
     return fullMessage.toString();
   }
 
@@ -512,13 +502,10 @@ public class KintonePageOutput implements TransactionalPageOutput {
       // Parse errors field in error response
       if (errorResponse.has("errors")) {
         JsonNode errors = errorResponse.get("errors");
-
         // Pre-convert all records to maps for easier handling
         List<Map<String, Object>> recordMaps = convertRecordsToMaps(records);
-
         // Group errors by record index
         Map<Integer, List<String>> errorsByRecordIndex = new HashMap<>();
-
         errors
             .fieldNames()
             .forEachRemaining(
@@ -527,15 +514,12 @@ public class KintonePageOutput implements TransactionalPageOutput {
                   if (recordIndex == -1 || recordIndex >= recordMaps.size()) {
                     return;
                   }
-
                   JsonNode fieldError = errors.get(fieldName);
                   String fieldErrorMessage = buildErrorMessage(errorMessage, fieldName, fieldError);
-
                   errorsByRecordIndex
                       .computeIfAbsent(recordIndex, k -> new ArrayList<>())
                       .add(fieldErrorMessage);
                 });
-
         // Log combined errors for each record
         errorsByRecordIndex.forEach(
             (recordIndex, errorMessages) -> {
@@ -552,16 +536,13 @@ public class KintonePageOutput implements TransactionalPageOutput {
   /** Converts list of records to list of maps for easier handling */
   private List<Map<String, Object>> convertRecordsToMaps(List<?> records) {
     List<Map<String, Object>> recordMaps = new ArrayList<>();
-
     for (Object recordObj : records) {
       Record record = null;
-
       if (recordObj instanceof Record) {
         record = (Record) recordObj;
       } else if (recordObj instanceof RecordForUpdate) {
         record = ((RecordForUpdate) recordObj).getRecord();
       }
-
       if (record != null) {
         Map<String, Object> recordData = extractAllFieldsFromRecord(record);
         recordMaps.add(recordData);
@@ -570,18 +551,15 @@ public class KintonePageOutput implements TransactionalPageOutput {
         recordMaps.add(new HashMap<>());
       }
     }
-
     return recordMaps;
   }
 
   /** Extracts all fields from a Record object to Map */
   private Map<String, Object> extractAllFieldsFromRecord(Record record) {
     Map<String, Object> fields = new HashMap<>();
-
     if (record == null) {
       return fields;
     }
-
     record
         .getFieldCodes(true)
         .forEach(
@@ -594,7 +572,6 @@ public class KintonePageOutput implements TransactionalPageOutput {
                 fields.put(fieldCode, null);
               }
             });
-
     return fields;
   }
 
@@ -603,7 +580,6 @@ public class KintonePageOutput implements TransactionalPageOutput {
     if (value == null) {
       return null;
     }
-
     // Text field types
     if (value instanceof SingleLineTextFieldValue) {
       return ((SingleLineTextFieldValue) value).getValue();
@@ -612,14 +588,12 @@ public class KintonePageOutput implements TransactionalPageOutput {
     } else if (value instanceof RichTextFieldValue) {
       return ((RichTextFieldValue) value).getValue();
     }
-
     // Selection field types (single)
     else if (value instanceof RadioButtonFieldValue) {
       return ((RadioButtonFieldValue) value).getValue();
     } else if (value instanceof DropDownFieldValue) {
       return ((DropDownFieldValue) value).getValue();
     }
-
     // Selection field types (multiple)
     else if (value instanceof CheckBoxFieldValue) {
       return ((CheckBoxFieldValue) value).getValues();
@@ -631,7 +605,6 @@ public class KintonePageOutput implements TransactionalPageOutput {
       BigDecimal number = ((NumberFieldValue) value).getValue();
       return number != null ? number.toPlainString() : null;
     }
-
     // Date/Time field types
     else if (value instanceof DateFieldValue) {
       return ((DateFieldValue) value).getValue();
@@ -640,30 +613,25 @@ public class KintonePageOutput implements TransactionalPageOutput {
     } else if (value instanceof DateTimeFieldValue) {
       return ((DateTimeFieldValue) value).getValue();
     }
-
     // URL field type
     else if (value instanceof LinkFieldValue) {
       return ((LinkFieldValue) value).getValue();
     }
-
     // User selection field type
     else if (value instanceof UserSelectFieldValue) {
       return ((UserSelectFieldValue) value)
-          .getValues().stream().map(user -> user.getCode()).collect(Collectors.toList());
+          .getValues().stream().map(User::getCode).collect(Collectors.toList());
     }
-
     // Organization selection field type
     else if (value instanceof OrganizationSelectFieldValue) {
       return ((OrganizationSelectFieldValue) value)
-          .getValues().stream().map(org -> org.getCode()).collect(Collectors.toList());
+          .getValues().stream().map(Organization::getCode).collect(Collectors.toList());
     }
-
     // Group selection field type
     else if (value instanceof GroupSelectFieldValue) {
       return ((GroupSelectFieldValue) value)
-          .getValues().stream().map(group -> group.getCode()).collect(Collectors.toList());
+          .getValues().stream().map(Group::getCode).collect(Collectors.toList());
     }
-
     // Unknown field type - log warning and return null
     else {
       LOGGER.warn("Unknown field value type: {}", value.getClass().getSimpleName());

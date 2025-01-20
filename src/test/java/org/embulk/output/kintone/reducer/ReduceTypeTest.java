@@ -4,14 +4,17 @@ import static org.embulk.output.kintone.KintoneColumnType.CHECK_BOX;
 import static org.embulk.output.kintone.KintoneColumnType.DATE;
 import static org.embulk.output.kintone.KintoneColumnType.DATETIME;
 import static org.embulk.output.kintone.KintoneColumnType.DROP_DOWN;
+import static org.embulk.output.kintone.KintoneColumnType.GROUP_SELECT;
 import static org.embulk.output.kintone.KintoneColumnType.LINK;
 import static org.embulk.output.kintone.KintoneColumnType.MULTI_LINE_TEXT;
 import static org.embulk.output.kintone.KintoneColumnType.MULTI_SELECT;
 import static org.embulk.output.kintone.KintoneColumnType.NUMBER;
+import static org.embulk.output.kintone.KintoneColumnType.ORGANIZATION_SELECT;
 import static org.embulk.output.kintone.KintoneColumnType.RADIO_BUTTON;
 import static org.embulk.output.kintone.KintoneColumnType.RICH_TEXT;
 import static org.embulk.output.kintone.KintoneColumnType.SINGLE_LINE_TEXT;
 import static org.embulk.output.kintone.KintoneColumnType.TIME;
+import static org.embulk.output.kintone.KintoneColumnType.USER_SELECT;
 import static org.embulk.spi.type.Types.BOOLEAN;
 import static org.embulk.spi.type.Types.DOUBLE;
 import static org.embulk.spi.type.Types.JSON;
@@ -60,6 +63,9 @@ public class ReduceTypeTest {
     assertJson(STRING, RADIO_BUTTON, "abc", "{\"type\":\"RADIO_BUTTON\",\"value\":\"abc\"}");
     assertJson(STRING, MULTI_SELECT, "123,abc", "{\"type\":\"MULTI_SELECT\",\"value\":[\"123\",\"abc\"]}");
     assertJson(STRING, DROP_DOWN, "abc", "{\"type\":\"DROP_DOWN\",\"value\":\"abc\"}");
+    assertJson(STRING, USER_SELECT, "123,abc", "{\"type\":\"USER_SELECT\",\"value\":[{\"code\":\"123\"},{\"code\":\"abc\"}]}");
+    assertJson(STRING, ORGANIZATION_SELECT, "123,abc", "{\"type\":\"ORGANIZATION_SELECT\",\"value\":[{\"code\":\"123\"},{\"code\":\"abc\"}]}");
+    assertJson(STRING, GROUP_SELECT, "123,abc", "{\"type\":\"GROUP_SELECT\",\"value\":[{\"code\":\"123\"},{\"code\":\"abc\"}]}");
     assertJson(STRING, DATE, "1999-12-31", "{\"type\":\"DATE\",\"value\":\"1999-12-31\"}");
     assertJson(STRING, DATE, "Asia/Tokyo", "1999-12-31", "{\"type\":\"DATE\",\"value\":\"1999-12-31\"}");
     assertJson(STRING, DATE, "US/Pacific", "1999-12-31", "{\"type\":\"DATE\",\"value\":\"1999-12-30\"}");
@@ -84,6 +90,7 @@ public class ReduceTypeTest {
 
   @Test
   public void valueNull() {
+    // spotless:off
     assertJson(BOOLEAN, SINGLE_LINE_TEXT, null, "{\"type\":\"SINGLE_LINE_TEXT\",\"value\":null}");
     assertJson(BOOLEAN, NUMBER, null, "{\"type\":\"NUMBER\",\"value\":null}");
     assertJson(LONG, SINGLE_LINE_TEXT, null, "{\"type\":\"SINGLE_LINE_TEXT\",\"value\":null}");
@@ -112,6 +119,9 @@ public class ReduceTypeTest {
     assertJson(STRING, RADIO_BUTTON, null, "{\"type\":\"RADIO_BUTTON\",\"value\":null}");
     assertJson(STRING, MULTI_SELECT, null, "{\"type\":\"MULTI_SELECT\",\"value\":null}");
     assertJson(STRING, DROP_DOWN, null, "{\"type\":\"DROP_DOWN\",\"value\":null}");
+    assertJson(STRING, USER_SELECT, null, "{\"type\":\"USER_SELECT\",\"value\":null}");
+    assertJson(STRING, ORGANIZATION_SELECT, null, "{\"type\":\"ORGANIZATION_SELECT\",\"value\":null}");
+    assertJson(STRING, GROUP_SELECT, null, "{\"type\":\"GROUP_SELECT\",\"value\":null}");
     assertJson(STRING, DATE, null, "{\"type\":\"DATE\",\"value\":null}");
     assertJson(STRING, DATE, "Asia/Tokyo", null, "{\"type\":\"DATE\",\"value\":null}");
     assertJson(STRING, DATE, "US/Pacific", null, "{\"type\":\"DATE\",\"value\":null}");
@@ -131,6 +141,7 @@ public class ReduceTypeTest {
     assertJson(TIMESTAMP, DATETIME, null, "{\"type\":\"DATETIME\",\"value\":null}");
     assertJson(JSON, SINGLE_LINE_TEXT, null, "{\"type\":\"SINGLE_LINE_TEXT\",\"value\":null}");
     assertJson(JSON, MULTI_LINE_TEXT, null, "{\"type\":\"MULTI_LINE_TEXT\",\"value\":null}");
+    // spotless:on
   }
 
   private static void assertJson(Type from, KintoneColumnType to, String value, String expected) {

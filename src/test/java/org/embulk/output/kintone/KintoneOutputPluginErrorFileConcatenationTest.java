@@ -16,6 +16,7 @@ import java.nio.file.Path;
 import java.nio.file.Paths;
 import java.util.ArrayList;
 import java.util.List;
+import java.util.stream.Stream;
 import org.junit.After;
 import org.junit.Before;
 import org.junit.Test;
@@ -58,20 +59,21 @@ public class KintoneOutputPluginErrorFileConcatenationTest {
 
   private void cleanupTestFiles() throws IOException {
     if (Files.exists(testDir)) {
-      Files.list(testDir)
-          .filter(
-              path -> {
-                String fileName = path.getFileName().toString();
-                return fileName.contains("_task") || fileName.equals("concatenated_errors.jsonl");
-              })
-          .forEach(
-              path -> {
-                try {
-                  Files.deleteIfExists(path);
-                } catch (IOException e) {
-                  // Ignore
-                }
-              });
+      try (Stream<Path> list = Files.list(testDir)) {
+        list.filter(
+                path -> {
+                  String fileName = path.getFileName().toString();
+                  return fileName.contains("_task") || fileName.equals("concatenated_errors.jsonl");
+                })
+            .forEach(
+                path -> {
+                  try {
+                    Files.deleteIfExists(path);
+                  } catch (IOException e) {
+                    // Ignore
+                  }
+                });
+      }
     }
   }
 
@@ -192,7 +194,7 @@ public class KintoneOutputPluginErrorFileConcatenationTest {
   }
 
   @Test
-  public void testConcatenateNoTaskFiles() throws IOException {
+  public void testConcatenateNoTaskFiles() {
     // Call the concatenate method without creating any task files
     plugin.concatenateErrorFiles(TEST_OUTPUT_FILE);
 

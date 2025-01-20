@@ -26,7 +26,7 @@ import java.util.function.Function;
 import java.util.stream.Collectors;
 import java.util.stream.IntStream;
 import org.embulk.config.TaskReport;
-import org.embulk.deps.buffer.PooledBufferAllocator;
+import org.embulk.exec.PooledBufferAllocator;
 import org.embulk.output.kintone.record.Id;
 import org.embulk.spi.BufferAllocator;
 import org.embulk.spi.Exec;
