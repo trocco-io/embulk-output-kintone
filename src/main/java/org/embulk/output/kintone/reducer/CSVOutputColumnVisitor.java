@@ -1,5 +1,8 @@
 package org.embulk.output.kintone.reducer;
 
+import static org.embulk.output.kintone.util.Compatibility.getJson;
+import static org.embulk.output.kintone.util.Compatibility.getTimestamp;
+
 import java.io.IOException;
 import org.apache.commons.csv.CSVPrinter;
 import org.embulk.spi.Column;
@@ -56,7 +59,7 @@ public class CSVOutputColumnVisitor implements ColumnVisitor {
     if (reader.isNull(column)) {
       print(null);
     } else {
-      print(reader.getTimestamp(column).getInstant());
+      print(getTimestamp(reader, column));
     }
   }
 
@@ -65,7 +68,7 @@ public class CSVOutputColumnVisitor implements ColumnVisitor {
     if (reader.isNull(column)) {
       print(null);
     } else {
-      print(reader.getJson(column).toJson());
+      print(getJson(reader, column).toJson());
     }
   }
 

@@ -21,6 +21,7 @@ public class KintoneClient implements AutoCloseable {
   private final com.kintone.client.KintoneClient client;
   private final Map<String, FieldProperty> fields;
 
+  @SuppressWarnings("try")
   public static Lazy<KintoneClient> lazy(Supplier<PluginTask> task, Schema schema) {
     return new Lazy<KintoneClient>() {
       @Override

@@ -10,6 +10,7 @@ import static org.embulk.output.kintone.KintoneColumnTypeTest.rows;
 import static org.embulk.output.kintone.KintoneColumnTypeTest.time;
 import static org.embulk.output.kintone.KintoneColumnTypeTest.users;
 import static org.embulk.output.kintone.deserializer.DeserializerTest.assertTableRows;
+import static org.embulk.output.kintone.util.Compatibility.PARSER;
 import static org.hamcrest.MatcherAssert.assertThat;
 import static org.hamcrest.Matchers.is;
 import static org.hamcrest.Matchers.nullValue;
@@ -25,15 +26,14 @@ import java.util.function.Function;
 import org.embulk.output.kintone.deserializer.DeserializerTest;
 import org.embulk.spi.Page;
 import org.embulk.spi.Schema;
-import org.embulk.spi.json.JsonParser;
-import org.embulk.spi.time.Timestamp;
 import org.embulk.spi.type.Types;
+import org.embulk.test.EmbulkTestRuntime;
+import org.junit.Rule;
 import org.junit.Test;
 import org.msgpack.value.Value;
 import org.msgpack.value.ValueFactory;
 
 public class KintoneColumnVisitorTest {
-  private static final JsonParser PARSER = new JsonParser();
   private static final String[] ROWS = {
     DeserializerTest.TABLE_ROW.apply(0L),
     DeserializerTest.TABLE_ROW.apply(1L),
@@ -42,6 +42,8 @@ public class KintoneColumnVisitorTest {
     DeserializerTest.TABLE_ROW.apply(4L),
     DeserializerTest.TABLE_ROW.apply(5L),
   };
+
+  @Rule public EmbulkTestRuntime runtime = new EmbulkTestRuntime();
 
   @Test
   public void test() {
@@ -79,6 +81,10 @@ public class KintoneColumnVisitorTest {
           assertThat(record.getRadioButtonFieldValue("STRING|RADIO_BUTTON"), is(""));
           assertThat(record.getMultiSelectFieldValue("STRING|MULTI_SELECT"), is(list()));
           assertThat(record.getDropDownFieldValue("STRING|DROP_DOWN"), is(""));
+          assertThat(record.getUserSelectFieldValue("STRING|USER_SELECT"), is(list()));
+          assertThat(
+              record.getOrganizationSelectFieldValue("STRING|ORGANIZATION_SELECT"), is(list()));
+          assertThat(record.getGroupSelectFieldValue("STRING|GROUP_SELECT"), is(list()));
           assertThat(record.getDateFieldValue("STRING|DATE"), is(date("1970-01-01")));
           assertThat(record.getDateFieldValue("STRING|DATE|JST"), is(date("1970-01-01")));
           assertThat(record.getDateFieldValue("STRING|DATE|PST"), is(date("1969-12-31")));
@@ -90,10 +96,6 @@ public class KintoneColumnVisitorTest {
               is(dateTime("1970-01-01T00:00:00Z")));
           assertThat(record.getLinkFieldValue("STRING|LINK"), is(""));
           assertThat(record.getSubtableFieldValue("STRING|SUBTABLE"), is(list()));
-          assertThat(record.getUserSelectFieldValue("STRING|USER_SELECT"), is(list()));
-          assertThat(
-              record.getOrganizationSelectFieldValue("STRING|ORGANIZATION_SELECT"), is(list()));
-          assertThat(record.getGroupSelectFieldValue("STRING|GROUP_SELECT"), is(list()));
           assertThat(
               record.getSingleLineTextFieldValue("TIMESTAMP|SINGLE_LINE_TEXT"),
               is("1970-01-01T00:00:00Z"));
@@ -147,6 +149,10 @@ public class KintoneColumnVisitorTest {
           assertThat(record.getRadioButtonFieldValue("STRING|RADIO_BUTTON"), is(""));
           assertThat(record.getMultiSelectFieldValue("STRING|MULTI_SELECT"), is(list()));
           assertThat(record.getDropDownFieldValue("STRING|DROP_DOWN"), is(""));
+          assertThat(record.getUserSelectFieldValue("STRING|USER_SELECT"), is(list()));
+          assertThat(
+              record.getOrganizationSelectFieldValue("STRING|ORGANIZATION_SELECT"), is(list()));
+          assertThat(record.getGroupSelectFieldValue("STRING|GROUP_SELECT"), is(list()));
           assertThat(record.getDateFieldValue("STRING|DATE"), is(date("1970-01-01")));
           assertThat(record.getDateFieldValue("STRING|DATE|JST"), is(date("1970-01-01")));
           assertThat(record.getDateFieldValue("STRING|DATE|PST"), is(date("1969-12-31")));
@@ -158,10 +164,6 @@ public class KintoneColumnVisitorTest {
               is(dateTime("1970-01-01T00:00:00Z")));
           assertThat(record.getLinkFieldValue("STRING|LINK"), is(""));
           assertThat(record.getSubtableFieldValue("STRING|SUBTABLE"), is(list()));
-          assertThat(record.getUserSelectFieldValue("STRING|USER_SELECT"), is(list()));
-          assertThat(
-              record.getOrganizationSelectFieldValue("STRING|ORGANIZATION_SELECT"), is(list()));
-          assertThat(record.getGroupSelectFieldValue("STRING|GROUP_SELECT"), is(list()));
           assertThat(
               record.getSingleLineTextFieldValue("TIMESTAMP|SINGLE_LINE_TEXT"),
               is("1970-01-01T00:00:00Z"));
@@ -216,6 +218,12 @@ public class KintoneColumnVisitorTest {
           assertThat(
               record.getMultiSelectFieldValue("STRING|MULTI_SELECT"), is(list("123", "abc")));
           assertThat(record.getDropDownFieldValue("STRING|DROP_DOWN"), is("abc"));
+          assertThat(record.getUserSelectFieldValue("STRING|USER_SELECT"), is(users("123", "abc")));
+          assertThat(
+              record.getOrganizationSelectFieldValue("STRING|ORGANIZATION_SELECT"),
+              is(organizations("123", "abc")));
+          assertThat(
+              record.getGroupSelectFieldValue("STRING|GROUP_SELECT"), is(groups("123", "abc")));
           assertThat(record.getDateFieldValue("STRING|DATE"), is(date("1999-12-31")));
           assertThat(record.getDateFieldValue("STRING|DATE|JST"), is(date("1999-12-31")));
           assertThat(record.getDateFieldValue("STRING|DATE|PST"), is(date("1999-12-30")));
@@ -227,14 +235,6 @@ public class KintoneColumnVisitorTest {
               is(dateTime("1999-12-31T23:59:59Z")));
           assertThat(record.getLinkFieldValue("STRING|LINK"), is("abc"));
           assertTableRows(record.getSubtableFieldValue("STRING|SUBTABLE"), rows(0L, 1L, 2L));
-          assertThat(
-              record.getUserSelectFieldValue("STRING|USER_SELECT"), is(users("user1", "user2")));
-          assertThat(
-              record.getOrganizationSelectFieldValue("STRING|ORGANIZATION_SELECT"),
-              is(organizations("org1", "org2")));
-          assertThat(
-              record.getGroupSelectFieldValue("STRING|GROUP_SELECT"),
-              is(groups("group1", "group2")));
           assertThat(
               record.getSingleLineTextFieldValue("TIMESTAMP|SINGLE_LINE_TEXT"),
               is("1999-12-31T23:59:59Z"));
@@ -289,6 +289,12 @@ public class KintoneColumnVisitorTest {
           assertThat(
               record.getMultiSelectFieldValue("STRING|MULTI_SELECT"), is(list("456", "def")));
           assertThat(record.getDropDownFieldValue("STRING|DROP_DOWN"), is("def"));
+          assertThat(record.getUserSelectFieldValue("STRING|USER_SELECT"), is(users("456", "def")));
+          assertThat(
+              record.getOrganizationSelectFieldValue("STRING|ORGANIZATION_SELECT"),
+              is(organizations("456", "def")));
+          assertThat(
+              record.getGroupSelectFieldValue("STRING|GROUP_SELECT"), is(groups("456", "def")));
           assertThat(record.getDateFieldValue("STRING|DATE"), is(date("2000-01-01")));
           assertThat(record.getDateFieldValue("STRING|DATE|JST"), is(date("2000-01-01")));
           assertThat(record.getDateFieldValue("STRING|DATE|PST"), is(date("1999-12-31")));
@@ -300,14 +306,6 @@ public class KintoneColumnVisitorTest {
               is(dateTime("2000-01-01T00:00:00Z")));
           assertThat(record.getLinkFieldValue("STRING|LINK"), is("def"));
           assertTableRows(record.getSubtableFieldValue("STRING|SUBTABLE"), rows(3L, 4L, 5L));
-          assertThat(
-              record.getUserSelectFieldValue("STRING|USER_SELECT"), is(users("user3", "user4")));
-          assertThat(
-              record.getOrganizationSelectFieldValue("STRING|ORGANIZATION_SELECT"),
-              is(organizations("org3", "org4")));
-          assertThat(
-              record.getGroupSelectFieldValue("STRING|GROUP_SELECT"),
-              is(groups("group3", "group4")));
           assertThat(
               record.getSingleLineTextFieldValue("TIMESTAMP|SINGLE_LINE_TEXT"),
               is("2000-01-01T00:00:00Z"));
@@ -366,6 +364,10 @@ public class KintoneColumnVisitorTest {
           assertThat(record.getFieldType("STRING|RADIO_BUTTON"), is(FieldType.RADIO_BUTTON));
           assertThat(record.getFieldType("STRING|MULTI_SELECT"), is(FieldType.MULTI_SELECT));
           assertThat(record.getFieldType("STRING|DROP_DOWN"), is(FieldType.DROP_DOWN));
+          assertThat(record.getFieldType("STRING|USER_SELECT"), is(FieldType.USER_SELECT));
+          assertThat(
+              record.getFieldType("STRING|ORGANIZATION_SELECT"), is(FieldType.ORGANIZATION_SELECT));
+          assertThat(record.getFieldType("STRING|GROUP_SELECT"), is(FieldType.GROUP_SELECT));
           assertThat(record.getFieldType("STRING|DATE"), is(FieldType.DATE));
           assertThat(record.getFieldType("STRING|DATE|JST"), is(FieldType.DATE));
           assertThat(record.getFieldType("STRING|DATE|PST"), is(FieldType.DATE));
@@ -375,10 +377,6 @@ public class KintoneColumnVisitorTest {
           assertThat(record.getFieldType("STRING|DATETIME"), is(FieldType.DATETIME));
           assertThat(record.getFieldType("STRING|LINK"), is(FieldType.LINK));
           assertThat(record.getFieldType("STRING|SUBTABLE"), is(FieldType.SUBTABLE));
-          assertThat(record.getFieldType("STRING|USER_SELECT"), is(FieldType.USER_SELECT));
-          assertThat(
-              record.getFieldType("STRING|ORGANIZATION_SELECT"), is(FieldType.ORGANIZATION_SELECT));
-          assertThat(record.getFieldType("STRING|GROUP_SELECT"), is(FieldType.GROUP_SELECT));
           assertThat(
               record.getFieldType("TIMESTAMP|SINGLE_LINE_TEXT"), is(FieldType.SINGLE_LINE_TEXT));
           assertThat(record.getFieldType("TIMESTAMP|NUMBER"), is(FieldType.NUMBER));
@@ -423,6 +421,10 @@ public class KintoneColumnVisitorTest {
           assertThat(record.getRadioButtonFieldValue("STRING|RADIO_BUTTON"), nullValue());
           assertThat(record.getMultiSelectFieldValue("STRING|MULTI_SELECT"), is(list()));
           assertThat(record.getDropDownFieldValue("STRING|DROP_DOWN"), nullValue());
+          assertThat(record.getUserSelectFieldValue("STRING|USER_SELECT"), is(list()));
+          assertThat(
+              record.getOrganizationSelectFieldValue("STRING|ORGANIZATION_SELECT"), is(list()));
+          assertThat(record.getGroupSelectFieldValue("STRING|GROUP_SELECT"), is(list()));
           assertThat(record.getDateFieldValue("STRING|DATE"), nullValue());
           assertThat(record.getDateFieldValue("STRING|DATE|JST"), nullValue());
           assertThat(record.getDateFieldValue("STRING|DATE|PST"), nullValue());
@@ -432,10 +434,6 @@ public class KintoneColumnVisitorTest {
           assertThat(record.getDateTimeFieldValue("STRING|DATETIME"), nullValue());
           assertThat(record.getLinkFieldValue("STRING|LINK"), nullValue());
           assertThat(record.getSubtableFieldValue("STRING|SUBTABLE"), is(list()));
-          assertThat(record.getUserSelectFieldValue("STRING|USER_SELECT"), is(list()));
-          assertThat(
-              record.getOrganizationSelectFieldValue("STRING|ORGANIZATION_SELECT"), is(list()));
-          assertThat(record.getGroupSelectFieldValue("STRING|GROUP_SELECT"), is(list()));
           assertThat(record.getSingleLineTextFieldValue("TIMESTAMP|SINGLE_LINE_TEXT"), nullValue());
           assertThat(record.getNumberFieldValue("TIMESTAMP|NUMBER"), nullValue());
           assertThat(record.getDateFieldValue("TIMESTAMP|DATE"), nullValue());
@@ -488,6 +486,9 @@ public class KintoneColumnVisitorTest {
           assertThat(record.getFieldValue("STRING|RADIO_BUTTON"), nullValue());
           assertThat(record.getFieldValue("STRING|MULTI_SELECT"), nullValue());
           assertThat(record.getFieldValue("STRING|DROP_DOWN"), nullValue());
+          assertThat(record.getFieldValue("STRING|USER_SELECT"), nullValue());
+          assertThat(record.getFieldValue("STRING|ORGANIZATION_SELECT"), nullValue());
+          assertThat(record.getFieldValue("STRING|GROUP_SELECT"), nullValue());
           assertThat(record.getFieldValue("STRING|DATE"), nullValue());
           assertThat(record.getFieldValue("STRING|DATE|JST"), nullValue());
           assertThat(record.getFieldValue("STRING|DATE|PST"), nullValue());
@@ -497,9 +498,6 @@ public class KintoneColumnVisitorTest {
           assertThat(record.getFieldValue("STRING|DATETIME"), nullValue());
           assertThat(record.getFieldValue("STRING|LINK"), nullValue());
           assertThat(record.getFieldValue("STRING|SUBTABLE"), nullValue());
-          assertThat(record.getFieldValue("STRING|USER_SELECT"), nullValue());
-          assertThat(record.getFieldValue("STRING|ORGANIZATION_SELECT"), nullValue());
-          assertThat(record.getFieldValue("STRING|GROUP_SELECT"), nullValue());
           assertThat(record.getFieldValue("TIMESTAMP|SINGLE_LINE_TEXT"), nullValue());
           assertThat(record.getFieldValue("TIMESTAMP|NUMBER"), nullValue());
           assertThat(record.getFieldValue("TIMESTAMP|DATE"), nullValue());
@@ -555,6 +553,10 @@ public class KintoneColumnVisitorTest {
           assertThat(record.getRadioButtonFieldValue("STRING|RADIO_BUTTON"), is(""));
           assertThat(record.getMultiSelectFieldValue("STRING|MULTI_SELECT"), is(list()));
           assertThat(record.getDropDownFieldValue("STRING|DROP_DOWN"), is(""));
+          assertThat(record.getUserSelectFieldValue("STRING|USER_SELECT"), is(list()));
+          assertThat(
+              record.getOrganizationSelectFieldValue("STRING|ORGANIZATION_SELECT"), is(list()));
+          assertThat(record.getGroupSelectFieldValue("STRING|GROUP_SELECT"), is(list()));
           assertThat(record.getDateFieldValue("STRING|DATE"), is(date("1970-01-01")));
           assertThat(record.getDateFieldValue("STRING|DATE|JST"), is(date("1970-01-01")));
           assertThat(record.getDateFieldValue("STRING|DATE|PST"), is(date("1969-12-31")));
@@ -566,10 +568,6 @@ public class KintoneColumnVisitorTest {
               is(dateTime("1970-01-01T00:00:00Z")));
           assertThat(record.getLinkFieldValue("STRING|LINK"), is(""));
           assertThat(record.getSubtableFieldValue("STRING|SUBTABLE"), is(list()));
-          assertThat(record.getUserSelectFieldValue("STRING|USER_SELECT"), is(list()));
-          assertThat(
-              record.getOrganizationSelectFieldValue("STRING|ORGANIZATION_SELECT"), is(list()));
-          assertThat(record.getGroupSelectFieldValue("STRING|GROUP_SELECT"), is(list()));
           assertThat(
               record.getSingleLineTextFieldValue("TIMESTAMP|SINGLE_LINE_TEXT"),
               is("1970-01-01T00:00:00Z"));
@@ -673,6 +671,9 @@ public class KintoneColumnVisitorTest {
         .add("STRING|RADIO_BUTTON", Types.STRING)
         .add("STRING|MULTI_SELECT", Types.STRING)
         .add("STRING|DROP_DOWN", Types.STRING)
+        .add("STRING|USER_SELECT", Types.STRING)
+        .add("STRING|ORGANIZATION_SELECT", Types.STRING)
+        .add("STRING|GROUP_SELECT", Types.STRING)
         .add("STRING|DATE", Types.STRING)
         .add("STRING|DATE|JST", Types.STRING)
         .add("STRING|DATE|PST", Types.STRING)
@@ -682,9 +683,6 @@ public class KintoneColumnVisitorTest {
         .add("STRING|DATETIME", Types.STRING)
         .add("STRING|LINK", Types.STRING)
         .add("STRING|SUBTABLE", Types.STRING)
-        .add("STRING|USER_SELECT", Types.STRING)
-        .add("STRING|ORGANIZATION_SELECT", Types.STRING)
-        .add("STRING|GROUP_SELECT", Types.STRING)
         .add("TIMESTAMP|SINGLE_LINE_TEXT", Types.TIMESTAMP)
         .add("TIMESTAMP|NUMBER", Types.TIMESTAMP)
         .add("TIMESTAMP|DATE", Types.TIMESTAMP)
@@ -732,6 +730,12 @@ public class KintoneColumnVisitorTest {
         .put(build("STRING|RADIO_BUTTON", it -> it.setType("RADIO_BUTTON")))
         .put(build("STRING|MULTI_SELECT", it -> it.setType("MULTI_SELECT").setValueSeparator(",")))
         .put(build("STRING|DROP_DOWN", it -> it.setType("DROP_DOWN")))
+        .put(build("STRING|USER_SELECT", it -> it.setType("USER_SELECT").setValueSeparator(",")))
+        .put(
+            build(
+                "STRING|ORGANIZATION_SELECT",
+                it -> it.setType("ORGANIZATION_SELECT").setValueSeparator(",")))
+        .put(build("STRING|GROUP_SELECT", it -> it.setType("GROUP_SELECT").setValueSeparator(",")))
         .put(build("STRING|DATE", it -> it.setType("DATE").setTimezone("UTC")))
         .put(build("STRING|DATE|JST", it -> it.setType("DATE").setTimezone("Asia/Tokyo")))
         .put(build("STRING|DATE|PST", it -> it.setType("DATE").setTimezone("US/Pacific")))
@@ -741,12 +745,6 @@ public class KintoneColumnVisitorTest {
         .put(build("STRING|DATETIME", it -> it.setType("DATETIME")))
         .put(build("STRING|LINK", it -> it.setType("LINK")))
         .put(build("STRING|SUBTABLE", it -> it.setType("SUBTABLE")))
-        .put(build("STRING|USER_SELECT", it -> it.setType("USER_SELECT").setValueSeparator(",")))
-        .put(
-            build(
-                "STRING|ORGANIZATION_SELECT",
-                it -> it.setType("ORGANIZATION_SELECT").setValueSeparator(",")))
-        .put(build("STRING|GROUP_SELECT", it -> it.setType("GROUP_SELECT").setValueSeparator(",")))
         .put(build("TIMESTAMP|SINGLE_LINE_TEXT", it -> it.setType("SINGLE_LINE_TEXT")))
         .put(build("TIMESTAMP|NUMBER", it -> it.setType("NUMBER")))
         .put(build("TIMESTAMP|DATE", it -> it.setType("DATE").setTimezone("UTC")))
@@ -799,6 +797,9 @@ public class KintoneColumnVisitorTest {
         .setNull("STRING|RADIO_BUTTON")
         .setNull("STRING|MULTI_SELECT")
         .setNull("STRING|DROP_DOWN")
+        .setNull("STRING|USER_SELECT")
+        .setNull("STRING|ORGANIZATION_SELECT")
+        .setNull("STRING|GROUP_SELECT")
         .setNull("STRING|DATE")
         .setNull("STRING|DATE|JST")
         .setNull("STRING|DATE|PST")
@@ -808,9 +809,6 @@ public class KintoneColumnVisitorTest {
         .setNull("STRING|DATETIME")
         .setNull("STRING|LINK")
         .setNull("STRING|SUBTABLE")
-        .setNull("STRING|USER_SELECT")
-        .setNull("STRING|ORGANIZATION_SELECT")
-        .setNull("STRING|GROUP_SELECT")
         .setNull("TIMESTAMP|SINGLE_LINE_TEXT")
         .setNull("TIMESTAMP|NUMBER")
         .setNull("TIMESTAMP|DATE")
@@ -853,6 +851,9 @@ public class KintoneColumnVisitorTest {
         .setString("STRING|RADIO_BUTTON", "")
         .setString("STRING|MULTI_SELECT", "")
         .setString("STRING|DROP_DOWN", "")
+        .setString("STRING|USER_SELECT", "")
+        .setString("STRING|ORGANIZATION_SELECT", "")
+        .setString("STRING|GROUP_SELECT", "")
         .setString("STRING|DATE", "")
         .setString("STRING|DATE|JST", "")
         .setString("STRING|DATE|PST", "")
@@ -862,18 +863,15 @@ public class KintoneColumnVisitorTest {
         .setString("STRING|DATETIME", "")
         .setString("STRING|LINK", "")
         .setString("STRING|SUBTABLE", "")
-        .setString("STRING|USER_SELECT", "")
-        .setString("STRING|ORGANIZATION_SELECT", "")
-        .setString("STRING|GROUP_SELECT", "")
-        .setTimestamp("TIMESTAMP|SINGLE_LINE_TEXT", Timestamp.ofInstant(Instant.EPOCH))
-        .setTimestamp("TIMESTAMP|NUMBER", Timestamp.ofInstant(Instant.EPOCH))
-        .setTimestamp("TIMESTAMP|DATE", Timestamp.ofInstant(Instant.EPOCH))
-        .setTimestamp("TIMESTAMP|DATE|JST", Timestamp.ofInstant(Instant.EPOCH))
-        .setTimestamp("TIMESTAMP|DATE|PST", Timestamp.ofInstant(Instant.EPOCH))
-        .setTimestamp("TIMESTAMP|TIME", Timestamp.ofInstant(Instant.EPOCH))
-        .setTimestamp("TIMESTAMP|TIME|JST", Timestamp.ofInstant(Instant.EPOCH))
-        .setTimestamp("TIMESTAMP|TIME|PST", Timestamp.ofInstant(Instant.EPOCH))
-        .setTimestamp("TIMESTAMP", Timestamp.ofInstant(Instant.EPOCH))
+        .setTimestamp("TIMESTAMP|SINGLE_LINE_TEXT", Instant.EPOCH)
+        .setTimestamp("TIMESTAMP|NUMBER", Instant.EPOCH)
+        .setTimestamp("TIMESTAMP|DATE", Instant.EPOCH)
+        .setTimestamp("TIMESTAMP|DATE|JST", Instant.EPOCH)
+        .setTimestamp("TIMESTAMP|DATE|PST", Instant.EPOCH)
+        .setTimestamp("TIMESTAMP|TIME", Instant.EPOCH)
+        .setTimestamp("TIMESTAMP|TIME|JST", Instant.EPOCH)
+        .setTimestamp("TIMESTAMP|TIME|PST", Instant.EPOCH)
+        .setTimestamp("TIMESTAMP", Instant.EPOCH)
         .setJson("JSON|SINGLE_LINE_TEXT", ValueFactory.newString(""))
         .setJson("JSON", ValueFactory.newString(""))
         .setJson("JSON|SUBTABLE", ValueFactory.newString(""))
@@ -907,6 +905,9 @@ public class KintoneColumnVisitorTest {
         .setString("STRING|RADIO_BUTTON", "abc")
         .setString("STRING|MULTI_SELECT", "123,abc")
         .setString("STRING|DROP_DOWN", "abc")
+        .setString("STRING|USER_SELECT", "123,abc")
+        .setString("STRING|ORGANIZATION_SELECT", "123,abc")
+        .setString("STRING|GROUP_SELECT", "123,abc")
         .setString("STRING|DATE", "1999-12-31")
         .setString("STRING|DATE|JST", "1999-12-31")
         .setString("STRING|DATE|PST", "1999-12-31")
@@ -916,9 +917,6 @@ public class KintoneColumnVisitorTest {
         .setString("STRING|DATETIME", "1999-12-31T23:59:59Z")
         .setString("STRING|LINK", "abc")
         .setString("STRING|SUBTABLE", String.format("[%s,%s,%s]", ROWS[0], ROWS[1], ROWS[2]))
-        .setString("STRING|USER_SELECT", "user1,user2")
-        .setString("STRING|ORGANIZATION_SELECT", "org1,org2")
-        .setString("STRING|GROUP_SELECT", "group1,group2")
         .setTimestamp("TIMESTAMP|SINGLE_LINE_TEXT", timestamp("1999-12-31T23:59:59Z"))
         .setTimestamp("TIMESTAMP|NUMBER", timestamp("1999-12-31T23:59:59Z"))
         .setTimestamp("TIMESTAMP|DATE", timestamp("1999-12-31T23:59:59Z"))
@@ -962,6 +960,9 @@ public class KintoneColumnVisitorTest {
         .setString("STRING|RADIO_BUTTON", "def")
         .setString("STRING|MULTI_SELECT", "456,def")
         .setString("STRING|DROP_DOWN", "def")
+        .setString("STRING|USER_SELECT", "456,def")
+        .setString("STRING|ORGANIZATION_SELECT", "456,def")
+        .setString("STRING|GROUP_SELECT", "456,def")
         .setString("STRING|DATE", "2000-01-01")
         .setString("STRING|DATE|JST", "2000-01-01")
         .setString("STRING|DATE|PST", "2000-01-01")
@@ -971,9 +972,6 @@ public class KintoneColumnVisitorTest {
         .setString("STRING|DATETIME", "2000-01-01T00:00:00Z")
         .setString("STRING|LINK", "def")
         .setString("STRING|SUBTABLE", String.format("[%s,%s,%s]", ROWS[3], ROWS[4], ROWS[5]))
-        .setString("STRING|USER_SELECT", "user3,user4")
-        .setString("STRING|ORGANIZATION_SELECT", "org3,org4")
-        .setString("STRING|GROUP_SELECT", "group3,group4")
         .setTimestamp("TIMESTAMP|SINGLE_LINE_TEXT", timestamp("2000-01-01T00:00:00Z"))
         .setTimestamp("TIMESTAMP|NUMBER", timestamp("2000-01-01T00:00:00Z"))
         .setTimestamp("TIMESTAMP|DATE", timestamp("2000-01-01T00:00:00Z"))
@@ -992,8 +990,8 @@ public class KintoneColumnVisitorTest {
         .build();
   }
 
-  private static Timestamp timestamp(CharSequence text) {
-    return Timestamp.ofInstant(Instant.parse(text));
+  private static Instant timestamp(CharSequence text) {
+    return Instant.parse(text);
   }
 
   private static Value value(String json) {

@@ -1,11 +1,14 @@
 package org.embulk.output.kintone.reducer;
 
+import static org.embulk.output.kintone.util.Compatibility.PARSER;
+import static org.embulk.output.kintone.util.Compatibility.setJson;
+import static org.embulk.output.kintone.util.Compatibility.setTimestamp;
+
 import java.time.Instant;
 import java.util.List;
 import org.embulk.spi.Column;
 import org.embulk.spi.ColumnVisitor;
 import org.embulk.spi.PageBuilder;
-import org.embulk.spi.time.Timestamp;
 
 public class CSVInputColumnVisitor implements ColumnVisitor {
   private final PageBuilder builder;
@@ -62,7 +65,7 @@ public class CSVInputColumnVisitor implements ColumnVisitor {
     if (value == null) {
       builder.setNull(column);
     } else {
-      builder.setTimestamp(column, Timestamp.ofInstant(Instant.parse(value)));
+      setTimestamp(builder, column, Instant.parse(value));
     }
   }
 
@@ -72,7 +75,7 @@ public class CSVInputColumnVisitor implements ColumnVisitor {
     if (value == null) {
       builder.setNull(column);
     } else {
-      builder.setJson(column, Reducer.PARSER.parse(value));
+      setJson(builder, column, PARSER.parse(value));
     }
   }
 }

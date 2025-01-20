@@ -1,5 +1,8 @@
 package org.embulk.output.kintone;
 
+import static org.embulk.output.kintone.util.Compatibility.getJson;
+import static org.embulk.output.kintone.util.Compatibility.getTimestamp;
+
 import com.kintone.client.model.record.FieldValue;
 import com.kintone.client.model.record.Record;
 import com.kintone.client.model.record.UpdateKey;
@@ -13,7 +16,6 @@ import org.embulk.output.kintone.record.IdOrUpdateKey;
 import org.embulk.spi.Column;
 import org.embulk.spi.ColumnVisitor;
 import org.embulk.spi.PageReader;
-import org.embulk.spi.time.Timestamp;
 import org.msgpack.value.Value;
 import org.msgpack.value.ValueFactory;
 
@@ -170,9 +172,9 @@ public class KintoneColumnVisitor implements ColumnVisitor {
     if (isPreferNull(column)) {
       setNull(type, fieldCode, updateKey);
     } else if (reader.isNull(column)) {
-      setTimestamp(type, fieldCode, updateKey, Timestamp.ofInstant(Instant.EPOCH), option);
+      setTimestamp(type, fieldCode, updateKey, Instant.EPOCH, option);
     } else {
-      setTimestamp(type, fieldCode, updateKey, reader.getTimestamp(column), option);
+      setTimestamp(type, fieldCode, updateKey, getTimestamp(reader, column), option);
     }
   }
 
@@ -195,7 +197,7 @@ public class KintoneColumnVisitor implements ColumnVisitor {
     } else if (reader.isNull(column)) {
       setJson(type, fieldCode, updateKey, ValueFactory.newString(""), option);
     } else {
-      setJson(type, fieldCode, updateKey, reader.getJson(column), option);
+      setJson(type, fieldCode, updateKey, getJson(reader, column), option);
     }
   }
 
@@ -272,7 +274,7 @@ public class KintoneColumnVisitor implements ColumnVisitor {
       KintoneColumnType type,
       String fieldCode,
       UpdateKey updateKey,
-      Timestamp value,
+      Instant value,
       KintoneColumnOption option) {
     FieldValue fieldValue = type.getFieldValue(value, option);
     if (updateKey != null) {

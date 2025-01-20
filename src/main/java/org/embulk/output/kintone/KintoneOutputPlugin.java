@@ -16,17 +16,16 @@ import org.embulk.util.config.ConfigMapperFactory;
 import org.embulk.util.config.TaskMapper;
 
 public class KintoneOutputPlugin implements OutputPlugin {
-  private static final ConfigMapperFactory CONFIG_MAPPER_FACTORY =
+  public static final ConfigMapperFactory CONFIG_MAPPER_FACTORY =
       ConfigMapperFactory.builder().addDefaultModules().build();
-  private static final ConfigMapper CONFIG_MAPPER = CONFIG_MAPPER_FACTORY.createConfigMapper();
-  private static final TaskMapper TASK_MAPPER = CONFIG_MAPPER_FACTORY.createTaskMapper();
 
   @Override
   public ConfigDiff transaction(
       ConfigSource config, Schema schema, int taskCount, OutputPlugin.Control control) {
-    PluginTask task = CONFIG_MAPPER.map(config, PluginTask.class);
+    ConfigMapper configMapper = CONFIG_MAPPER_FACTORY.createConfigMapper();
+    PluginTask task = configMapper.map(config, PluginTask.class);
     task.setDerivedColumns(Collections.emptySet());
-    List<TaskReport> taskReports = control.run(task.dump());
+    List<TaskReport> taskReports = control.run(task.toTaskSource());
     return task.getReduceKeyName().isPresent()
         ? new Reducer(task, schema)
             .reduce(taskReports, schema.lookupColumn(task.getReduceKeyName().get()))
@@ -45,7 +44,8 @@ public class KintoneOutputPlugin implements OutputPlugin {
 
   @Override
   public TransactionalPageOutput open(TaskSource taskSource, Schema schema, int taskIndex) {
-    PluginTask task = TASK_MAPPER.map(taskSource, PluginTask.class);
+    TaskMapper taskMapper = CONFIG_MAPPER_FACTORY.createTaskMapper();
+    PluginTask task = taskMapper.map(taskSource, PluginTask.class);
     return task.getReduceKeyName().isPresent()
         ? new ReducedPageOutput(schema, taskIndex)
         : new KintonePageOutput(task, schema);

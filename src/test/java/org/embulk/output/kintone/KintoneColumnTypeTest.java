@@ -50,13 +50,12 @@ import java.util.Arrays;
 import java.util.List;
 import java.util.stream.Collectors;
 import org.embulk.output.kintone.deserializer.DeserializerTest;
-import org.embulk.spi.time.Timestamp;
 import org.junit.Test;
 import org.msgpack.value.Value;
 import org.msgpack.value.ValueFactory;
 
 public class KintoneColumnTypeTest {
-  private static final Timestamp EPOCH = Timestamp.ofInstant(Instant.EPOCH);
+  private static final Instant EPOCH = Instant.EPOCH;
   private static final Value EMPTY = ValueFactory.newString("");
 
   @Test
@@ -178,12 +177,9 @@ public class KintoneColumnTypeTest {
   }
 
   @SafeVarargs
+  @SuppressWarnings("varargs")
   public static <T> List<T> list(T... a) {
     return Arrays.asList(a);
-  }
-
-  public static List<TableRow> rows(Long... ids) {
-    return Arrays.stream(ids).map(DeserializerTest::tableRow).collect(Collectors.toList());
   }
 
   public static List<User> users(String... codes) {
@@ -196,6 +192,10 @@ public class KintoneColumnTypeTest {
 
   public static List<Group> groups(String... codes) {
     return Arrays.stream(codes).map(Group::new).collect(Collectors.toList());
+  }
+
+  public static List<TableRow> rows(Long... ids) {
+    return Arrays.stream(ids).map(DeserializerTest::tableRow).collect(Collectors.toList());
   }
 
   public static LocalDate date(CharSequence text) {

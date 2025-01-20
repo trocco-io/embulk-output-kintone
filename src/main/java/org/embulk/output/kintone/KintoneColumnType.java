@@ -35,10 +35,10 @@ import java.util.Collections;
 import java.util.List;
 import java.util.stream.Collectors;
 import org.embulk.output.kintone.deserializer.Deserializer;
-import org.embulk.spi.time.Timestamp;
 import org.embulk.spi.type.Type;
 import org.embulk.spi.type.Types;
 import org.msgpack.value.ArrayValue;
+import org.msgpack.value.MapValue;
 import org.msgpack.value.StringValue;
 import org.msgpack.value.Value;
 import org.msgpack.value.ValueFactory;
@@ -139,7 +139,7 @@ public enum KintoneColumnType {
     }
 
     @Override
-    public NumberFieldValue getFieldValue(Timestamp value, KintoneColumnOption option) {
+    public NumberFieldValue getFieldValue(Instant value, KintoneColumnOption option) {
       return (NumberFieldValue) getFieldValue(value.getEpochSecond(), option);
     }
 
@@ -264,14 +264,18 @@ public enum KintoneColumnType {
 
     @Override
     public UserSelectFieldValue getFieldValue(String value, KintoneColumnOption option) {
-      List<String> codes = asList(value, option);
-      List<User> users = codes.stream().map(User::new).collect(Collectors.toList());
-      return new UserSelectFieldValue(users);
+      return new UserSelectFieldValue(
+          asList(value, option).stream().map(User::new).collect(Collectors.toList()));
     }
 
     @Override
-    public Value asValue(FieldValue value) {
-      throw new UnsupportedOperationException();
+    public ArrayValue asValue(FieldValue value) {
+      return ValueFactory.newArray(
+          ((UserSelectFieldValue) value)
+              .getValues().stream()
+                  .map(User::getCode)
+                  .map(code -> newMap("code", code))
+                  .collect(Collectors.toList()));
     }
 
     @Override
@@ -287,15 +291,18 @@ public enum KintoneColumnType {
 
     @Override
     public OrganizationSelectFieldValue getFieldValue(String value, KintoneColumnOption option) {
-      List<String> codes = asList(value, option);
-      List<Organization> organizations =
-          codes.stream().map(Organization::new).collect(Collectors.toList());
-      return new OrganizationSelectFieldValue(organizations);
+      return new OrganizationSelectFieldValue(
+          asList(value, option).stream().map(Organization::new).collect(Collectors.toList()));
     }
 
     @Override
     public Value asValue(FieldValue value) {
-      throw new UnsupportedOperationException();
+      return ValueFactory.newArray(
+          ((OrganizationSelectFieldValue) value)
+              .getValues().stream()
+                  .map(Organization::getCode)
+                  .map(code -> newMap("code", code))
+                  .collect(Collectors.toList()));
     }
 
     @Override
@@ -311,14 +318,18 @@ public enum KintoneColumnType {
 
     @Override
     public GroupSelectFieldValue getFieldValue(String value, KintoneColumnOption option) {
-      List<String> codes = asList(value, option);
-      List<Group> groups = codes.stream().map(Group::new).collect(Collectors.toList());
-      return new GroupSelectFieldValue(groups);
+      return new GroupSelectFieldValue(
+          asList(value, option).stream().map(Group::new).collect(Collectors.toList()));
     }
 
     @Override
     public Value asValue(FieldValue value) {
-      throw new UnsupportedOperationException();
+      return ValueFactory.newArray(
+          ((GroupSelectFieldValue) value)
+              .getValues().stream()
+                  .map(Group::getCode)
+                  .map(code -> newMap("code", code))
+                  .collect(Collectors.toList()));
     }
 
     @Override
@@ -334,7 +345,7 @@ public enum KintoneColumnType {
 
     @Override
     public DateFieldValue getFieldValue(long value, KintoneColumnOption option) {
-      return getFieldValue(Timestamp.ofEpochSecond(value), option);
+      return getFieldValue(Instant.ofEpochSecond(value), option);
     }
 
     @Override
@@ -354,8 +365,8 @@ public enum KintoneColumnType {
     }
 
     @Override
-    public DateFieldValue getFieldValue(Timestamp value, KintoneColumnOption option) {
-      return new DateFieldValue(value.getInstant().atZone(getZoneId(option)).toLocalDate());
+    public DateFieldValue getFieldValue(Instant value, KintoneColumnOption option) {
+      return new DateFieldValue(value.atZone(getZoneId(option)).toLocalDate());
     }
 
     @Override
@@ -376,7 +387,7 @@ public enum KintoneColumnType {
 
     @Override
     public TimeFieldValue getFieldValue(long value, KintoneColumnOption option) {
-      return getFieldValue(Timestamp.ofEpochSecond(value), option);
+      return getFieldValue(Instant.ofEpochSecond(value), option);
     }
 
     @Override
@@ -396,8 +407,8 @@ public enum KintoneColumnType {
     }
 
     @Override
-    public TimeFieldValue getFieldValue(Timestamp value, KintoneColumnOption option) {
-      return new TimeFieldValue(value.getInstant().atZone(getZoneId(option)).toLocalTime());
+    public TimeFieldValue getFieldValue(Instant value, KintoneColumnOption option) {
+      return new TimeFieldValue(value.atZone(getZoneId(option)).toLocalTime());
     }
 
     @Override
@@ -418,7 +429,7 @@ public enum KintoneColumnType {
 
     @Override
     public DateTimeFieldValue getFieldValue(long value, KintoneColumnOption option) {
-      return getFieldValue(Timestamp.ofEpochSecond(value), option);
+      return getFieldValue(Instant.ofEpochSecond(value), option);
     }
 
     @Override
@@ -434,8 +445,8 @@ public enum KintoneColumnType {
     }
 
     @Override
-    public DateTimeFieldValue getFieldValue(Timestamp value, KintoneColumnOption option) {
-      return new DateTimeFieldValue(value.getInstant().atZone(ZoneOffset.UTC));
+    public DateTimeFieldValue getFieldValue(Instant value, KintoneColumnOption option) {
+      return new DateTimeFieldValue(value.atZone(ZoneOffset.UTC));
     }
 
     @Override
@@ -512,7 +523,7 @@ public enum KintoneColumnType {
     }
   };
   private static final Deserializer DESERIALIZER = new Deserializer();
-  private static final Timestamp EPOCH = Timestamp.ofInstant(Instant.EPOCH);
+  private static final Instant EPOCH = Instant.EPOCH;
 
   public static KintoneColumnType getType(
       KintoneColumnOption option, KintoneColumnType defaultType) {
@@ -547,9 +558,9 @@ public enum KintoneColumnType {
 
   public abstract FieldValue getFieldValue(String value, KintoneColumnOption option);
 
-  public FieldValue getFieldValue(Timestamp value, KintoneColumnOption option) {
+  public FieldValue getFieldValue(Instant value, KintoneColumnOption option) {
     if (getSupportedTypes().contains(Types.TIMESTAMP)) {
-      return getFieldValue(value.getInstant().toString(), option);
+      return getFieldValue(value.toString(), option);
     } else {
       throw new UnsupportedOperationException();
     }
@@ -579,6 +590,11 @@ public enum KintoneColumnType {
 
   protected abstract List<Type> getSupportedTypes();
 
+  private static MapValue newMap(String... kvs) {
+    return ValueFactory.newMap(
+        Arrays.stream(kvs).map(ValueFactory::newString).toArray(Value[]::new));
+  }
+
   private static List<String> asList(String value, KintoneColumnOption option) {
     return value.isEmpty()
         ? Collections.emptyList()
@@ -586,7 +602,7 @@ public enum KintoneColumnType {
   }
 
   private static ZoneOffset getZoneOffset(KintoneColumnOption option) {
-    return getZoneId(option).getRules().getOffset(Instant.EPOCH);
+    return getZoneId(option).getRules().getOffset(EPOCH);
   }
 
   private static ZoneId getZoneId(KintoneColumnOption option) {

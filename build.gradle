@@ -1,107 +1,74 @@
 plugins {
     id "java"
-    id "maven-publish"
-    id "org.embulk.embulk-plugins" version "0.5.5"
-    id "com.github.johnrengelman.shadow" version "6.1.0" apply false
-    id "checkstyle"
-    id "com.palantir.git-version" version "0.12.3"
-    id "com.diffplug.spotless" version "6.13.0"
+    id "org.embulk.embulk-plugins" version "0.7.0"
+    id "com.palantir.git-version" version "3.1.0"
+    id "com.diffplug.spotless" version "6.13.0" // Downgrade to match Java 8
 }
 
 repositories {
     mavenCentral()
 }
 
-group = "io.trocco"
-description = "Dumps records to Kintone."
+group = "trocco-io"
 version = {
     def vd = versionDetails()
-    if (vd.commitDistance == 0 && vd.lastTag ==~ /^[0-9]+\.[0-9]+\.[0-9]$/) {
+    if (vd.commitDistance == 0 && vd.lastTag ==~ /^[0-9]+\.[0-9]+\.[0-9]+$/) {
         vd.lastTag
     } else {
         "0.0.0.${vd.gitHash}"
     }
 }()
+description = "Dumps records to Kintone."
 
+java {
+    sourceCompatibility = JavaVersion.VERSION_1_8
+    targetCompatibility = JavaVersion.VERSION_1_8
+}
 
-sourceCompatibility = 1.8
-targetCompatibility = 1.8
+configurations {
+    compileClasspath.resolutionStrategy.activateDependencyLocking()
+    runtimeClasspath.resolutionStrategy.activateDependencyLocking()
+}
 
 dependencies {
-    def embulkVersion = "0.10.39"
+    compileOnly "org.embulk:embulk-spi:0.11"
 
-    compileOnly "org.embulk:embulk-api:${embulkVersion}"
-    compileOnly "org.embulk:embulk-spi:${embulkVersion}"
-    implementation "org.embulk:embulk-util-config:0.3.4"
+    implementation "org.embulk:embulk-util-config:0.3.4" // Downgrade for compatibility with Embulk v0.9
+    implementation "org.embulk:embulk-util-json:0.3.0" // Downgrade for compatibility with Embulk v0.9
     implementation "org.embulk:embulk-util-retryhelper:0.9.0"
-    implementation "org.embulk:embulk-util-json:0.3.0"
-
-    implementation "com.google.inject:guice:4.0"
+    implementation "org.apache.commons:commons-lang3:3.4" // Downgrade to match Embulk runtime
+    implementation "com.google.guava:guava:18.0" // Downgrade to match Embulk runtime
     implementation "com.google.code.externalsortinginjava:externalsortinginjava:0.6.2"
-    implementation 'org.apache.commons:commons-lang3:3.4'
-    implementation project(path: ":shadow-kintone-java-client", configuration: "shadow")
+//  implementation "com.kintone:kintone-java-client:1.4.0"
+    implementation project(path: ":shadow", configuration: "shadow")
 
-    testImplementation "junit:junit:4.+"
-    testImplementation "org.embulk:embulk-core:${embulkVersion}"
-    testImplementation "org.embulk:embulk-deps:${embulkVersion}"
-    testImplementation "org.embulk:embulk-junit4:${embulkVersion}"
-    testImplementation "org.embulk:embulk-formatter-csv:${embulkVersion}"
-    testImplementation "org.embulk:embulk-input-file:${embulkVersion}"
-    testImplementation "org.embulk:embulk-parser-csv:${embulkVersion}"
-    testImplementation "org.mockito:mockito-inline:4.11.0"
+    testImplementation "org.embulk:embulk-spi:0.11"
+    testImplementation "org.embulk:embulk-deps:0.11.5"
+    testImplementation "org.embulk:embulk-input-file:0.11.0" // Downgrade to match the version of embulk-util-config
+    testImplementation "org.embulk:embulk-parser-csv:0.11.4" // Downgrade to match the version of embulk-util-config & embulk-util-json
+    testImplementation "org.embulk:embulk-junit4:0.11.5"
+    testImplementation "org.mockito:mockito-inline:4.11.0" // Downgrade to match Java 8
+    testImplementation "ch.qos.logback:logback-classic:1.3.15" // Downgrade to match Java 8
     testImplementation "net.jcip:jcip-annotations:1.0"
-    testImplementation 'javax.xml.bind:jaxb-api:2.3.1'
+}
+
+tasks.withType(JavaCompile).configureEach {
+    options.compilerArgs << "-Xlint:all" << "-Xlint:-serial"
 }
 
 embulkPlugin {
     mainClass = "org.embulk.output.kintone.KintoneOutputPlugin"
     category = "output"
     type = "kintone"
-    }
-clean { delete "classpath" }
-
-checkstyle {
-    configFile = file("${project.rootDir}/config/checkstyle/checkstyle.xml")
-    toolVersion = '6.14.1'
-}
-checkstyleMain {
-    configFile = file("${project.rootDir}/config/checkstyle/default.xml")
-    ignoreFailures = true
-}
-checkstyleTest {
-    configFile = file("${project.rootDir}/config/checkstyle/default.xml")
-    ignoreFailures = true
-}
-task checkstyle(type: Checkstyle) {
-    classpath = sourceSets.main.output + sourceSets.test.output
-    source = sourceSets.main.allJava + sourceSets.test.allJava
 }
 
-// This Gradle plugin's POM dependency modification works for "maven-publish" tasks.
-//
-// Note that "uploadArchives" is no longer supported. It is deprecated in Gradle 6 to be removed in Gradle 7.
-// https://github.com/gradle/gradle/issues/3003#issuecomment-495025844
-publishing {
-    publications {
-        embulkPluginMaven(MavenPublication) {  // Publish it with "publishEmbulkPluginMavenPublicationToMavenRepository".
-            from components.java  // Must be "components.java". The dependency modification works only for it.
-        }
-    }
-    repositories {
-        maven {
-            url = "${project.buildDir}/mavenPublishLocal"
-        }
-    }
-}
 gem {
-    authors = ["takeshi fujita"]
+    authors = [ "takeshi fujita" ]
+    email = [ "tksfjt1024@gmail.com" ]
     summary = "kintone output plugin for Embulk"
-    email = ["tksfjt1024@gmail.com"]
-    licenses = ["MIT"]
     homepage = "https://github.com/trocco-io/embulk-output-kintone"
-}
-gemPush {
-    host = "https://rubygems.org"
+    licenses = [ "MIT" ]
+    from("LICENSE.txt")
 }
 
 spotless {
