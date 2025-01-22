@@ -5,6 +5,13 @@ plugins {
 
 repositories {
     mavenCentral()
+    maven {
+        url = uri("https://maven.pkg.github.com/t3t5u/kintone-java-client")
+        credentials {
+            username = System.getenv("GITHUB_ACTOR") ?: "${rootProject.githubActor}"
+            password = System.getenv("GITHUB_TOKEN") ?: "${rootProject.githubToken}"
+        }
+    }
 }
 
 group = rootProject.group
@@ -16,7 +23,7 @@ configurations {
 }
 
 dependencies {
-    implementation("com.kintone:kintone-java-client:1.4.0") {
+    implementation("com.kintone:kintone-java-client:2.4.0-trocco-0.0.1") {
         exclude group: "org.slf4j", module: "slf4j-api"
     }
 }

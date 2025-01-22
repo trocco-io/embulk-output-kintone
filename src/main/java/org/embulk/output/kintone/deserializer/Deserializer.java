@@ -134,9 +134,8 @@ public class Deserializer {
     return new NumberFieldValue(read(parser, BigDecimal::new));
   }
 
-  @SuppressWarnings("cast")
   private CalcFieldValue deserializeCalc(JsonParser parser, DeserializationContext context) {
-    LOGGER.warn("Ignore field: {}", new CalcFieldValue((BigDecimal) read(parser, BigDecimal::new)));
+    LOGGER.warn("Ignore field: {}", new CalcFieldValue(readText(parser)));
     return null;
   }
 

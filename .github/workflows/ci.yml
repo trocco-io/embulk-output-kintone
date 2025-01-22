@@ -28,12 +28,18 @@ jobs:
 
       - name: Code format check by Spotless
         run: ./gradlew spotlessCheck
+        env:
+          GITHUB_TOKEN: ${{ secrets.GITHUB_TOKEN }}
 
       - name: Test
         run: ./gradlew test
+        env:
+          GITHUB_TOKEN: ${{ secrets.GITHUB_TOKEN }}
 
       - name: Build Gem
         run: ./gradlew gem
+        env:
+          GITHUB_TOKEN: ${{ secrets.GITHUB_TOKEN }}
 
       - name: Set up JRuby
         uses: ruby/setup-ruby@v1
