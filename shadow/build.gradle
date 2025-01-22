@@ -16,7 +16,7 @@ configurations {
 }
 
 dependencies {
-    implementation("com.kintone:kintone-java-client:1.4.0") {
+    implementation("com.kintone:kintone-java-client:2.3.0") {
         exclude group: "org.slf4j", module: "slf4j-api"
     }
 }
