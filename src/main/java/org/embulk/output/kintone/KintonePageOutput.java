@@ -1,6 +1,6 @@
 package org.embulk.output.kintone;
 
-import static org.embulk.util.retryhelper.RetryExecutor.retryExecutor;
+import static org.embulk.output.kintone.KintoneOutputPlugin.CONFIG_MAPPER_FACTORY;
 
 import com.fasterxml.jackson.databind.JsonNode;
 import com.fasterxml.jackson.databind.ObjectMapper;
@@ -29,11 +29,11 @@ import org.embulk.output.kintone.record.Id;
 import org.embulk.output.kintone.record.IdOrUpdateKey;
 import org.embulk.output.kintone.record.Skip;
 import org.embulk.output.kintone.util.Lazy;
-import org.embulk.spi.Exec;
 import org.embulk.spi.Page;
 import org.embulk.spi.PageReader;
 import org.embulk.spi.Schema;
 import org.embulk.spi.TransactionalPageOutput;
+import org.embulk.util.retryhelper.RetryExecutor;
 import org.embulk.util.retryhelper.RetryGiveupException;
 import org.embulk.util.retryhelper.Retryable;
 import org.slf4j.Logger;
@@ -54,9 +54,10 @@ public class KintonePageOutput implements TransactionalPageOutput {
   private final PageReader reader;
   private final Lazy<KintoneClient> client;
 
+  @SuppressWarnings("deprecation") // TODO: For compatibility with Embulk v0.9
   public KintonePageOutput(PluginTask task, Schema schema) {
     this.task = task;
-    reader = new PageReader(schema);
+    reader = new PageReader(schema); // TODO: Use Exec#getPageReader
     client = KintoneClient.lazy(() -> task, schema);
   }
 
@@ -85,10 +86,11 @@ public class KintonePageOutput implements TransactionalPageOutput {
     wrongTypeFields.forEach(
         (key, value) ->
             LOGGER.warn(
-                String.format(
-                    "Field type of %s is expected %s but actual %s",
-                    key, value.getLeft(), value.getRight())));
-    return Exec.newTaskReport();
+                "Field type of {} is expected {} but actual {}",
+                key,
+                value.getLeft(),
+                value.getRight()));
+    return CONFIG_MAPPER_FACTORY.newTaskReport();
   }
 
   private void insert(List<Record> records) {
@@ -102,10 +104,11 @@ public class KintonePageOutput implements TransactionalPageOutput {
   private <T> T executeWithRetry(Supplier<T> operation) {
     KintoneRetryOption retryOption = task.getRetryOptions();
     try {
-      return retryExecutor()
+      return RetryExecutor.builder()
           .withRetryLimit(retryOption.getLimit())
-          .withInitialRetryWait(retryOption.getInitialWaitMillis())
-          .withMaxRetryWait(retryOption.getMaxWaitMillis())
+          .withInitialRetryWaitMillis(retryOption.getInitialWaitMillis())
+          .withMaxRetryWaitMillis(retryOption.getMaxWaitMillis())
+          .build()
           .runInterruptible(
               new Retryable<T>() {
                 @Override
@@ -267,27 +270,20 @@ public class KintonePageOutput implements TransactionalPageOutput {
         recordForUpdate = idOrUpdateKey.forUpdate(record);
       } else if (skip == Skip.ALWAYS && idOrUpdateKey.isPresent()) {
         LOGGER.warn(
-            "Record skipped because non existing id or update key '"
-                + idOrUpdateKey.getValue()
-                + "' was specified");
+            "Record skipped because non existing id or update key '{}' was specified",
+            idOrUpdateKey);
         continue;
       } else if (skip == Skip.ALWAYS && !idOrUpdateKey.isPresent()) {
         LOGGER.warn("Record skipped because no id or update key value was specified");
         continue;
       } else if (skip == Skip.AUTO && idOrUpdateKey.isIdPresent()) {
-        LOGGER.warn(
-            "Record skipped because non existing id '"
-                + idOrUpdateKey.getValue()
-                + "' was specified");
+        LOGGER.warn("Record skipped because non existing id '{}' was specified", idOrUpdateKey);
         continue;
       } else if (skip == Skip.AUTO && !isId && !idOrUpdateKey.isUpdateKeyPresent()) {
         LOGGER.warn("Record skipped because no update key value was specified");
         continue;
       } else if (idOrUpdateKey.isIdPresent()) {
-        LOGGER.warn(
-            "Record inserted though non existing id '"
-                + idOrUpdateKey.getValue()
-                + "' was specified");
+        LOGGER.warn("Record inserted though non existing id '{}' was specified", idOrUpdateKey);
       } else if (!isId && !idOrUpdateKey.isUpdateKeyPresent()) {
         LOGGER.warn("Record inserted though no update key value was specified");
       }

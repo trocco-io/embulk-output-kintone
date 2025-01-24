@@ -1,0 +1,26 @@
+plugins {
+    id "java"
+    id "com.gradleup.shadow" version "8.3.3"
+}
+
+repositories {
+    mavenCentral()
+}
+
+group = rootProject.group
+version = rootProject.version
+
+configurations {
+    compileClasspath.resolutionStrategy.activateDependencyLocking()
+    runtimeClasspath.resolutionStrategy.activateDependencyLocking()
+}
+
+dependencies {
+    implementation("com.kintone:kintone-java-client:2.3.0") {
+        exclude group: "org.slf4j", module: "slf4j-api"
+    }
+}
+
+shadowJar {
+    relocate "com.fasterxml.jackson", "shadow.com.fasterxml.jackson"
+}

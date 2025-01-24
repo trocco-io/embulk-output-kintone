@@ -1,6 +1,12 @@
 package org.embulk.output.kintone;
 
-import com.google.common.io.Resources;
+import static org.embulk.output.kintone.util.Compatibility.PARSER;
+import static org.embulk.output.kintone.util.Reflect.setField;
+import static org.mockito.Mockito.doReturn;
+import static org.mockito.Mockito.inOrder;
+import static org.mockito.Mockito.spy;
+import static org.mockito.Mockito.verify;
+
 import com.kintone.client.Json;
 import com.kintone.client.model.record.Record;
 import com.kintone.client.model.record.RecordForUpdate;
@@ -32,14 +38,17 @@ import org.embulk.spi.OutputPlugin;
 import org.embulk.spi.ParserPlugin;
 import org.embulk.spi.Schema;
 import org.embulk.spi.TransactionalPageOutput;
-import org.embulk.spi.json.JsonParser;
+import org.embulk.test.EmbulkTestRuntime;
 import org.embulk.test.EmbulkTests;
 import org.embulk.test.TestingEmbulk;
+import org.embulk.util.config.ConfigMapper;
+import org.embulk.util.config.ConfigMapperFactory;
 import org.junit.Rule;
+import org.mockito.InOrder;
 import org.msgpack.value.Value;
 
 public class TestKintoneOutputPlugin extends KintoneOutputPlugin {
-  private static final JsonParser PARSER = new JsonParser();
+  @Rule public EmbulkTestRuntime runtime = new EmbulkTestRuntime();
 
   @Rule
   public final TestingEmbulk embulk =
@@ -116,17 +125,22 @@ public class TestKintoneOutputPlugin extends KintoneOutputPlugin {
       Schema schema,
       int taskCount,
       OutputPlugin.Control control) {
+    String test = config.get(String.class, "domain");
+    ConfigMapperFactory spyConfigMapperFactory = spy(CONFIG_MAPPER_FACTORY);
+    ConfigMapper configMapper = CONFIG_MAPPER_FACTORY.createConfigMapper();
+    ConfigMapper spyConfigMapper = spy(configMapper);
+    doReturn(spyConfigMapper).when(spyConfigMapperFactory).createConfigMapper();
+    PluginTask spyTask = spy(configMapper.map(config, PluginTask.class));
+    doReturn(spyTask).when(spyConfigMapper).map(config, PluginTask.class);
+    setField(KintoneOutputPlugin.class, "CONFIG_MAPPER_FACTORY", spyConfigMapperFactory);
     AtomicReference<ConfigDiff> configDiff = new AtomicReference<>();
     verifier.runWithMock(
         () -> configDiff.set(super.transaction(config, schema, taskCount, control)));
-
-    // NOTE: private static final field is not supported by mockito.
-    // ref: https://github.com/mockito/mockito/issues/323
-    //
-    // String test = spyConfig.get(String.class, "domain");
-    // InOrder inOrderTask = inOrder(spyTask);
-    // inOrderTask.verify(spyTask).setDerivedColumns(Collections.emptySet());
-    // inOrderTask.verify(spyTask).setDerivedColumns(getDerivedColumns(test));
+    verify(spyConfigMapperFactory).createConfigMapper();
+    verify(spyConfigMapper).map(config, PluginTask.class);
+    InOrder inOrderTask = inOrder(spyTask);
+    inOrderTask.verify(spyTask).setDerivedColumns(Collections.emptySet());
+    inOrderTask.verify(spyTask).setDerivedColumns(getDerivedColumns(test));
     return configDiff.get();
   }
 
@@ -280,8 +294,12 @@ public class TestKintoneOutputPlugin extends KintoneOutputPlugin {
     return getResource(getResourceName(name)) != null;
   }
 
+  private static URL getResource(String name) {
+    return EmbulkTests.class.getResource(name);
+  }
+
   private static String getResourceName(String name) {
-    return String.format("org/embulk/output/kintone/%s", name);
+    return String.format("/org/embulk/output/kintone/%s", name);
   }
 
   private static Path toPath(URL url) {
@@ -289,15 +307,6 @@ public class TestKintoneOutputPlugin extends KintoneOutputPlugin {
       return Paths.get(url.toURI());
     } catch (URISyntaxException e) {
       throw new RuntimeException(e);
-    }
-  }
-
-  @SuppressWarnings("UnstableApiUsage")
-  private static URL getResource(String resourceName) {
-    try {
-      return Resources.getResource(resourceName);
-    } catch (IllegalArgumentException e) {
-      return null;
     }
   }
 }

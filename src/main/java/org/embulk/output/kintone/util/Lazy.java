@@ -1,5 +1,6 @@
 package org.embulk.output.kintone.util;
 
+@SuppressWarnings("try")
 public abstract class Lazy<T extends AutoCloseable> implements AutoCloseable {
   private T value;
 

@@ -1,15 +1,16 @@
 package org.embulk.output.kintone;
 
+import java.time.Instant;
 import java.util.List;
 import java.util.function.Function;
 import java.util.stream.Collectors;
-import org.embulk.deps.buffer.PooledBufferAllocator;
+import org.embulk.exec.PooledBufferAllocator;
 import org.embulk.spi.Column;
+import org.embulk.spi.Exec;
 import org.embulk.spi.Page;
 import org.embulk.spi.PageBuilder;
 import org.embulk.spi.PageOutput;
 import org.embulk.spi.Schema;
-import org.embulk.spi.time.Timestamp;
 import org.msgpack.value.Value;
 
 public class OutputPageBuilder implements PageOutput {
@@ -27,7 +28,7 @@ public class OutputPageBuilder implements PageOutput {
 
   public OutputPageBuilder(Schema schema) {
     names = schema.getColumns().stream().map(Column::getName).collect(Collectors.toList());
-    builder = new PageBuilder(PooledBufferAllocator.create(), schema, this);
+    builder = Exec.getPageBuilder(PooledBufferAllocator.create(), schema, this);
   }
 
   public OutputPageBuilder setNull(String name) {
@@ -55,12 +56,13 @@ public class OutputPageBuilder implements PageOutput {
     return this;
   }
 
+  @SuppressWarnings("deprecation") // TODO: For compatibility with Embulk v0.9
   public OutputPageBuilder setJson(String name, Value value) {
-    builder.setJson(names.indexOf(name), value);
+    builder.setJson(names.indexOf(name), value); // TODO: Use JsonValue for PageBuilder#setJson
     return this;
   }
 
-  public OutputPageBuilder setTimestamp(String name, Timestamp value) {
+  public OutputPageBuilder setTimestamp(String name, Instant value) {
     builder.setTimestamp(names.indexOf(name), value);
     return this;
   }

@@ -42,4 +42,9 @@ public class IdOrUpdateKey {
     Object value = updateKey.getValue();
     return value != null && !value.toString().isEmpty();
   }
+
+  @Override
+  public String toString() {
+    return String.valueOf(getValue());
+  }
 }

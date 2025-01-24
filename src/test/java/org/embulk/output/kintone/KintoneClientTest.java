@@ -12,15 +12,10 @@ import org.embulk.spi.Schema;
 import org.embulk.spi.type.Type;
 import org.embulk.spi.type.Types;
 import org.embulk.util.config.ConfigMapper;
-import org.embulk.util.config.ConfigMapperFactory;
 import org.junit.Before;
 import org.junit.Test;
 
 public class KintoneClientTest extends TestKintoneOutputPlugin {
-  private static final ConfigMapperFactory CONFIG_MAPPER_FACTORY =
-      ConfigMapperFactory.builder().addDefaultModules().build();
-  private static final ConfigMapper CONFIG_MAPPER = CONFIG_MAPPER_FACTORY.createConfigMapper();
-
   private ConfigSource config;
 
   @Before
@@ -100,6 +95,7 @@ public class KintoneClientTest extends TestKintoneOutputPlugin {
     runWithMockClient(consumer, builder());
   }
 
+  @SuppressWarnings("try")
   private void runWithMockClient(Consumer<Lazy<KintoneClient>> consumer, Schema.Builder builder) {
     MockClient mockClient =
         new MockClient(
@@ -119,7 +115,8 @@ public class KintoneClientTest extends TestKintoneOutputPlugin {
   }
 
   private PluginTask task() {
-    return CONFIG_MAPPER.map(config, PluginTask.class);
+    ConfigMapper configMapper = CONFIG_MAPPER_FACTORY.createConfigMapper();
+    return configMapper.map(config, PluginTask.class);
   }
 
   private static Schema schema(Schema.Builder builder) {
