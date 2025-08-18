@@ -89,6 +89,10 @@ public interface PluginTask extends Task {
   @ConfigDefault("{}")
   KintoneRetryOption getRetryOptions();
 
+  @Config("error_output_path")
+  @ConfigDefault("null")
+  Optional<String> getErrorOutputPath();
+
   Set<Column> getDerivedColumns();
 
   void setDerivedColumns(Set<Column> columns);

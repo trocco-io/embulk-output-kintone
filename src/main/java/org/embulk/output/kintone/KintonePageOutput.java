@@ -53,11 +53,24 @@ public class KintonePageOutput implements TransactionalPageOutput {
   private final PluginTask task;
   private final PageReader reader;
   private final Lazy<KintoneClient> client;
+  private final ErrorFileLogger errorFileLogger;
+  private final int taskIndex;
 
   public KintonePageOutput(PluginTask task, Schema schema) {
+    this(task, schema, 0);
+  }
+
+  public KintonePageOutput(PluginTask task, Schema schema, int taskIndex) {
     this.task = task;
+    this.taskIndex = taskIndex;
     reader = new PageReader(schema);
     client = KintoneClient.lazy(() -> task, schema);
+    
+    // エラーファイル出力の初期化
+    this.errorFileLogger = new ErrorFileLogger(
+        task.getErrorOutputPath().orElse(null),
+        taskIndex
+    );
   }
 
   @Override
@@ -72,6 +85,15 @@ public class KintonePageOutput implements TransactionalPageOutput {
 
   @Override
   public void close() {
+    // エラーファイルをクローズ
+    if (errorFileLogger != null) {
+      try {
+        errorFileLogger.close();
+      } catch (Exception e) {
+        LOGGER.error("Failed to close error file logger", e);
+      }
+    }
+    
     client.get().close();
   }
 
@@ -92,14 +114,18 @@ public class KintonePageOutput implements TransactionalPageOutput {
   }
 
   private void insert(List<Record> records) {
-    executeWithRetry(() -> client.get().record().addRecords(task.getAppId(), records));
+    executeWithRetry(() -> client.get().record().addRecords(task.getAppId(), records), records);
   }
 
   private void update(List<RecordForUpdate> records) {
-    executeWithRetry(() -> client.get().record().updateRecords(task.getAppId(), records));
+    executeWithRetry(() -> client.get().record().updateRecords(task.getAppId(), records), records);
   }
 
   private <T> T executeWithRetry(Supplier<T> operation) {
+    return executeWithRetry(operation, null);
+  }
+
+  private <T> T executeWithRetry(Supplier<T> operation, List<?> records) {
     KintoneRetryOption retryOption = task.getRetryOptions();
     try {
       return retryExecutor()
@@ -110,7 +136,15 @@ public class KintonePageOutput implements TransactionalPageOutput {
               new Retryable<T>() {
                 @Override
                 public T call() {
-                  return operation.get();
+                  try {
+                    return operation.get();
+                  } catch (KintoneApiRuntimeException e) {
+                    // エラーログを記録
+                    if (errorFileLogger != null && records != null) {
+                      logApiError(e, records);
+                    }
+                    throw e;
+                  }
                 }
 
                 @Override
@@ -386,5 +420,78 @@ public class KintonePageOutput implements TransactionalPageOutput {
     return value == null
         ? null
         : value instanceof BigDecimal ? ((BigDecimal) value).toPlainString() : value.toString();
+  }
+
+  /**
+   * Kintone APIエラーをログに記録
+   */
+  private void logApiError(KintoneApiRuntimeException e, List<?> records) {
+    try {
+      ObjectMapper mapper = new ObjectMapper();
+      JsonNode errorResponse = mapper.readTree(e.getContent());
+      
+      String errorCode = errorResponse.has("code") ? errorResponse.get("code").textValue() : "";
+      String errorMessage = errorResponse.has("message") ? errorResponse.get("message").textValue() : "";
+      
+      // エラーレスポンスのerrorsフィールドを解析
+      if (errorResponse.has("errors")) {
+        JsonNode errors = errorResponse.get("errors");
+        
+        errors.fieldNames().forEachRemaining(fieldName -> {
+          // records[14].TINY_TEXT_10.value のような形式をパース
+          if (fieldName.startsWith("records[")) {
+            int startIdx = fieldName.indexOf('[') + 1;
+            int endIdx = fieldName.indexOf(']');
+            if (startIdx > 0 && endIdx > startIdx) {
+              try {
+                int recordIndex = Integer.parseInt(fieldName.substring(startIdx, endIdx));
+                
+                // 対応するレコードを取得
+                if (recordIndex < records.size()) {
+                  Object recordObj = records.get(recordIndex);
+                  Record record = null;
+                  
+                  if (recordObj instanceof Record) {
+                    record = (Record) recordObj;
+                  } else if (recordObj instanceof RecordForUpdate) {
+                    record = ((RecordForUpdate) recordObj).getRecord();
+                  }
+                  
+                  if (record != null) {
+                    // フィールド名を抽出
+                    String affectedField = fieldName.substring(endIdx + 2); // "].{field}"の部分
+                    
+                    // エラーメッセージを構築
+                    StringBuilder fullMessage = new StringBuilder(errorMessage);
+                    JsonNode fieldError = errors.get(fieldName);
+                    if (fieldError.has("messages")) {
+                      fieldError.get("messages").forEach(msg -> {
+                        fullMessage.append(" ").append(affectedField).append(": ").append(msg.textValue());
+                      });
+                    }
+                    
+                    // エラーを記録
+                    errorFileLogger.logError(
+                        record,
+                        errorCode,
+                        fullMessage.toString(),
+                        new String[]{affectedField},
+                        recordIndex
+                    );
+                  }
+                }
+              } catch (NumberFormatException ex) {
+                LOGGER.warn("Failed to parse record index from error field: " + fieldName);
+              }
+            }
+          }
+        });
+      } else {
+        // errorsフィールドがない場合は、全体的なエラーとして記録
+        LOGGER.warn("Kintone API error without field-level errors: " + errorCode + " - " + errorMessage);
+      }
+    } catch (IOException ex) {
+      LOGGER.error("Failed to parse Kintone API error response", ex);
+    }
   }
 }

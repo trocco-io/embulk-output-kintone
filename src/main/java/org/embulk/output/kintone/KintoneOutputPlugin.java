@@ -48,6 +48,6 @@ public class KintoneOutputPlugin implements OutputPlugin {
     PluginTask task = TASK_MAPPER.map(taskSource, PluginTask.class);
     return task.getReduceKeyName().isPresent()
         ? new ReducedPageOutput(schema, taskIndex)
-        : new KintonePageOutput(task, schema);
+        : new KintonePageOutput(task, schema, taskIndex);
   }
 }
