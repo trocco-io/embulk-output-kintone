@@ -39,6 +39,7 @@ dependencies {
     implementation "com.google.inject:guice:4.0"
     implementation "com.google.code.externalsortinginjava:externalsortinginjava:0.6.2"
     implementation 'org.apache.commons:commons-lang3:3.4'
+    implementation 'com.google.code.gson:gson:2.8.9'
     implementation project(path: ":shadow-kintone-java-client", configuration: "shadow")
 
     testImplementation "junit:junit:4.+"

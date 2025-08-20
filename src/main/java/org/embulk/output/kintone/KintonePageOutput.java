@@ -12,10 +12,12 @@ import com.kintone.client.model.record.Record;
 import com.kintone.client.model.record.RecordForUpdate;
 import java.io.IOException;
 import java.lang.invoke.MethodHandles;
+import java.lang.reflect.Method;
 import java.math.BigDecimal;
 import java.util.ArrayList;
 import java.util.Arrays;
 import java.util.Collections;
+import java.util.HashMap;
 import java.util.List;
 import java.util.Map;
 import java.util.Objects;
@@ -44,9 +46,9 @@ public class KintonePageOutput implements TransactionalPageOutput {
       LoggerFactory.getLogger(MethodHandles.lookup().lookupClass());
   private static final List<String> RETRYABLE_ERROR_CODES =
       Arrays.asList(
-          "GAIA_TM12", // 作成できるカーソルの上限に達しているため、カーソルを作成できません。不要なカーソルを削除するか、しばらく経ってから再実行してください。
-          "GAIA_RE18", // データベースのロックに失敗したため、変更を保存できませんでした。時間をおいて再度お試しください。
-          "GAIA_DA02" // データベースのロックに失敗したため、変更を保存できませんでした。時間をおいて再度お試しください。
+          "GAIA_TM12", // Cannot create a cursor because the maximum number of cursors has been reached. Delete unnecessary cursors or retry after some time.
+          "GAIA_RE18", // Changes could not be saved due to database lock failure. Please try again after some time.
+          "GAIA_DA02" // Changes could not be saved due to database lock failure. Please try again after some time.
           );
   private static final int UPSERT_BATCH_SIZE = 10000;
   private final Map<String, Pair<FieldType, FieldType>> wrongTypeFields = new TreeMap<>();
@@ -66,9 +68,9 @@ public class KintonePageOutput implements TransactionalPageOutput {
     reader = new PageReader(schema);
     client = KintoneClient.lazy(() -> task, schema);
     
-    // エラーファイル出力の初期化
+    // Initialize error file logger
     this.errorFileLogger = new ErrorFileLogger(
-        task.getErrorOutputPath().orElse(null),
+        task.getErrorRecordsDetailOutputFile().orElse(null),
         taskIndex
     );
   }
@@ -85,7 +87,7 @@ public class KintonePageOutput implements TransactionalPageOutput {
 
   @Override
   public void close() {
-    // エラーファイルをクローズ
+    // Close error file logger
     if (errorFileLogger != null) {
       try {
         errorFileLogger.close();
@@ -139,7 +141,7 @@ public class KintonePageOutput implements TransactionalPageOutput {
                   try {
                     return operation.get();
                   } catch (KintoneApiRuntimeException e) {
-                    // エラーログを記録
+                    // Log error details
                     if (errorFileLogger != null && records != null) {
                       logApiError(e, records);
                     }
@@ -423,75 +425,233 @@ public class KintonePageOutput implements TransactionalPageOutput {
   }
 
   /**
-   * Kintone APIエラーをログに記録
+   * Extracts record index from field name in Kintone API error response.
+   * 
+   * @param fieldName Field name in format like "records[14].TINY_TEXT_10.value" or "records[0].field_code"
+   * @return Record index (e.g., 14 for "records[14].TINY_TEXT_10.value"), or -1 if cannot be parsed
+   * 
+   * Examples:
+   * - "records[14].TINY_TEXT_10.value" -> returns 14
+   * - "records[0].field_code" -> returns 0
+   * - "records[123].some_field" -> returns 123
+   * - "invalid_format" -> returns -1
+   * - "records[].field" -> returns -1
+   */
+  private int extractRecordIndex(String fieldName) {
+    if (!fieldName.startsWith("records[")) {
+      return -1;
+    }
+    
+    int startIdx = fieldName.indexOf('[') + 1;
+    int endIdx = fieldName.indexOf(']');
+    if (startIdx <= 0 || endIdx <= startIdx) {
+      return -1;
+    }
+    
+    try {
+      return Integer.parseInt(fieldName.substring(startIdx, endIdx));
+    } catch (NumberFormatException ex) {
+      LOGGER.warn("Failed to parse record index from error field: " + fieldName);
+      return -1;
+    }
+  }
+
+  /**
+   * Builds error message by combining base message with field-specific error details.
+   * @param baseMessage Base error message
+   * @param fieldName Field name in format like "records[14].TINY_TEXT_10.value"
+   * @param fieldError Field error JSON node
+   * @return Constructed error message
+   */
+  private String buildErrorMessage(String baseMessage, String fieldName, JsonNode fieldError) {
+    StringBuilder fullMessage = new StringBuilder(baseMessage);
+
+    // Extract field name (].{field} part)
+    int endIdx = fieldName.indexOf(']');
+    if (endIdx != -1 && endIdx + 2 < fieldName.length()) {
+      String affectedField = fieldName.substring(endIdx + 2);
+
+      if (fieldError.has("messages")) {
+        fieldError.get("messages").forEach(msg -> {
+          fullMessage.append(" ").append(affectedField).append(": ").append(msg.textValue());
+        });
+      }
+    }
+
+    return fullMessage.toString();
+  }
+
+
+  /**
+   * Logs Kintone API errors to file
    */
   private void logApiError(KintoneApiRuntimeException e, List<?> records) {
     try {
       ObjectMapper mapper = new ObjectMapper();
       JsonNode errorResponse = mapper.readTree(e.getContent());
-      
       String errorCode = errorResponse.has("code") ? errorResponse.get("code").textValue() : "";
       String errorMessage = errorResponse.has("message") ? errorResponse.get("message").textValue() : "";
-      
-      // エラーレスポンスのerrorsフィールドを解析
+      // Parse errors field in error response
       if (errorResponse.has("errors")) {
         JsonNode errors = errorResponse.get("errors");
         
+        // Pre-convert all records to maps for easier handling
+        List<Map<String, Object>> recordMaps = convertRecordsToMaps(records);
+        
         errors.fieldNames().forEachRemaining(fieldName -> {
-          // records[14].TINY_TEXT_10.value のような形式をパース
-          if (fieldName.startsWith("records[")) {
-            int startIdx = fieldName.indexOf('[') + 1;
-            int endIdx = fieldName.indexOf(']');
-            if (startIdx > 0 && endIdx > startIdx) {
-              try {
-                int recordIndex = Integer.parseInt(fieldName.substring(startIdx, endIdx));
-                
-                // 対応するレコードを取得
-                if (recordIndex < records.size()) {
-                  Object recordObj = records.get(recordIndex);
-                  Record record = null;
-                  
-                  if (recordObj instanceof Record) {
-                    record = (Record) recordObj;
-                  } else if (recordObj instanceof RecordForUpdate) {
-                    record = ((RecordForUpdate) recordObj).getRecord();
-                  }
-                  
-                  if (record != null) {
-                    // フィールド名を抽出
-                    String affectedField = fieldName.substring(endIdx + 2); // "].{field}"の部分
-                    
-                    // エラーメッセージを構築
-                    StringBuilder fullMessage = new StringBuilder(errorMessage);
-                    JsonNode fieldError = errors.get(fieldName);
-                    if (fieldError.has("messages")) {
-                      fieldError.get("messages").forEach(msg -> {
-                        fullMessage.append(" ").append(affectedField).append(": ").append(msg.textValue());
-                      });
-                    }
-                    
-                    // エラーを記録
-                    errorFileLogger.logError(
-                        record,
-                        errorCode,
-                        fullMessage.toString(),
-                        new String[]{affectedField},
-                        recordIndex
-                    );
-                  }
-                }
-              } catch (NumberFormatException ex) {
-                LOGGER.warn("Failed to parse record index from error field: " + fieldName);
-              }
-            }
+          int recordIndex = extractRecordIndex(fieldName);
+          if (recordIndex == -1 || recordIndex >= recordMaps.size()) {
+            return;
           }
+          
+          Map<String, Object> recordData = recordMaps.get(recordIndex);
+          
+          JsonNode fieldError = errors.get(fieldName);
+          String fullMessage = buildErrorMessage(errorMessage, fieldName, fieldError);
+          
+          // Log error with map data directly
+          errorFileLogger.logError(recordData, errorCode, fullMessage);
         });
       } else {
-        // errorsフィールドがない場合は、全体的なエラーとして記録
+        // Log as general error when errors field is not present
         LOGGER.warn("Kintone API error without field-level errors: " + errorCode + " - " + errorMessage);
       }
     } catch (IOException ex) {
       LOGGER.error("Failed to parse Kintone API error response", ex);
+    }
+  }
+  
+  /**
+   * Converts list of records to list of maps for easier handling
+   */
+  private List<Map<String, Object>> convertRecordsToMaps(List<?> records) {
+    List<Map<String, Object>> recordMaps = new ArrayList<>();
+    
+    for (Object recordObj : records) {
+      Record record = null;
+      
+      if (recordObj instanceof Record) {
+        record = (Record) recordObj;
+      } else if (recordObj instanceof RecordForUpdate) {
+        record = ((RecordForUpdate) recordObj).getRecord();
+      }
+      
+      if (record != null) {
+        Map<String, Object> recordData = extractAllFieldsFromRecord(record);
+        recordMaps.add(recordData);
+      } else {
+        // Add empty map for unknown types to maintain index consistency
+        recordMaps.add(new HashMap<>());
+      }
+    }
+    
+    return recordMaps;
+  }
+  
+  /**
+   * Extracts all fields from a Record object to Map
+   */
+  private Map<String, Object> extractAllFieldsFromRecord(Record record) {
+    Map<String, Object> fields = new HashMap<>();
+    
+    if (record == null) {
+      return fields;
+    }
+
+    record.getFieldCodes(true).forEach(fieldCode -> {
+      Object value = record.getFieldValue(fieldCode);
+      if (value != null) {
+        Object actualValue = extractActualValue(value);
+        fields.put(fieldCode, actualValue);
+      } else {
+        fields.put(fieldCode, null);
+      }
+    });
+    
+    return fields;
+  }
+  
+  /**
+   * Extracts actual value from FieldValue object using pure reflection
+   */
+  private Object extractActualValue(Object value) {
+    if (value == null) {
+      return null;
+    }
+    
+    Object extractedValue = tryExtractValue(value);
+    if (extractedValue != null) {
+      return extractedValue;
+    }
+    
+    // Fallback for unknown types
+    return value.toString();
+  }
+  
+  /**
+   * Attempts to extract value using reflection with smart handling of different field types
+   */
+  private Object tryExtractValue(Object value) {
+    try {
+      // First try getValue() method (most common case)
+      Method getValueMethod = value.getClass().getMethod("getValue");
+      Object result = getValueMethod.invoke(value);
+      
+      // Convert to string if not null for consistency
+      return result != null ? result.toString() : null;
+      
+    } catch (Exception e) {
+      // If getValue() doesn't exist or fails, try getValues()
+      try {
+        Method getValuesMethod = value.getClass().getMethod("getValues");
+        Object valuesResult = getValuesMethod.invoke(value);
+        
+        // Handle special cases that need code extraction
+        return extractCodesIfNeeded(value, valuesResult);
+        
+      } catch (Exception e2) {
+        // Neither method exists or accessible
+        return null;
+      }
+    }
+  }
+  
+  /**
+   * Extracts codes from select field values if they have a getCode() method
+   */
+  private Object extractCodesIfNeeded(Object fieldValue, Object valuesResult) {
+    if (valuesResult == null) {
+      return null;
+    }
+    
+    // If it's a simple list (like CheckBox, MultiSelect), return as-is
+    if (!(valuesResult instanceof List)) {
+      return valuesResult;
+    }
+    
+    @SuppressWarnings("unchecked")
+    List<Object> valuesList = (List<Object>) valuesResult;
+    
+    if (valuesList.isEmpty()) {
+      return valuesList;
+    }
+    
+    // Check if the first item has a getCode() method
+    Object firstItem = valuesList.get(0);
+    try {
+      Method getCodeMethod = firstItem.getClass().getMethod("getCode");
+      
+      // Extract codes from all items
+      List<String> codes = new ArrayList<>();
+      for (Object item : valuesList) {
+        String code = (String) getCodeMethod.invoke(item);
+        codes.add(code);
+      }
+      return codes;
+      
+    } catch (Exception e) {
+      // No getCode() method, return the original list
+      return valuesList;
     }
   }
 }
