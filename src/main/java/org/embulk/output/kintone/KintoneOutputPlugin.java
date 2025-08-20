@@ -1,13 +1,11 @@
 package org.embulk.output.kintone;
 
-import java.io.BufferedReader;
 import java.io.BufferedWriter;
 import java.io.IOException;
 import java.nio.charset.StandardCharsets;
 import java.nio.file.Files;
 import java.nio.file.Path;
 import java.nio.file.Paths;
-import java.nio.file.StandardOpenOption;
 import java.util.Collections;
 import java.util.List;
 import org.embulk.config.ConfigDiff;
@@ -54,7 +52,7 @@ public class KintoneOutputPlugin implements OutputPlugin {
   public void cleanup(
       TaskSource taskSource, Schema schema, int taskCount, List<TaskReport> successTaskReports) {
     PluginTask task = TASK_MAPPER.map(taskSource, PluginTask.class);
-    
+
     // Concatenate error files if error output is configured
     task.getErrorRecordsDetailOutputFile().ifPresent(this::concatenateErrorFiles);
   }
@@ -71,26 +69,29 @@ public class KintoneOutputPlugin implements OutputPlugin {
     Path outputPath = Paths.get(outputFile);
     Path directory = outputPath.getParent();
     String baseFileName = outputPath.getFileName().toString();
-    
+
     try (BufferedWriter writer = Files.newBufferedWriter(outputPath, StandardCharsets.UTF_8)) {
       Files.list(directory)
           .filter(path -> path.getFileName().toString().startsWith(baseFileName + "_task"))
           .sorted()
-          .forEach(taskFile -> {
-            try {
-              Files.lines(taskFile).forEach(line -> {
+          .forEach(
+              taskFile -> {
                 try {
-                  writer.write(line);
-                  writer.newLine();
+                  Files.lines(taskFile)
+                      .forEach(
+                          line -> {
+                            try {
+                              writer.write(line);
+                              writer.newLine();
+                            } catch (IOException e) {
+                              LOGGER.error("Failed to write line", e);
+                            }
+                          });
+                  Files.deleteIfExists(taskFile);
                 } catch (IOException e) {
-                  LOGGER.error("Failed to write line", e);
+                  LOGGER.error("Failed to process task file: " + taskFile, e);
                 }
               });
-              Files.deleteIfExists(taskFile);
-            } catch (IOException e) {
-              LOGGER.error("Failed to process task file: " + taskFile, e);
-            }
-          });
     } catch (IOException e) {
       LOGGER.error("Failed to concatenate error files", e);
     }
