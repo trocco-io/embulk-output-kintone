@@ -13,7 +13,7 @@ import java.util.Map;
 import org.slf4j.Logger;
 import org.slf4j.LoggerFactory;
 
-/** Kintoneエラーを収集し、構造化してファイルに出力するクラス */
+/** Class for collecting Kintone errors, structuring them, and outputting to a file */
 public class ErrorFileLogger implements AutoCloseable {
   private static final Logger logger = LoggerFactory.getLogger(ErrorFileLogger.class);
   private static final int FLUSH_INTERVAL = 100;
@@ -76,11 +76,11 @@ public class ErrorFileLogger implements AutoCloseable {
   }
 
   /**
-   * Kintoneエラーを記録
+   * Logs Kintone errors
    *
-   * @param recordData 元のレコードデータ（Map形式）
-   * @param errorCode エラーコード
-   * @param errorMessage エラーメッセージ（フィールドエラーも含む）
+   * @param recordData Original record data (Map format)
+   * @param errorCode Error code
+   * @param errorMessage Error message (including field errors)
    */
   public void logError(Map<String, Object> recordData, String errorCode, String errorMessage) {
     if (!enabled) {
@@ -127,7 +127,7 @@ public class ErrorFileLogger implements AutoCloseable {
       try {
         writer.flush();
         writer.close();
-        writer = null; // 複数回のclose呼び出しを防ぐ
+        writer = null; // Prevent multiple close calls
 
         if (errorCount == 0 && filePath != null) {
           Files.deleteIfExists(filePath);
