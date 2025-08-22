@@ -502,6 +502,9 @@ public class KintonePageOutput implements TransactionalPageOutput {
         // Pre-convert all records to maps for easier handling
         List<Map<String, Object>> recordMaps = convertRecordsToMaps(records);
 
+        // Group errors by record index
+        Map<Integer, List<String>> errorsByRecordIndex = new HashMap<>();
+
         errors
             .fieldNames()
             .forEachRemaining(
@@ -511,14 +514,21 @@ public class KintonePageOutput implements TransactionalPageOutput {
                     return;
                   }
 
-                  Map<String, Object> recordData = recordMaps.get(recordIndex);
-
                   JsonNode fieldError = errors.get(fieldName);
-                  String fullMessage = buildErrorMessage(errorMessage, fieldName, fieldError);
+                  String fieldErrorMessage = buildErrorMessage(errorMessage, fieldName, fieldError);
 
-                  // Log error with map data directly
-                  errorFileLogger.logError(recordData, errorCode, fullMessage);
+                  errorsByRecordIndex
+                      .computeIfAbsent(recordIndex, k -> new ArrayList<>())
+                      .add(fieldErrorMessage);
                 });
+
+        // Log combined errors for each record
+        errorsByRecordIndex.forEach(
+            (recordIndex, errorMessages) -> {
+              Map<String, Object> recordData = recordMaps.get(recordIndex);
+              String combinedMessage = String.join("\n", errorMessages);
+              errorFileLogger.logError(recordData, errorCode, combinedMessage);
+            });
       } else {
         // Log as general error when errors field is not present
         LOGGER.warn(
