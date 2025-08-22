@@ -49,7 +49,7 @@ public class ErrorFileLogger implements AutoCloseable {
   public ErrorFileLogger(String outputPath, int taskIndex) {
     this.outputPath = outputPath;
     this.taskIndex = taskIndex;
-    this.gson = new GsonBuilder().disableHtmlEscaping().create();
+    this.gson = new GsonBuilder().disableHtmlEscaping().serializeNulls().create();
     this.enabled = outputPath != null && !outputPath.trim().isEmpty();
 
     if (enabled) {

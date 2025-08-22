@@ -529,10 +529,6 @@ public class KintonePageOutput implements TransactionalPageOutput {
               String combinedMessage = String.join("\n", errorMessages);
               errorFileLogger.logError(recordData, errorCode, combinedMessage);
             });
-      } else {
-        // Log as general error when errors field is not present
-        LOGGER.warn(
-            "Kintone API error without field-level errors: " + errorCode + " - " + errorMessage);
       }
     } catch (IOException ex) {
       LOGGER.error("Failed to parse Kintone API error response", ex);
@@ -594,16 +590,9 @@ public class KintonePageOutput implements TransactionalPageOutput {
       return null;
     }
 
-    Object extractedValue = tryExtractValue(value);
-    if (extractedValue != null) {
-      return extractedValue;
-    }
-
-    // Fallback for unknown types
-    return value.toString();
+    return tryExtractValue(value);
   }
 
-  /** Attempts to extract value using reflection with smart handling of different field types */
   private Object tryExtractValue(Object value) {
     try {
       // First try getValue() method (most common case)
