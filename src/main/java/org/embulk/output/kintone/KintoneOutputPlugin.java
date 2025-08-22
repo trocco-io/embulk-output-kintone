@@ -70,28 +70,42 @@ public class KintoneOutputPlugin implements OutputPlugin {
     Path directory = outputPath.getParent();
     String baseFileName = outputPath.getFileName().toString();
 
-    try (BufferedWriter writer = Files.newBufferedWriter(outputPath, StandardCharsets.UTF_8)) {
-      Files.list(directory)
-          .filter(path -> path.getFileName().toString().startsWith(baseFileName + "_task"))
-          .sorted()
-          .forEach(
-              taskFile -> {
-                try {
-                  Files.lines(taskFile)
-                      .forEach(
-                          line -> {
-                            try {
-                              writer.write(line);
-                              writer.newLine();
-                            } catch (IOException e) {
-                              LOGGER.error("Failed to write line", e);
-                            }
-                          });
-                  Files.deleteIfExists(taskFile);
-                } catch (IOException e) {
-                  LOGGER.error("Failed to process task file: " + taskFile, e);
-                }
-              });
+    try {
+      List<Path> taskFiles =
+          Files.list(directory)
+              .filter(path -> path.getFileName().toString().startsWith(baseFileName + "_task"))
+              .sorted()
+              .collect(java.util.stream.Collectors.toList());
+
+      // If no task files exist, don't create output file
+      if (taskFiles.isEmpty()) {
+        return;
+      }
+
+      try (BufferedWriter writer = Files.newBufferedWriter(outputPath, StandardCharsets.UTF_8)) {
+        boolean hasContent = false;
+        for (Path taskFile : taskFiles) {
+          try {
+            List<String> lines = Files.readAllLines(taskFile);
+            if (!lines.isEmpty()) {
+              hasContent = true;
+              for (String line : lines) {
+                writer.write(line);
+                writer.newLine();
+              }
+            }
+            Files.deleteIfExists(taskFile);
+          } catch (IOException e) {
+            LOGGER.error("Failed to process task file: " + taskFile, e);
+          }
+        }
+
+        // If no content was written, delete the empty output file
+        if (!hasContent) {
+          writer.close();
+          Files.deleteIfExists(outputPath);
+        }
+      }
     } catch (IOException e) {
       LOGGER.error("Failed to concatenate error files", e);
     }
