@@ -7,12 +7,26 @@ import com.fasterxml.jackson.databind.ObjectMapper;
 import com.google.common.collect.Maps;
 import com.kintone.client.api.record.GetRecordsByCursorResponseBody;
 import com.kintone.client.exception.KintoneApiRuntimeException;
+import com.kintone.client.model.record.CheckBoxFieldValue;
+import com.kintone.client.model.record.DateFieldValue;
+import com.kintone.client.model.record.DateTimeFieldValue;
+import com.kintone.client.model.record.DropDownFieldValue;
 import com.kintone.client.model.record.FieldType;
+import com.kintone.client.model.record.GroupSelectFieldValue;
+import com.kintone.client.model.record.LinkFieldValue;
+import com.kintone.client.model.record.MultiLineTextFieldValue;
+import com.kintone.client.model.record.MultiSelectFieldValue;
+import com.kintone.client.model.record.NumberFieldValue;
+import com.kintone.client.model.record.OrganizationSelectFieldValue;
+import com.kintone.client.model.record.RadioButtonFieldValue;
 import com.kintone.client.model.record.Record;
 import com.kintone.client.model.record.RecordForUpdate;
+import com.kintone.client.model.record.RichTextFieldValue;
+import com.kintone.client.model.record.SingleLineTextFieldValue;
+import com.kintone.client.model.record.TimeFieldValue;
+import com.kintone.client.model.record.UserSelectFieldValue;
 import java.io.IOException;
 import java.lang.invoke.MethodHandles;
-import java.lang.reflect.Method;
 import java.math.BigDecimal;
 import java.util.ArrayList;
 import java.util.Arrays;
@@ -584,74 +598,76 @@ public class KintonePageOutput implements TransactionalPageOutput {
     return fields;
   }
 
-  /** Extracts actual value from FieldValue object using pure reflection */
+  /** Extracts actual value from FieldValue object using type-safe instanceof checks */
   private Object extractActualValue(Object value) {
     if (value == null) {
       return null;
     }
 
-    return tryExtractValue(value);
-  }
-
-  private Object tryExtractValue(Object value) {
-    try {
-      // First try getValue() method (most common case)
-      Method getValueMethod = value.getClass().getMethod("getValue");
-      Object result = getValueMethod.invoke(value);
-
-      // Convert to string if not null for consistency
-      return result != null ? result.toString() : null;
-
-    } catch (Exception e) {
-      // If getValue() doesn't exist or fails, try getValues()
-      try {
-        Method getValuesMethod = value.getClass().getMethod("getValues");
-        Object valuesResult = getValuesMethod.invoke(value);
-
-        // Handle special cases that need code extraction
-        return extractCodesIfNeeded(value, valuesResult);
-
-      } catch (Exception e2) {
-        // Neither method exists or accessible
-        return null;
-      }
+    // Text field types
+    if (value instanceof SingleLineTextFieldValue) {
+      return ((SingleLineTextFieldValue) value).getValue();
+    } else if (value instanceof MultiLineTextFieldValue) {
+      return ((MultiLineTextFieldValue) value).getValue();
+    } else if (value instanceof RichTextFieldValue) {
+      return ((RichTextFieldValue) value).getValue();
     }
-  }
 
-  /** Extracts codes from select field values if they have a getCode() method */
-  private Object extractCodesIfNeeded(Object fieldValue, Object valuesResult) {
-    if (valuesResult == null) {
+    // Selection field types (single)
+    else if (value instanceof RadioButtonFieldValue) {
+      return ((RadioButtonFieldValue) value).getValue();
+    } else if (value instanceof DropDownFieldValue) {
+      return ((DropDownFieldValue) value).getValue();
+    }
+
+    // Selection field types (multiple)
+    else if (value instanceof CheckBoxFieldValue) {
+      return ((CheckBoxFieldValue) value).getValues();
+    } else if (value instanceof MultiSelectFieldValue) {
+      return ((MultiSelectFieldValue) value).getValues();
+    }
+    // Number field type
+    else if (value instanceof NumberFieldValue) {
+      BigDecimal number = ((NumberFieldValue) value).getValue();
+      return number != null ? number.toPlainString() : null;
+    }
+
+    // Date/Time field types
+    else if (value instanceof DateFieldValue) {
+      return ((DateFieldValue) value).getValue();
+    } else if (value instanceof TimeFieldValue) {
+      return ((TimeFieldValue) value).getValue();
+    } else if (value instanceof DateTimeFieldValue) {
+      return ((DateTimeFieldValue) value).getValue();
+    }
+
+    // URL field type
+    else if (value instanceof LinkFieldValue) {
+      return ((LinkFieldValue) value).getValue();
+    }
+
+    // User selection field type
+    else if (value instanceof UserSelectFieldValue) {
+      return ((UserSelectFieldValue) value)
+          .getValues().stream().map(user -> user.getCode()).collect(Collectors.toList());
+    }
+
+    // Organization selection field type
+    else if (value instanceof OrganizationSelectFieldValue) {
+      return ((OrganizationSelectFieldValue) value)
+          .getValues().stream().map(org -> org.getCode()).collect(Collectors.toList());
+    }
+
+    // Group selection field type
+    else if (value instanceof GroupSelectFieldValue) {
+      return ((GroupSelectFieldValue) value)
+          .getValues().stream().map(group -> group.getCode()).collect(Collectors.toList());
+    }
+
+    // Unknown field type - log warning and return null
+    else {
+      LOGGER.warn("Unknown field value type: {}", value.getClass().getSimpleName());
       return null;
-    }
-
-    // If it's a simple list (like CheckBox, MultiSelect), return as-is
-    if (!(valuesResult instanceof List)) {
-      return valuesResult;
-    }
-
-    @SuppressWarnings("unchecked")
-    List<Object> valuesList = (List<Object>) valuesResult;
-
-    if (valuesList.isEmpty()) {
-      return valuesList;
-    }
-
-    // Check if the first item has a getCode() method
-    Object firstItem = valuesList.get(0);
-    try {
-      Method getCodeMethod = firstItem.getClass().getMethod("getCode");
-
-      // Extract codes from all items
-      List<String> codes = new ArrayList<>();
-      for (Object item : valuesList) {
-        String code = (String) getCodeMethod.invoke(item);
-        codes.add(code);
-      }
-      return codes;
-
-    } catch (Exception e) {
-      // No getCode() method, return the original list
-      return valuesList;
     }
   }
 }
