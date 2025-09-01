@@ -2,3 +2,4 @@ type: kintone
 domain: domain
 app_id: 0
 token: token
+error_records_detail_output_file: /tmp/test_kintone_errors.jsonl
