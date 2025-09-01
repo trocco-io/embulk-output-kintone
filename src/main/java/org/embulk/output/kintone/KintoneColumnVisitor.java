@@ -1,24 +1,34 @@
 package org.embulk.output.kintone;
 
+import com.kintone.client.model.record.FieldType;
 import com.kintone.client.model.record.FieldValue;
 import com.kintone.client.model.record.Record;
 import com.kintone.client.model.record.UpdateKey;
+import java.lang.invoke.MethodHandles;
 import java.time.Instant;
 import java.util.Arrays;
 import java.util.List;
 import java.util.Map;
 import java.util.Set;
+import org.embulk.config.ConfigException;
 import org.embulk.output.kintone.record.Id;
 import org.embulk.output.kintone.record.IdOrUpdateKey;
+import org.embulk.output.kintone.util.Lazy;
 import org.embulk.spi.Column;
 import org.embulk.spi.ColumnVisitor;
 import org.embulk.spi.PageReader;
 import org.embulk.spi.time.Timestamp;
 import org.msgpack.value.Value;
 import org.msgpack.value.ValueFactory;
+import org.slf4j.Logger;
+import org.slf4j.LoggerFactory;
 
 public class KintoneColumnVisitor implements ColumnVisitor {
+  private static final Logger LOGGER =
+      LoggerFactory.getLogger(MethodHandles.lookup().lookupClass());
+
   private static final List<String> BUILTIN_FIELD_CODES = Arrays.asList(Id.FIELD, "$revision");
+  private final Lazy<KintoneClient> client;
   private final PageReader reader;
   private final Set<Column> derived;
   private final Map<String, KintoneColumnOption> options;
@@ -30,16 +40,18 @@ public class KintoneColumnVisitor implements ColumnVisitor {
   private IdOrUpdateKey idOrUpdateKey;
 
   public KintoneColumnVisitor(
+      Lazy<KintoneClient> client,
       PageReader reader,
       Set<Column> derived,
       Map<String, KintoneColumnOption> options,
       boolean preferNulls,
       boolean ignoreNulls,
       String reduceKeyName) {
-    this(reader, derived, options, preferNulls, ignoreNulls, reduceKeyName, null);
+    this(client, reader, derived, options, preferNulls, ignoreNulls, reduceKeyName, null);
   }
 
   public KintoneColumnVisitor(
+      Lazy<KintoneClient> client,
       PageReader reader,
       Set<Column> derived,
       Map<String, KintoneColumnOption> options,
@@ -47,6 +59,7 @@ public class KintoneColumnVisitor implements ColumnVisitor {
       boolean ignoreNulls,
       String reduceKeyName,
       String updateKeyName) {
+    this.client = client;
     this.reader = reader;
     this.derived = derived;
     this.options = options;
@@ -69,13 +82,13 @@ public class KintoneColumnVisitor implements ColumnVisitor {
     if (isReduced(column) || isIgnoreNull(column)) {
       return;
     }
-    KintoneColumnOption option = getOption(column);
-    UpdateKey updateKey = getUpdateKey(column);
-    KintoneColumnType type = KintoneColumnType.getType(option, KintoneColumnType.NUMBER);
     String fieldCode = getFieldCode(column);
     if (isBuiltin(fieldCode)) {
       return;
     }
+    KintoneColumnOption option = getOption(column);
+    UpdateKey updateKey = getUpdateKey(column);
+    KintoneColumnType type = getType(option, column.getName());
     if (isPreferNull(column)) {
       setNull(type, fieldCode, updateKey);
     } else if (reader.isNull(column)) {
@@ -95,13 +108,13 @@ public class KintoneColumnVisitor implements ColumnVisitor {
       setIdValue(id, column);
       return;
     }
-    KintoneColumnOption option = getOption(column);
-    UpdateKey updateKey = getUpdateKey(column);
-    KintoneColumnType type = KintoneColumnType.getType(option, KintoneColumnType.NUMBER);
     String fieldCode = getFieldCode(column);
     if (isBuiltin(fieldCode)) {
       return;
     }
+    KintoneColumnOption option = getOption(column);
+    UpdateKey updateKey = getUpdateKey(column);
+    KintoneColumnType type = getType(option, column.getName());
     if (isPreferNull(column)) {
       setNull(type, fieldCode, updateKey);
     } else if (reader.isNull(column)) {
@@ -116,13 +129,13 @@ public class KintoneColumnVisitor implements ColumnVisitor {
     if (isReduced(column) || isIgnoreNull(column)) {
       return;
     }
-    KintoneColumnOption option = getOption(column);
-    UpdateKey updateKey = getUpdateKey(column);
-    KintoneColumnType type = KintoneColumnType.getType(option, KintoneColumnType.NUMBER);
     String fieldCode = getFieldCode(column);
     if (isBuiltin(fieldCode)) {
       return;
     }
+    KintoneColumnOption option = getOption(column);
+    UpdateKey updateKey = getUpdateKey(column);
+    KintoneColumnType type = getType(option, column.getName());
     if (isPreferNull(column)) {
       setNull(type, fieldCode, updateKey);
     } else if (reader.isNull(column)) {
@@ -137,15 +150,14 @@ public class KintoneColumnVisitor implements ColumnVisitor {
     if (isReduced(column) || isIgnoreNull(column)) {
       return;
     }
-    KintoneColumnOption option = getOption(column);
-    UpdateKey updateKey = getUpdateKey(column);
-    KintoneColumnType defaultType =
-        updateKey != null ? KintoneColumnType.SINGLE_LINE_TEXT : KintoneColumnType.MULTI_LINE_TEXT;
-    KintoneColumnType type = KintoneColumnType.getType(option, defaultType);
     String fieldCode = getFieldCode(column);
     if (isBuiltin(fieldCode)) {
       return;
     }
+    KintoneColumnOption option = getOption(column);
+    UpdateKey updateKey = getUpdateKey(column);
+    LOGGER.debug("column name: {}, type: {}", column.getName(), column.getType());
+    KintoneColumnType type = getType(option, column.getName());
     if (isPreferNull(column)) {
       setNull(type, fieldCode, updateKey);
     } else if (reader.isNull(column)) {
@@ -160,13 +172,13 @@ public class KintoneColumnVisitor implements ColumnVisitor {
     if (isReduced(column) || isIgnoreNull(column)) {
       return;
     }
-    KintoneColumnOption option = getOption(column);
-    UpdateKey updateKey = getUpdateKey(column);
-    KintoneColumnType type = KintoneColumnType.getType(option, KintoneColumnType.DATETIME);
     String fieldCode = getFieldCode(column);
     if (isBuiltin(fieldCode)) {
       return;
     }
+    KintoneColumnOption option = getOption(column);
+    UpdateKey updateKey = getUpdateKey(column);
+    KintoneColumnType type = getType(option, column.getName());
     if (isPreferNull(column)) {
       setNull(type, fieldCode, updateKey);
     } else if (reader.isNull(column)) {
@@ -181,15 +193,13 @@ public class KintoneColumnVisitor implements ColumnVisitor {
     if (isReduced(column) || isIgnoreNull(column)) {
       return;
     }
-    KintoneColumnOption option = getOption(column);
-    UpdateKey updateKey = getUpdateKey(column);
-    KintoneColumnType defaultType =
-        isDerived(column) ? KintoneColumnType.SUBTABLE : KintoneColumnType.MULTI_LINE_TEXT;
-    KintoneColumnType type = KintoneColumnType.getType(option, defaultType);
     String fieldCode = getFieldCode(column);
     if (isBuiltin(fieldCode)) {
       return;
     }
+    KintoneColumnOption option = getOption(column);
+    UpdateKey updateKey = getUpdateKey(column);
+    KintoneColumnType type = getType(option, column.getName());
     if (isPreferNull(column)) {
       setNull(type, fieldCode, updateKey);
     } else if (reader.isNull(column)) {
@@ -297,6 +307,19 @@ public class KintoneColumnVisitor implements ColumnVisitor {
   private String getFieldCode(Column column) {
     KintoneColumnOption option = getOption(column);
     return option != null ? option.getFieldCode() : column.getName();
+  }
+
+  public KintoneColumnType getType(KintoneColumnOption option, String fieldCode) {
+    if (option != null) {
+      return KintoneColumnType.valueOf(option.getType());
+    }
+
+    FieldType fieldType = this.client.get().getFieldType(fieldCode);
+    if (fieldType == null) {
+      throw new ConfigException("The field '" + fieldCode + "' does not exist.");
+    }
+
+    return KintoneColumnType.valueOf(fieldType.toString());
   }
 
   private KintoneColumnOption getOption(Column column) {
