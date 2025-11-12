@@ -22,12 +22,15 @@ import java.math.BigDecimal;
 import java.util.Collection;
 import java.util.Collections;
 import java.util.List;
+import java.util.function.BiConsumer;
 import java.util.function.Function;
+import java.util.function.Predicate;
 import java.util.stream.Collectors;
 import java.util.stream.IntStream;
 import org.embulk.config.TaskReport;
 import org.embulk.exec.PooledBufferAllocator;
 import org.embulk.output.kintone.record.Id;
+import org.embulk.output.kintone.record.Skip;
 import org.embulk.spi.BufferAllocator;
 import org.embulk.spi.Exec;
 import org.embulk.spi.Page;
@@ -40,37 +43,49 @@ import org.msgpack.value.ValueFactory;
 public class KintonePageOutputVerifier implements TransactionalPageOutput {
   private final TransactionalPageOutput transactionalPageOutput;
   private final String domain;
+  private final KintoneMode mode;
   private final String field;
+  private final Skip skip;
   private final List<String> values;
   private final List<String> addValues;
   private final List<Record> addRecords;
   private final List<RecordForUpdate> updateRecords;
+  private final Predicate<Record> nonNull;
 
   public KintonePageOutputVerifier(
       String domain,
+      KintoneMode mode,
       String field,
+      Skip skip,
       List<String> values,
       List<String> addValues,
       List<Record> addRecords,
-      List<RecordForUpdate> updateRecords) {
-    this(null, domain, field, values, addValues, addRecords, updateRecords);
+      List<RecordForUpdate> updateRecords,
+      Predicate<Record> nonNull) {
+    this(null, domain, mode, field, skip, values, addValues, addRecords, updateRecords, nonNull);
   }
 
   public KintonePageOutputVerifier(
       TransactionalPageOutput transactionalPageOutput,
       String domain,
+      KintoneMode mode,
       String field,
+      Skip skip,
       List<String> values,
       List<String> addValues,
       List<Record> addRecords,
-      List<RecordForUpdate> updateRecords) {
+      List<RecordForUpdate> updateRecords,
+      Predicate<Record> nonNull) {
     this.transactionalPageOutput = transactionalPageOutput;
     this.domain = domain;
+    this.mode = mode;
     this.field = field;
+    this.skip = skip;
     this.values = values;
     this.addValues = addValues;
     this.addRecords = addRecords;
     this.updateRecords = updateRecords;
+    this.nonNull = nonNull;
   }
 
   @Override
@@ -124,7 +139,7 @@ public class KintonePageOutputVerifier implements TransactionalPageOutput {
     mockClient.run(runnable);
     @SuppressWarnings("unchecked")
     ArgumentCaptor<List<Record>> addRecordsArgumentCaptor = ArgumentCaptor.forClass(List.class);
-    verify(mockRecordClient, atLeast(0)).addRecords(eq(0L), addRecordsArgumentCaptor.capture());
+    addRecordsVerifier().accept(mockRecordClient, addRecordsArgumentCaptor);
     assertRecords(
         domain,
         addRecordsArgumentCaptor.getAllValues().stream()
@@ -134,14 +149,44 @@ public class KintonePageOutputVerifier implements TransactionalPageOutput {
     @SuppressWarnings("unchecked")
     ArgumentCaptor<List<RecordForUpdate>> updateRecordsArgumentCaptor =
         ArgumentCaptor.forClass(List.class);
-    verify(mockRecordClient, atLeast(0))
-        .updateRecords(eq(0L), updateRecordsArgumentCaptor.capture());
+    updateRecordsVerifier().accept(mockRecordClient, updateRecordsArgumentCaptor);
     assertRecordForUpdates(
         domain,
         updateRecordsArgumentCaptor.getAllValues().stream()
             .flatMap(Collection::stream)
             .collect(Collectors.toList()),
         updateRecords);
+  }
+
+  private BiConsumer<RecordClient, ArgumentCaptor<List<Record>>> addRecordsVerifier() {
+    return mode == KintoneMode.UPSERT && skip != Skip.ALWAYS
+        ? (rc, ac) -> {}
+        : this::verifyAddRecords;
+  }
+
+  private BiConsumer<RecordClient, ArgumentCaptor<List<RecordForUpdate>>> updateRecordsVerifier() {
+    return mode == KintoneMode.UPSERT && skip != Skip.ALWAYS
+        ? this::verifyUpsertRecords
+        : this::verifyUpdateRecords;
+  }
+
+  private void verifyAddRecords(
+      RecordClient mockRecordClient, ArgumentCaptor<List<Record>> addRecordsArgumentCaptor) {
+    verify(mockRecordClient, atLeast(0)).addRecords(eq(0L), addRecordsArgumentCaptor.capture());
+  }
+
+  private void verifyUpdateRecords(
+      RecordClient mockRecordClient,
+      ArgumentCaptor<List<RecordForUpdate>> updateRecordsArgumentCaptor) {
+    verify(mockRecordClient, atLeast(0))
+        .updateRecords(eq(0L), updateRecordsArgumentCaptor.capture());
+  }
+
+  private void verifyUpsertRecords(
+      RecordClient mockRecordClient,
+      ArgumentCaptor<List<RecordForUpdate>> updateRecordsArgumentCaptor) {
+    verify(mockRecordClient, atLeast(0))
+        .updateRecords(eq(0L), updateRecordsArgumentCaptor.capture(), eq(true));
   }
 
   private List<String> getValues() {
@@ -164,13 +209,13 @@ public class KintonePageOutputVerifier implements TransactionalPageOutput {
   }
 
   private List<Record> getRecords() {
-    return updateRecords.stream().map(this::getRecord).collect(Collectors.toList());
+    return updateRecords.stream().map(this::getRecord).filter(nonNull).collect(Collectors.toList());
   }
 
   private Record getRecord(RecordForUpdate updateRecord) {
     Long id = updateRecord.getId();
     UpdateKey key = updateRecord.getUpdateKey();
-    return id != null ? getRecord(id) : getRecord(key);
+    return id != null ? getRecord(id) : key.getField() != null ? getRecord(key) : null;
   }
 
   private Record getRecord(Long id) {

@@ -8,8 +8,11 @@ import static org.mockito.Mockito.spy;
 import static org.mockito.Mockito.verify;
 
 import com.kintone.client.Json;
+import com.kintone.client.model.record.FieldValue;
+import com.kintone.client.model.record.NumberFieldValue;
 import com.kintone.client.model.record.Record;
 import com.kintone.client.model.record.RecordForUpdate;
+import com.kintone.client.model.record.SingleLineTextFieldValue;
 import com.kintone.client.model.record.UpdateKey;
 import java.io.File;
 import java.net.URISyntaxException;
@@ -21,8 +24,10 @@ import java.util.Collections;
 import java.util.List;
 import java.util.Objects;
 import java.util.Set;
+import java.util.concurrent.atomic.AtomicLong;
 import java.util.concurrent.atomic.AtomicReference;
 import java.util.function.Function;
+import java.util.function.Predicate;
 import java.util.stream.Collectors;
 import org.embulk.config.ConfigDiff;
 import org.embulk.config.ConfigSource;
@@ -153,11 +158,14 @@ public class TestKintoneOutputPlugin extends KintoneOutputPlugin {
     boolean ignoreNulls = config.get(boolean.class, "ignore_nulls", false);
     return new KintonePageOutputVerifier(
         test,
+        KintoneMode.valueOf(mode.toUpperCase()),
         field,
+        skip,
         getValues(test, mode, skip, preferNulls, ignoreNulls, field),
         getAddValues(test, mode, skip, preferNulls, ignoreNulls, field),
         getAddRecords(test, mode, skip, preferNulls, ignoreNulls),
-        getUpdateRecords(test, mode, skip, preferNulls, ignoreNulls, field));
+        getUpdateRecords(test, mode, skip, preferNulls, ignoreNulls, field),
+        getNonNull(preferNulls, ignoreNulls, field));
   }
 
   private TransactionalPageOutput openWithVerifier(
@@ -171,11 +179,14 @@ public class TestKintoneOutputPlugin extends KintoneOutputPlugin {
     return new KintonePageOutputVerifier(
         super.open(taskSource, schema, taskIndex),
         test,
+        KintoneMode.valueOf(mode.toUpperCase()),
         field,
+        skip,
         getValues(test, mode, skip, preferNulls, ignoreNulls, field),
         getAddValues(test, mode, skip, preferNulls, ignoreNulls, field),
         getAddRecords(test, mode, skip, preferNulls, ignoreNulls),
-        getUpdateRecords(test, mode, skip, preferNulls, ignoreNulls, field));
+        getUpdateRecords(test, mode, skip, preferNulls, ignoreNulls, field),
+        getNonNull(preferNulls, ignoreNulls, field));
   }
 
   private static Set<Column> getDerivedColumns(String test) {
@@ -243,11 +254,12 @@ public class TestKintoneOutputPlugin extends KintoneOutputPlugin {
 
   private static List<RecordForUpdate> getUpdateRecords(
       String test, String mode, Skip skip, boolean preferNulls, boolean ignoreNulls, String field) {
-    Function<Record, UpdateKey> key = getKey(field);
+    Function<Record, Long> id = getId(new AtomicLong(Long.MAX_VALUE));
+    Function<Record, UpdateKey> key = getKey(ignoreNulls, field);
     Function<Record, RecordForUpdate> forUpdate =
         record ->
             Id.FIELD.equals(field)
-                ? new RecordForUpdate(record.getId(), Record.newFrom(record))
+                ? new RecordForUpdate(id.apply(record), Record.newFrom(record))
                 : new RecordForUpdate(key.apply(record), record.removeField(field));
     String name =
         String.format(
@@ -273,13 +285,49 @@ public class TestKintoneOutputPlugin extends KintoneOutputPlugin {
     return string == null ? "" : String.format("_%s", string.replace('$', '_'));
   }
 
-  private static Function<Record, UpdateKey> getKey(String field) {
+  private static Function<Record, Long> getId(AtomicLong nonExistingId) {
+    return record -> getId(record, nonExistingId);
+  }
+
+  private static long getId(Record record, AtomicLong nonExistingId) {
+    Long id = record.getId();
+    return id == null ? nonExistingId.getAndDecrement() : id;
+  }
+
+  private static Function<Record, UpdateKey> getKey(boolean ignoreNulls, String field) {
     return field == null
         ? record -> null
         : record ->
             field.matches("^.*_number$")
-                ? new UpdateKey(field, record.getNumberFieldValue(field))
-                : new UpdateKey(field, record.getSingleLineTextFieldValue(field));
+                ? getKey(ignoreNulls, field, record.getNumberFieldValue(field))
+                : getKey(ignoreNulls, field, record.getSingleLineTextFieldValue(field));
+  }
+
+  private static UpdateKey getKey(boolean ignoreNulls, String field, Object value) {
+    if (value instanceof String) {
+      return new UpdateKey(field, (String) value);
+    } else if (value instanceof Number) {
+      return new UpdateKey(field, (Number) value);
+    } else {
+      return ignoreNulls ? new UpdateKey() : new UpdateKey(field, (String) null);
+    }
+  }
+
+  private static Predicate<Record> getNonNull(
+      boolean preferNulls, boolean ignoreNulls, String field) {
+    return record -> !isNull(preferNulls, ignoreNulls, field, record);
+  }
+
+  private static boolean isNull(
+      boolean preferNulls, boolean ignoreNulls, String field, Record record) {
+    FieldValue value = record == null ? null : record.getFieldValue(field);
+    if (value instanceof SingleLineTextFieldValue) {
+      return preferNulls && ((SingleLineTextFieldValue) value).getValue() == null;
+    } else if (value instanceof NumberFieldValue) {
+      return preferNulls && ((NumberFieldValue) value).getValue() == null;
+    } else {
+      return ignoreNulls && value == null;
+    }
   }
 
   private static File getResourceFile(String name) {

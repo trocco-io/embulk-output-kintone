@@ -26,6 +26,9 @@ public class TestTaskReduceException extends TestTask {
     merge(config("mode: update", "update_key: double_single_line_text"));
     merge(config("reduce_key: string_number"));
     runOutput();
+    merge(config("mode: upsert", "update_key: string_number"));
+    merge(config("reduce_key: double_single_line_text"));
+    runOutput();
     merge(config("mode: insert_or_update", "update_key: string_number"));
     merge(config("reduce_key: json.double_single_line_text"));
     assertReduceException(

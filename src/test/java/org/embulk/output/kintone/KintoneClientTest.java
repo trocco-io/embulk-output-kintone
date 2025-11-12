@@ -60,6 +60,27 @@ public class KintoneClientTest extends TestKintoneOutputPlugin {
   }
 
   @Test
+  public void testUpsert() {
+    merge(config("mode: upsert"));
+    merge(config("update_key: null"));
+    assertConfigException("When mode is upsert, require update_key or id column.");
+    merge(config("update_key: non_existing_column"));
+    assertConfigException("The column 'non_existing_column' for update does not exist.");
+    merge(config("update_key: non_existing_field"));
+    assertConfigException("The field 'non_existing_field' for update does not exist.");
+    merge(config("update_key: invalid_type_field_multi_line_text"));
+    assertConfigException("The update_key must be 'SINGLE_LINE_TEXT' or 'NUMBER'.");
+    merge(config("update_key: long_number"));
+    runWithMockClient(Lazy::get);
+    merge(config("update_key: string_single_line_text"));
+    runWithMockClient(Lazy::get);
+    merge(config("update_key: $id"));
+    runWithMockClient(Lazy::get, id(Types.LONG));
+    merge(config("update_key: null"));
+    assertConfigException("The id column must be 'long'.", id(Types.STRING));
+  }
+
+  @Test
   public void testInsertOrUpdate() {
     merge(config("mode: insert_or_update"));
     merge(config("update_key: null"));

@@ -163,6 +163,15 @@ public class KintonePageOutput implements TransactionalPageOutput {
     Operation.UPDATE.compute(results, list.size());
   }
 
+  private void upsert(List<RecordForUpdate> records, Map<Operation, Integer> results) {
+    List<RecordRevision> list =
+        executeWithRetry(
+            () -> client.get().record().updateRecords(task.getAppId(), records, true), records);
+    list.stream()
+        .collect(Collectors.groupingBy(RecordRevision::getOperation))
+        .forEach((key, value) -> Operation.valueOf(key).compute(results, value.size()));
+  }
+
   private <T> T executeWithRetry(Supplier<T> operation) {
     return executeWithRetry(operation, null);
   }
@@ -294,6 +303,51 @@ public class KintonePageOutput implements TransactionalPageOutput {
       update(records, results);
     }
     Operation.UPDATE.info(results);
+  }
+
+  public void upsertPage(Page page) {
+    Skip skip = task.getSkipIfNonExistingIdOrUpdateKey();
+    String columnName = task.getUpdateKeyName().orElse(Id.FIELD);
+    boolean isId = columnName.equals(Id.FIELD);
+    long nonExistingId = Long.MAX_VALUE;
+    List<RecordForUpdate> records = new ArrayList<>();
+    reader.setPage(page);
+    KintoneColumnVisitor visitor =
+        new KintoneColumnVisitor(
+            reader,
+            task.getDerivedColumns(),
+            task.getColumnOptions(),
+            task.getPreferNulls(),
+            task.getIgnoreNulls(),
+            task.getReduceKeyName().orElse(null),
+            task.getUpdateKeyName().orElse(Id.FIELD));
+    Map<Operation, Integer> results = new TreeMap<>();
+    while (reader.nextRecord()) {
+      Record record = new Record();
+      IdOrUpdateKey idOrUpdateKey = new IdOrUpdateKey();
+      visitor.setRecord(record);
+      visitor.setIdOrUpdateKey(idOrUpdateKey);
+      reader.getSchema().visitColumns(visitor);
+      putWrongTypeFields(record);
+      if (isId && !idOrUpdateKey.isIdPresent()) {
+        // Record inserted because no id was specified
+        idOrUpdateKey.getId().setValue(nonExistingId--);
+      } else if (skip == Skip.AUTO && !isId && !idOrUpdateKey.isUpdateKeyPresent()) {
+        LOGGER.warn("Record skipped because no update key value was specified");
+        continue;
+      } else if (!isId && !idOrUpdateKey.isUpdateKeyPresent()) {
+        LOGGER.warn("Record inserted though no update key value was specified");
+      }
+      records.add(idOrUpdateKey.forUpdate(record));
+      if (records.size() == task.getChunkSize()) {
+        upsert(records, results);
+        records.clear();
+      }
+    }
+    if (!records.isEmpty()) {
+      upsert(records, results);
+    }
+    results.keySet().forEach(operation -> operation.info(results));
   }
 
   public void insertOrUpdatePage(Page page) {

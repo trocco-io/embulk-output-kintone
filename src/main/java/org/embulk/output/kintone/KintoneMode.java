@@ -36,6 +36,22 @@ public enum KintoneMode {
       consumer.accept(page);
     }
   },
+  UPSERT("upsert") {
+    @Override
+    public void validate(PluginTask task, KintoneClient client) {
+      if (!task.getUpdateKeyName().isPresent() && client.getColumn(Id.FIELD) == null) {
+        throw new ConfigException("When mode is upsert, require update_key or id column.");
+      }
+      client.validateIdOrUpdateKey(task.getUpdateKeyName().orElse(Id.FIELD));
+    }
+
+    @Override
+    public void add(Page page, Skip skip, KintonePageOutput output) {
+      Consumer<Page> consumer =
+          skip == Skip.ALWAYS ? output::insertOrUpdatePage : output::upsertPage;
+      consumer.accept(page);
+    }
+  },
   INSERT_OR_UPDATE("insert_or_update") {
     @Override
     public void validate(PluginTask task, KintoneClient client) {
