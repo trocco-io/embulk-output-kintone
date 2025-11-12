@@ -24,6 +24,7 @@ import com.kintone.client.model.record.OrganizationSelectFieldValue;
 import com.kintone.client.model.record.RadioButtonFieldValue;
 import com.kintone.client.model.record.Record;
 import com.kintone.client.model.record.RecordForUpdate;
+import com.kintone.client.model.record.RecordRevision;
 import com.kintone.client.model.record.RichTextFieldValue;
 import com.kintone.client.model.record.SingleLineTextFieldValue;
 import com.kintone.client.model.record.TimeFieldValue;
@@ -59,6 +60,24 @@ import org.slf4j.Logger;
 import org.slf4j.LoggerFactory;
 
 public class KintonePageOutput implements TransactionalPageOutput {
+  private enum Operation {
+    INSERT("added"),
+    UPDATE("updated");
+    final String processed;
+
+    Operation(String processed) {
+      this.processed = processed;
+    }
+
+    void compute(Map<Operation, Integer> results, int i) {
+      results.compute(this, (k, v) -> v == null ? i : v + i);
+    }
+
+    void info(Map<Operation, Integer> results) {
+      LOGGER.info("Number of records {}: {}", processed, results.get(this));
+    }
+  }
+
   private static final Logger LOGGER =
       LoggerFactory.getLogger(MethodHandles.lookup().lookupClass());
   private static final List<String> RETRYABLE_ERROR_CODES =
@@ -131,12 +150,17 @@ public class KintonePageOutput implements TransactionalPageOutput {
     return CONFIG_MAPPER_FACTORY.newTaskReport();
   }
 
-  private void insert(List<Record> records) {
-    executeWithRetry(() -> client.get().record().addRecords(task.getAppId(), records), records);
+  private void insert(List<Record> records, Map<Operation, Integer> results) {
+    List<Long> list =
+        executeWithRetry(() -> client.get().record().addRecords(task.getAppId(), records), records);
+    Operation.INSERT.compute(results, list.size());
   }
 
-  private void update(List<RecordForUpdate> records) {
-    executeWithRetry(() -> client.get().record().updateRecords(task.getAppId(), records), records);
+  private void update(List<RecordForUpdate> records, Map<Operation, Integer> results) {
+    List<RecordRevision> list =
+        executeWithRetry(
+            () -> client.get().record().updateRecords(task.getAppId(), records), records);
+    Operation.UPDATE.compute(results, list.size());
   }
 
   private <T> T executeWithRetry(Supplier<T> operation) {
@@ -215,6 +239,7 @@ public class KintonePageOutput implements TransactionalPageOutput {
             task.getPreferNulls(),
             task.getIgnoreNulls(),
             task.getReduceKeyName().orElse(null));
+    Map<Operation, Integer> results = new TreeMap<>();
     while (reader.nextRecord()) {
       Record record = new Record();
       visitor.setRecord(record);
@@ -222,13 +247,14 @@ public class KintonePageOutput implements TransactionalPageOutput {
       putWrongTypeFields(record);
       records.add(record);
       if (records.size() == task.getChunkSize()) {
-        insert(records);
+        insert(records, results);
         records.clear();
       }
     }
     if (!records.isEmpty()) {
-      insert(records);
+      insert(records, results);
     }
+    Operation.INSERT.info(results);
   }
 
   public void updatePage(Page page) {
@@ -244,6 +270,7 @@ public class KintonePageOutput implements TransactionalPageOutput {
             task.getIgnoreNulls(),
             task.getReduceKeyName().orElse(null),
             task.getUpdateKeyName().orElse(Id.FIELD));
+    Map<Operation, Integer> results = new TreeMap<>();
     while (reader.nextRecord()) {
       Record record = new Record();
       IdOrUpdateKey idOrUpdateKey = new IdOrUpdateKey();
@@ -259,13 +286,14 @@ public class KintonePageOutput implements TransactionalPageOutput {
       }
       records.add(idOrUpdateKey.forUpdate(record));
       if (records.size() == task.getChunkSize()) {
-        update(records);
+        update(records, results);
         records.clear();
       }
     }
     if (!records.isEmpty()) {
-      update(records);
+      update(records, results);
     }
+    Operation.UPDATE.info(results);
   }
 
   public void insertOrUpdatePage(Page page) {
@@ -281,6 +309,7 @@ public class KintonePageOutput implements TransactionalPageOutput {
             task.getIgnoreNulls(),
             task.getReduceKeyName().orElse(null),
             task.getUpdateKeyName().orElse(Id.FIELD));
+    Map<Operation, Integer> results = new TreeMap<>();
     while (reader.nextRecord()) {
       Record record = new Record();
       IdOrUpdateKey idOrUpdateKey = new IdOrUpdateKey();
@@ -291,17 +320,19 @@ public class KintonePageOutput implements TransactionalPageOutput {
       records.add(record);
       idOrUpdateKeys.add(idOrUpdateKey);
       if (records.size() == UPSERT_BATCH_SIZE) {
-        insertOrUpdate(records, idOrUpdateKeys);
+        insertOrUpdate(records, idOrUpdateKeys, results);
         records.clear();
         idOrUpdateKeys.clear();
       }
     }
     if (!records.isEmpty()) {
-      insertOrUpdate(records, idOrUpdateKeys);
+      insertOrUpdate(records, idOrUpdateKeys, results);
     }
+    results.keySet().forEach(operation -> operation.info(results));
   }
 
-  private void insertOrUpdate(List<Record> records, List<IdOrUpdateKey> idOrUpdateKeys) {
+  private void insertOrUpdate(
+      List<Record> records, List<IdOrUpdateKey> idOrUpdateKeys, Map<Operation, Integer> results) {
     if (records.size() != idOrUpdateKeys.size()) {
       throw new RuntimeException("records.size() != idOrUpdateKeys.size()");
     }
@@ -343,18 +374,18 @@ public class KintonePageOutput implements TransactionalPageOutput {
         insertRecords.add(record);
       }
       if (insertRecords.size() == task.getChunkSize()) {
-        insert(insertRecords);
+        insert(insertRecords, results);
         insertRecords.clear();
       } else if (updateRecords.size() == task.getChunkSize()) {
-        update(updateRecords);
+        update(updateRecords, results);
         updateRecords.clear();
       }
     }
     if (!insertRecords.isEmpty()) {
-      insert(insertRecords);
+      insert(insertRecords, results);
     }
     if (!updateRecords.isEmpty()) {
-      update(updateRecords);
+      update(updateRecords, results);
     }
   }
 
