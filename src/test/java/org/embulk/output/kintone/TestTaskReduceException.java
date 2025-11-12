@@ -26,7 +26,7 @@ public class TestTaskReduceException extends TestTask {
     merge(config("mode: update", "update_key: double_single_line_text"));
     merge(config("reduce_key: string_number"));
     runOutput();
-    merge(config("mode: upsert", "update_key: string_number"));
+    merge(config("mode: insert_or_update", "update_key: string_number"));
     merge(config("reduce_key: json.double_single_line_text"));
     assertReduceException(
         "Couldn't reduce because column json.double_single_line_text is not unique to [json, json_subtable]\n[double_single_line_text, string_number] expected [123.0, 456] but actual [456.0, 123]");

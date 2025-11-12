@@ -268,7 +268,7 @@ public class KintonePageOutput implements TransactionalPageOutput {
     }
   }
 
-  public void upsertPage(Page page) {
+  public void insertOrUpdatePage(Page page) {
     List<Record> records = new ArrayList<>();
     List<IdOrUpdateKey> idOrUpdateKeys = new ArrayList<>();
     reader.setPage(page);
@@ -291,17 +291,17 @@ public class KintonePageOutput implements TransactionalPageOutput {
       records.add(record);
       idOrUpdateKeys.add(idOrUpdateKey);
       if (records.size() == UPSERT_BATCH_SIZE) {
-        upsert(records, idOrUpdateKeys);
+        insertOrUpdate(records, idOrUpdateKeys);
         records.clear();
         idOrUpdateKeys.clear();
       }
     }
     if (!records.isEmpty()) {
-      upsert(records, idOrUpdateKeys);
+      insertOrUpdate(records, idOrUpdateKeys);
     }
   }
 
-  private void upsert(List<Record> records, List<IdOrUpdateKey> idOrUpdateKeys) {
+  private void insertOrUpdate(List<Record> records, List<IdOrUpdateKey> idOrUpdateKeys) {
     if (records.size() != idOrUpdateKeys.size()) {
       throw new RuntimeException("records.size() != idOrUpdateKeys.size()");
     }

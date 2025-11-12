@@ -34,8 +34,8 @@ public class TestTaskReduceSubtable extends TestTask {
   }
 
   @Test
-  public void testUpsert() throws Exception {
-    merge(config("mode: upsert", "update_key: double_single_line_text"));
+  public void testInsertOrUpdate() throws Exception {
+    merge(config("mode: insert_or_update", "update_key: double_single_line_text"));
     merge(config("skip_if_non_existing_id_or_update_key: never"));
     merge(config("reduce_key: double_single_line_text"));
     runOutput();

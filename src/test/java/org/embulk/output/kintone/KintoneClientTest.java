@@ -60,10 +60,10 @@ public class KintoneClientTest extends TestKintoneOutputPlugin {
   }
 
   @Test
-  public void testUpsert() {
-    merge(config("mode: upsert"));
+  public void testInsertOrUpdate() {
+    merge(config("mode: insert_or_update"));
     merge(config("update_key: null"));
-    assertConfigException("When mode is upsert, require update_key or id column.");
+    assertConfigException("When mode is insert_or_update, require update_key or id column.");
     merge(config("update_key: non_existing_column"));
     assertConfigException("The column 'non_existing_column' for update does not exist.");
     merge(config("update_key: non_existing_field"));

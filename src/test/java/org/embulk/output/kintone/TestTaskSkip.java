@@ -54,8 +54,8 @@ public class TestTaskSkip extends TestTask {
   }
 
   @Test
-  public void testUpsert() throws Exception {
-    merge(config("mode: upsert", "update_key: string_single_line_text"));
+  public void testInsertOrUpdate() throws Exception {
+    merge(config("mode: insert_or_update", "update_key: string_single_line_text"));
     merge(config("skip_if_non_existing_id_or_update_key: auto"));
     runOutput();
     merge(config("skip_if_non_existing_id_or_update_key: never"));

@@ -31,22 +31,24 @@ public enum KintoneMode {
 
     @Override
     public void add(Page page, Skip skip, KintonePageOutput output) {
-      Consumer<Page> consumer = skip == Skip.ALWAYS ? output::upsertPage : output::updatePage;
+      Consumer<Page> consumer =
+          skip == Skip.ALWAYS ? output::insertOrUpdatePage : output::updatePage;
       consumer.accept(page);
     }
   },
-  UPSERT("upsert") {
+  INSERT_OR_UPDATE("insert_or_update") {
     @Override
     public void validate(PluginTask task, KintoneClient client) {
       if (!task.getUpdateKeyName().isPresent() && client.getColumn(Id.FIELD) == null) {
-        throw new ConfigException("When mode is upsert, require update_key or id column.");
+        throw new ConfigException(
+            "When mode is insert_or_update, require update_key or id column.");
       }
       client.validateIdOrUpdateKey(task.getUpdateKeyName().orElse(Id.FIELD));
     }
 
     @Override
     public void add(Page page, Skip skip, KintonePageOutput output) {
-      output.upsertPage(page);
+      output.insertOrUpdatePage(page);
     }
   };
   private final String value;
