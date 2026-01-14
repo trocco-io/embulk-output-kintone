@@ -44,6 +44,7 @@ kintone output plugin for Embulk stores app records from kintone.
         - **name**: Column name (string, required)
         - **order**: Sort order (string `asc` or `desc`, required)
 - **chunk_size**: Maximum number of records to request at once (integer, default is `100`)
+- **error_records_detail_output_file**: Output file path for detailed error records in JSONL format. When Kintone API errors occur, failed records are logged with their data, error codes, and error messages. Each line contains a JSON object with `record_data`, `error_code`, and `error_message` fields (string, optional)
 
 ## Example
 
@@ -56,6 +57,7 @@ out:
   app_id: 1
   mode: upsert
   update_key: id
+  error_records_detail_output_file: /tmp/kintone_error_records.jsonl
   column_options:
     id: {field_code: "id", type: "NUMBER"}
     name: {field_code: "name", type: "SINGLE_LINE_TEXT"}
@@ -109,6 +111,27 @@ ID:2
 | NUMBER        | SINGLE_LINE_TEXT |
 | ------------- | ---------------- |
 | 0             | test0            |
+
+## Error Records Detail Output
+
+When `error_records_detail_output_file` is configured, failed records are logged in JSONL format. Each line contains a JSON object with the following structure:
+
+```json
+{"record_data":{"id":"123","name":"John Doe"},"error_code":"GAIA_RE01","error_message":"Field validation error: name: This field is required"}
+```
+
+### Fields
+
+- **record_data**: Original record data that failed to be processed
+- **error_code**: Kintone API error code (e.g., GAIA_RE01, GAIA_RE18)  
+- **error_message**: Detailed error message including field-specific errors
+
+### Example Error Log File
+
+```
+{"record_data":{"id":"001","email":"invalid-email"},"error_code":"GAIA_RE01","error_message":"Field validation error: email: Invalid email format"}
+{"record_data":{"id":"002","required_field":null},"error_code":"GAIA_RE01","error_message":"Field validation error: required_field: This field is required"}
+```
 
 ## Build
 
