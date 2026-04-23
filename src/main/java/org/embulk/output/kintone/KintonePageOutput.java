@@ -24,6 +24,7 @@ import com.kintone.client.model.record.RecordForUpdate;
 import com.kintone.client.model.record.RichTextFieldValue;
 import com.kintone.client.model.record.SingleLineTextFieldValue;
 import com.kintone.client.model.record.TimeFieldValue;
+import com.kintone.client.model.record.UpdateKey;
 import com.kintone.client.model.record.UserSelectFieldValue;
 import java.io.IOException;
 import java.lang.invoke.MethodHandles;
@@ -550,20 +551,37 @@ public class KintonePageOutput implements TransactionalPageOutput {
   }
 
   /** Converts list of records to list of maps for easier handling */
-  private List<Map<String, Object>> convertRecordsToMaps(List<?> records) {
+  static List<Map<String, Object>> convertRecordsToMaps(List<?> records) {
     List<Map<String, Object>> recordMaps = new ArrayList<>();
 
     for (Object recordObj : records) {
       Record record = null;
+      RecordForUpdate recordForUpdate = null;
 
       if (recordObj instanceof Record) {
         record = (Record) recordObj;
       } else if (recordObj instanceof RecordForUpdate) {
-        record = ((RecordForUpdate) recordObj).getRecord();
+        recordForUpdate = (RecordForUpdate) recordObj;
+        record = recordForUpdate.getRecord();
       }
 
       if (record != null) {
         Map<String, Object> recordData = extractAllFieldsFromRecord(record);
+        // In IdOrUpdateKey.forUpdate(), the update key field is removed from the Record before
+        // being wrapped in RecordForUpdate because the kintone API forbids including the
+        // updateKey field in the request body (responds with CB_VA01 / "「updateKey」に指定した
+        // フィールドの値は更新できません。"). As a result, the Record alone no longer carries
+        // the value that identifies the failed row. Restore it here so the error log includes
+        // the identifier value.
+        if (recordForUpdate != null) {
+          if (recordForUpdate.getId() != null) {
+            recordData.putIfAbsent(Id.FIELD, recordForUpdate.getId());
+          }
+          UpdateKey updateKey = recordForUpdate.getUpdateKey();
+          if (updateKey != null && updateKey.getField() != null && updateKey.getValue() != null) {
+            recordData.putIfAbsent(updateKey.getField(), updateKey.getValue());
+          }
+        }
         recordMaps.add(recordData);
       } else {
         // Add empty map for unknown types to maintain index consistency
@@ -575,7 +593,7 @@ public class KintonePageOutput implements TransactionalPageOutput {
   }
 
   /** Extracts all fields from a Record object to Map */
-  private Map<String, Object> extractAllFieldsFromRecord(Record record) {
+  private static Map<String, Object> extractAllFieldsFromRecord(Record record) {
     Map<String, Object> fields = new HashMap<>();
 
     if (record == null) {
@@ -599,7 +617,7 @@ public class KintonePageOutput implements TransactionalPageOutput {
   }
 
   /** Extracts actual value from FieldValue object using type-safe instanceof checks */
-  private Object extractActualValue(Object value) {
+  private static Object extractActualValue(Object value) {
     if (value == null) {
       return null;
     }
