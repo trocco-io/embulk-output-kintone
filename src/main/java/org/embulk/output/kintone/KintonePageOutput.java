@@ -550,46 +550,40 @@ public class KintonePageOutput implements TransactionalPageOutput {
     }
   }
 
-  /** Converts list of records to list of maps for easier handling */
+  /** Converts list of records to list of maps for easier handling. */
   static List<Map<String, Object>> convertRecordsToMaps(List<?> records) {
     List<Map<String, Object>> recordMaps = new ArrayList<>();
-
-    for (Object recordObj : records) {
-      Record record = null;
-      RecordForUpdate recordForUpdate = null;
-
-      if (recordObj instanceof Record) {
-        record = (Record) recordObj;
-      } else if (recordObj instanceof RecordForUpdate) {
-        recordForUpdate = (RecordForUpdate) recordObj;
-        record = recordForUpdate.getRecord();
-      }
-
-      if (record != null) {
-        Map<String, Object> recordData = extractAllFieldsFromRecord(record);
-        // In IdOrUpdateKey.forUpdate(), the update key field is removed from the Record before
-        // being wrapped in RecordForUpdate because the kintone API forbids including the
-        // updateKey field in the request body (responds with CB_VA01 / "「updateKey」に指定した
-        // フィールドの値は更新できません。"). As a result, the Record alone no longer carries
-        // the value that identifies the failed row. Restore it here so the error log includes
-        // the identifier value.
-        if (recordForUpdate != null) {
-          if (recordForUpdate.getId() != null) {
-            recordData.putIfAbsent(Id.FIELD, recordForUpdate.getId());
-          }
-          UpdateKey updateKey = recordForUpdate.getUpdateKey();
-          if (updateKey != null && updateKey.getField() != null && updateKey.getValue() != null) {
-            recordData.putIfAbsent(updateKey.getField(), updateKey.getValue());
-          }
-        }
-        recordMaps.add(recordData);
+    for (Object obj : records) {
+      if (obj instanceof RecordForUpdate) {
+        RecordForUpdate rfu = (RecordForUpdate) obj;
+        Map<String, Object> map = extractAllFieldsFromRecord(rfu.getRecord());
+        restoreIdentifier(map, rfu);
+        recordMaps.add(map);
+      } else if (obj instanceof Record) {
+        recordMaps.add(extractAllFieldsFromRecord((Record) obj));
       } else {
-        // Add empty map for unknown types to maintain index consistency
+        // Unknown type: add an empty map so indices stay aligned with the input list.
         recordMaps.add(new HashMap<>());
       }
     }
-
     return recordMaps;
+  }
+
+  /**
+   * Restores the identifier ($id or update key) that was removed from the Record in {@code
+   * IdOrUpdateKey#forUpdate}. The update key field is stripped before the API call because kintone
+   * rejects requests that carry the updateKey field in the record body (CB_VA01 /
+   * "「updateKey」に指定したフィールドの値は更新できません。"), but we still need the value in the error log to identify
+   * which input row failed.
+   */
+  private static void restoreIdentifier(Map<String, Object> map, RecordForUpdate rfu) {
+    if (rfu.getId() != null) {
+      map.putIfAbsent(Id.FIELD, rfu.getId());
+    }
+    UpdateKey updateKey = rfu.getUpdateKey();
+    if (updateKey != null && updateKey.getField() != null && updateKey.getValue() != null) {
+      map.putIfAbsent(updateKey.getField(), updateKey.getValue());
+    }
   }
 
   /** Extracts all fields from a Record object to Map */
