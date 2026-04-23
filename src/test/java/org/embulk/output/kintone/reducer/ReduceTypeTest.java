@@ -147,8 +147,7 @@ public class ReduceTypeTest {
                     .setType(to.name())
                     .setTimezone(timezone)
                     .setValueSeparator(",")
-                    .build(),
-                null)
+                    .build())
             .toJson(),
         is(expected));
   }

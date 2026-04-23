@@ -633,7 +633,6 @@ public class KintoneColumnVisitorTest {
       String reduceKeyName, String updateKeyName, boolean preferNulls, boolean ignoreNulls) {
     Schema schema = build(Schema.builder());
     return new KintoneColumnVisitorVerifier(
-        null,
         schema,
         Collections.emptySet(),
         build(ImmutableMap.builder()),
