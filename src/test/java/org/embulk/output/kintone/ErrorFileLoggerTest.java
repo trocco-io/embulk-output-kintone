@@ -16,6 +16,7 @@ import java.nio.file.Paths;
 import java.util.HashMap;
 import java.util.List;
 import java.util.Map;
+import java.util.stream.Stream;
 import org.junit.After;
 import org.junit.Before;
 import org.junit.Test;
@@ -45,16 +46,17 @@ public class ErrorFileLoggerTest {
 
   private void cleanupTestFiles() throws IOException {
     if (Files.exists(testDir)) {
-      Files.list(testDir)
-          .filter(path -> path.getFileName().toString().startsWith("error_test"))
-          .forEach(
-              path -> {
-                try {
-                  Files.deleteIfExists(path);
-                } catch (IOException e) {
-                  // Ignore
-                }
-              });
+      try (Stream<Path> list = Files.list(testDir)) {
+        list.filter(path -> path.getFileName().toString().startsWith("error_test"))
+            .forEach(
+                path -> {
+                  try {
+                    Files.deleteIfExists(path);
+                  } catch (IOException e) {
+                    // Ignore
+                  }
+                });
+      }
     }
   }
 
@@ -162,7 +164,7 @@ public class ErrorFileLoggerTest {
   }
 
   @Test
-  public void testEmptyFileIsDeleted() throws IOException {
+  public void testEmptyFileIsDeleted() {
     logger = new ErrorFileLogger(TEST_OUTPUT_FILE, 4);
     logger.close();
 
@@ -171,7 +173,7 @@ public class ErrorFileLoggerTest {
   }
 
   @Test
-  public void testDisabledLogger() throws IOException {
+  public void testDisabledLogger() {
     // Create logger with null output path
     logger = new ErrorFileLogger(null, 5);
 
@@ -187,7 +189,7 @@ public class ErrorFileLoggerTest {
   }
 
   @Test
-  public void testEmptyOutputPath() throws IOException {
+  public void testEmptyOutputPath() {
     // Create logger with empty output path
     logger = new ErrorFileLogger("", 6);
 

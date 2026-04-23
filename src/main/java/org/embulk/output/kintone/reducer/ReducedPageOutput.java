@@ -1,5 +1,7 @@
 package org.embulk.output.kintone.reducer;
 
+import static org.embulk.output.kintone.KintoneOutputPlugin.CONFIG_MAPPER_FACTORY;
+
 import java.io.Closeable;
 import java.io.File;
 import java.io.IOException;
@@ -11,7 +13,6 @@ import org.apache.commons.csv.CSVPrinter;
 import org.embulk.config.TaskReport;
 import org.embulk.output.kintone.KintoneOutputPlugin;
 import org.embulk.spi.ColumnVisitor;
-import org.embulk.spi.Exec;
 import org.embulk.spi.Page;
 import org.embulk.spi.PageReader;
 import org.embulk.spi.Schema;
@@ -27,8 +28,9 @@ public class ReducedPageOutput implements TransactionalPageOutput {
   private final CSVPrinter printer;
   private final ColumnVisitor visitor;
 
+  @SuppressWarnings("deprecation") // TODO: For compatibility with Embulk v0.9
   public ReducedPageOutput(Schema schema, int taskIndex) {
-    reader = new PageReader(schema);
+    reader = new PageReader(schema); // TODO: Use Exec#getPageReader
     file = file(taskIndex);
     printer = printer(file);
     visitor = new CSVOutputColumnVisitor(reader, printer);
@@ -54,7 +56,7 @@ public class ReducedPageOutput implements TransactionalPageOutput {
 
   @Override
   public TaskReport commit() {
-    return Exec.newTaskReport().set("path", file.getPath());
+    return CONFIG_MAPPER_FACTORY.newTaskReport().set("path", file.getPath());
   }
 
   private void visitColumns() {

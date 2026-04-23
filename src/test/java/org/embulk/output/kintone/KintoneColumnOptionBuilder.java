@@ -62,17 +62,18 @@ public class KintoneColumnOptionBuilder {
       public void validate() {}
 
       @Override
+      @Deprecated
       public TaskSource dump() {
         return null;
       }
 
       @Override
-      public ObjectNode toObjectNode() {
+      public TaskSource toTaskSource() {
         return null;
       }
 
       @Override
-      public TaskSource toTaskSource() {
+      public ObjectNode toObjectNode() {
         return null;
       }
     };

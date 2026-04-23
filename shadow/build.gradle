@@ -1,0 +1,33 @@
+plugins {
+    id "java"
+    id "com.gradleup.shadow" version "8.3.3"
+}
+
+repositories {
+    mavenCentral()
+    maven {
+        url = uri("https://maven.pkg.github.com/t3t5u/kintone-java-client")
+        credentials {
+            username = System.getenv("GITHUB_ACTOR") ?: "${rootProject.githubActor}"
+            password = System.getenv("GITHUB_TOKEN") ?: "${rootProject.githubToken}"
+        }
+    }
+}
+
+group = rootProject.group
+version = rootProject.version
+
+configurations {
+    compileClasspath.resolutionStrategy.activateDependencyLocking()
+    runtimeClasspath.resolutionStrategy.activateDependencyLocking()
+}
+
+dependencies {
+    implementation("com.kintone:kintone-java-client:2.4.0-trocco-0.0.1") {
+        exclude group: "org.slf4j", module: "slf4j-api"
+    }
+}
+
+shadowJar {
+    relocate "com.fasterxml.jackson", "shadow.com.fasterxml.jackson"
+}

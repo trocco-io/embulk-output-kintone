@@ -92,6 +92,8 @@ public class MockClient {
         .thenReturn(mockGetRecordsByCursorResponseBody);
     when(mockRecordClient.addRecords(eq(0L), anyList())).thenReturn(Collections.emptyList());
     when(mockRecordClient.updateRecords(eq(0L), anyList())).thenReturn(Collections.emptyList());
+    when(mockRecordClient.updateRecords(eq(0L), anyList(), eq(true)))
+        .thenReturn(Collections.emptyList());
     com.kintone.client.KintoneClient mockKintoneClient = mock(KintoneClient.class);
     when(mockKintoneClient.app()).thenReturn(mockAppClient);
     when(mockKintoneClient.record()).thenReturn(mockRecordClient);

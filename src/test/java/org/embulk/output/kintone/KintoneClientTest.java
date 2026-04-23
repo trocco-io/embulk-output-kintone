@@ -12,15 +12,10 @@ import org.embulk.spi.Schema;
 import org.embulk.spi.type.Type;
 import org.embulk.spi.type.Types;
 import org.embulk.util.config.ConfigMapper;
-import org.embulk.util.config.ConfigMapperFactory;
 import org.junit.Before;
 import org.junit.Test;
 
 public class KintoneClientTest extends TestKintoneOutputPlugin {
-  private static final ConfigMapperFactory CONFIG_MAPPER_FACTORY =
-      ConfigMapperFactory.builder().addDefaultModules().build();
-  private static final ConfigMapper CONFIG_MAPPER = CONFIG_MAPPER_FACTORY.createConfigMapper();
-
   private ConfigSource config;
 
   @Before
@@ -85,6 +80,27 @@ public class KintoneClientTest extends TestKintoneOutputPlugin {
     assertConfigException("The id column must be 'long'.", id(Types.STRING));
   }
 
+  @Test
+  public void testInsertOrUpdate() {
+    merge(config("mode: insert_or_update"));
+    merge(config("update_key: null"));
+    assertConfigException("When mode is insert_or_update, require update_key or id column.");
+    merge(config("update_key: non_existing_column"));
+    assertConfigException("The column 'non_existing_column' for update does not exist.");
+    merge(config("update_key: non_existing_field"));
+    assertConfigException("The field 'non_existing_field' for update does not exist.");
+    merge(config("update_key: invalid_type_field_multi_line_text"));
+    assertConfigException("The update_key must be 'SINGLE_LINE_TEXT' or 'NUMBER'.");
+    merge(config("update_key: long_number"));
+    runWithMockClient(Lazy::get);
+    merge(config("update_key: string_single_line_text"));
+    runWithMockClient(Lazy::get);
+    merge(config("update_key: $id"));
+    runWithMockClient(Lazy::get, id(Types.LONG));
+    merge(config("update_key: null"));
+    assertConfigException("The id column must be 'long'.", id(Types.STRING));
+  }
+
   private void assertConfigException(String message) {
     assertConfigException(message, builder());
   }
@@ -100,6 +116,7 @@ public class KintoneClientTest extends TestKintoneOutputPlugin {
     runWithMockClient(consumer, builder());
   }
 
+  @SuppressWarnings("try")
   private void runWithMockClient(Consumer<Lazy<KintoneClient>> consumer, Schema.Builder builder) {
     MockClient mockClient =
         new MockClient(
@@ -119,7 +136,8 @@ public class KintoneClientTest extends TestKintoneOutputPlugin {
   }
 
   private PluginTask task() {
-    return CONFIG_MAPPER.map(config, PluginTask.class);
+    ConfigMapper configMapper = CONFIG_MAPPER_FACTORY.createConfigMapper();
+    return configMapper.map(config, PluginTask.class);
   }
 
   private static Schema schema(Schema.Builder builder) {

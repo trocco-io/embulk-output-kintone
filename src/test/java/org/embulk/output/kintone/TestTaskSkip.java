@@ -71,6 +71,24 @@ public class TestTaskSkip extends TestTask {
     runOutput();
   }
 
+  @Test
+  public void testInsertOrUpdate() throws Exception {
+    merge(config("mode: insert_or_update", "update_key: string_single_line_text"));
+    merge(config("skip_if_non_existing_id_or_update_key: auto"));
+    runOutput();
+    merge(config("skip_if_non_existing_id_or_update_key: never"));
+    runOutput();
+    merge(config("skip_if_non_existing_id_or_update_key: always"));
+    runOutput();
+    merge(config("prefer_nulls: true"));
+    merge(config("skip_if_non_existing_id_or_update_key: auto"));
+    runOutput();
+    merge(config("skip_if_non_existing_id_or_update_key: never"));
+    runOutput();
+    merge(config("skip_if_non_existing_id_or_update_key: always"));
+    runOutput();
+  }
+
   private void assertNoIdOrUpdateKeyValueWasSpecified() {
     Exception e = assertThrows(PartialExecutionException.class, this::runOutput);
     assertThat(e.getCause(), is(instanceOf(RuntimeException.class)));

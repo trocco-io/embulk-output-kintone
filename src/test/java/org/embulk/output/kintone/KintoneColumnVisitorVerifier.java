@@ -8,6 +8,7 @@ import java.util.function.BiConsumer;
 import javax.validation.UnexpectedTypeException;
 import org.embulk.output.kintone.record.IdOrUpdateKey;
 import org.embulk.spi.Column;
+import org.embulk.spi.Exec;
 import org.embulk.spi.Page;
 import org.embulk.spi.PageReader;
 import org.embulk.spi.Schema;
@@ -39,7 +40,7 @@ public class KintoneColumnVisitorVerifier {
       Page page) {
     this.schema = schema;
     this.options = options;
-    reader = new PageReader(schema);
+    reader = Exec.getPageReader(schema);
     reader.setPage(page);
     visitor =
         new KintoneColumnVisitor(

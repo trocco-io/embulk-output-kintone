@@ -1,5 +1,7 @@
 package org.embulk.output.kintone.reducer;
 
+import static org.embulk.output.kintone.util.Compatibility.PARSER;
+
 import java.time.Instant;
 import java.util.ArrayList;
 import java.util.Comparator;
@@ -10,7 +12,6 @@ import org.embulk.output.kintone.KintoneColumnOption;
 import org.embulk.output.kintone.KintoneColumnType;
 import org.embulk.output.kintone.KintoneSortColumn;
 import org.embulk.spi.Column;
-import org.embulk.spi.time.Timestamp;
 import org.msgpack.value.ArrayValue;
 import org.msgpack.value.MapValue;
 import org.msgpack.value.Value;
@@ -77,7 +78,7 @@ public enum ReduceType {
     public MapValue value(String value, KintoneColumnOption option) {
       KintoneColumnType type = KintoneColumnType.getType(option, KintoneColumnType.DATETIME);
       Supplier<Value> supplier =
-          () -> type.asValue(type.getFieldValue(Timestamp.ofInstant(Instant.parse(value)), option));
+          () -> type.asValue(type.getFieldValue(Instant.parse(value), option));
       return value(type, value, supplier);
     }
 
@@ -91,7 +92,7 @@ public enum ReduceType {
     public MapValue value(String value, KintoneColumnOption option) {
       KintoneColumnType type = KintoneColumnType.getType(option, KintoneColumnType.MULTI_LINE_TEXT);
       Supplier<Value> supplier =
-          () -> type.asValue(type.getFieldValue(Reducer.PARSER.parse(value), option));
+          () -> type.asValue(type.getFieldValue(PARSER.parse(value), option));
       return value(type, value, supplier);
     }
 

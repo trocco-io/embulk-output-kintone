@@ -3,7 +3,9 @@ package org.embulk.output.kintone;
 import com.google.gson.Gson;
 import com.google.gson.GsonBuilder;
 import com.google.gson.annotations.SerializedName;
-import java.io.*;
+import java.io.BufferedWriter;
+import java.io.IOException;
+import java.lang.invoke.MethodHandles;
 import java.nio.charset.StandardCharsets;
 import java.nio.file.Files;
 import java.nio.file.Path;
@@ -15,7 +17,8 @@ import org.slf4j.LoggerFactory;
 
 /** Class for collecting Kintone errors, structuring them, and outputting to a file */
 public class ErrorFileLogger implements AutoCloseable {
-  private static final Logger logger = LoggerFactory.getLogger(ErrorFileLogger.class);
+  private static final Logger LOGGER =
+      LoggerFactory.getLogger(MethodHandles.lookup().lookupClass());
   private static final int FLUSH_INTERVAL = 100;
 
   private final String outputPath;
@@ -31,13 +34,13 @@ public class ErrorFileLogger implements AutoCloseable {
   /** Error record class for JSON serialization */
   private static class ErrorRecord {
     @SerializedName("record_data")
-    private final Map<String, Object> recordData;
+    final Map<String, Object> recordData;
 
     @SerializedName("error_code")
-    private final String errorCode;
+    final String errorCode;
 
     @SerializedName("error_message")
-    private final String errorMessage;
+    final String errorMessage;
 
     ErrorRecord(Map<String, Object> recordData, String errorCode, String errorMessage) {
       this.recordData = recordData;
@@ -56,7 +59,7 @@ public class ErrorFileLogger implements AutoCloseable {
       try {
         open();
       } catch (IOException e) {
-        logger.error("Failed to open error file for writing", e);
+        LOGGER.error("Failed to open error file for writing", e);
         this.enabled = false;
       }
     }
@@ -106,7 +109,7 @@ public class ErrorFileLogger implements AutoCloseable {
         writer.flush();
       }
     } catch (IOException e) {
-      logger.error("Failed to write error record", e);
+      LOGGER.error("Failed to write error record", e);
     }
   }
 
@@ -133,7 +136,7 @@ public class ErrorFileLogger implements AutoCloseable {
           Files.deleteIfExists(filePath);
         }
       } catch (IOException e) {
-        logger.error("Failed to close error file", e);
+        LOGGER.error("Failed to close error file", e);
       }
     }
   }

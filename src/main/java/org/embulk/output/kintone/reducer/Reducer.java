@@ -1,5 +1,8 @@
 package org.embulk.output.kintone.reducer;
 
+import static org.embulk.output.kintone.KintoneOutputPlugin.CONFIG_MAPPER_FACTORY;
+import static org.embulk.output.kintone.util.Compatibility.PARSER;
+
 import com.google.code.externalsorting.csv.CsvExternalSort;
 import com.google.code.externalsorting.csv.CsvSortOptions;
 import java.io.File;
@@ -37,7 +40,6 @@ import org.embulk.spi.PageBuilder;
 import org.embulk.spi.Schema;
 import org.embulk.spi.type.Type;
 import org.embulk.spi.type.Types;
-import org.embulk.util.json.JsonParser;
 import org.msgpack.value.ArrayValue;
 import org.msgpack.value.MapValue;
 import org.msgpack.value.Value;
@@ -48,7 +50,6 @@ import org.slf4j.LoggerFactory;
 public class Reducer {
   protected static final CSVFormat FORMAT =
       CSVFormat.DEFAULT.builder().setNullString("").setQuoteMode(QuoteMode.ALL_NON_NULL).build();
-  protected static final JsonParser PARSER = new JsonParser();
   private static final Logger LOGGER =
       LoggerFactory.getLogger(MethodHandles.lookup().lookupClass());
   private final PluginTask task;
@@ -82,9 +83,9 @@ public class Reducer {
       throw new ReduceException(e);
     }
     if (reduced.get() % task.getChunkSize() != 0) {
-      LOGGER.info(String.format("Number of records reduced: %d", reduced.get()));
+      LOGGER.info("Number of records reduced: {}", reduced);
     }
-    return Exec.newConfigDiff();
+    return CONFIG_MAPPER_FACTORY.newConfigDiff();
   }
 
   private void addRecords(
@@ -122,7 +123,7 @@ public class Reducer {
     builder.addRecord();
     reduced.getAndIncrement();
     if (reduced.get() % task.getChunkSize() == 0) {
-      LOGGER.info(String.format("Number of records reduced: %d", reduced.get()));
+      LOGGER.info("Number of records reduced: {}", reduced);
     }
     return record == null ? null : values(record);
   }
@@ -276,7 +277,7 @@ public class Reducer {
               .map(taskReport -> new File(taskReport.get(String.class, "path")).toPath())
               .mapToLong(source -> copy(source, out))
               .sum();
-      LOGGER.info(String.format("Number of bytes merged: %d", bytes));
+      LOGGER.info("Number of bytes merged: {}", bytes);
     } catch (IOException e) {
       throw new ReduceException(e);
     }
@@ -285,7 +286,7 @@ public class Reducer {
   private static long copy(Path source, OutputStream out) {
     try {
       long bytes = Files.copy(source, out);
-      LOGGER.info(String.format("Number of bytes copied: %d", bytes));
+      LOGGER.info("Number of bytes copied: {}", bytes);
       return bytes;
     } catch (IOException e) {
       throw new ReduceException(e);
@@ -301,7 +302,7 @@ public class Reducer {
               sortOptions,
               false,
               Collections.emptyList());
-      LOGGER.info(String.format("Number of lines sorted: %d", lines));
+      LOGGER.info("Number of lines sorted: {}", lines);
     } catch (IOException | ClassNotFoundException e) {
       throw new ReduceException(e);
     }
@@ -345,8 +346,10 @@ public class Reducer {
     }
   }
 
+  @SuppressWarnings("deprecation") // TODO: For compatibility with Embulk v0.9
   private static PageBuilder builder(PluginTask task, Schema schema) {
-    return new PageBuilder(Exec.getBufferAllocator(), schema, new KintonePageOutput(task, schema));
+    return new PageBuilder( // TODO: Use Exec#getPageBuilder
+        Exec.getBufferAllocator(), schema, new KintonePageOutput(task, schema));
   }
 
   private static List<Value> list(List<String> values, int index) {
