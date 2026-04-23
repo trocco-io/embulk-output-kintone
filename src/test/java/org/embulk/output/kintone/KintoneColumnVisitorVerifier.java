@@ -7,7 +7,6 @@ import java.util.Set;
 import java.util.function.BiConsumer;
 import javax.validation.UnexpectedTypeException;
 import org.embulk.output.kintone.record.IdOrUpdateKey;
-import org.embulk.output.kintone.util.Lazy;
 import org.embulk.spi.Column;
 import org.embulk.spi.Page;
 import org.embulk.spi.PageReader;
@@ -26,11 +25,10 @@ public class KintoneColumnVisitorVerifier {
       String reduceKeyName,
       String updateKeyName,
       Page page) {
-    this(null, schema, derived, options, false, false, reduceKeyName, updateKeyName, page);
+    this(schema, derived, options, false, false, reduceKeyName, updateKeyName, page);
   }
 
   public KintoneColumnVisitorVerifier(
-      Lazy<KintoneClient> client,
       Schema schema,
       Set<Column> derived,
       Map<String, KintoneColumnOption> options,
@@ -45,14 +43,7 @@ public class KintoneColumnVisitorVerifier {
     reader.setPage(page);
     visitor =
         new KintoneColumnVisitor(
-            client,
-            reader,
-            derived,
-            options,
-            preferNulls,
-            ignoreNulls,
-            reduceKeyName,
-            updateKeyName);
+            reader, derived, options, preferNulls, ignoreNulls, reduceKeyName, updateKeyName);
   }
 
   public void verify() {
