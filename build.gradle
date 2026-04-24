@@ -14,15 +14,7 @@ repositories {
 
 group = "io.trocco"
 description = "Dumps records to Kintone."
-version = {
-    def vd = versionDetails()
-    if (vd.commitDistance == 0 && vd.lastTag ==~ /^[0-9]+\.[0-9]+\.[0-9]$/) {
-        vd.lastTag
-    } else {
-        "0.0.0.${vd.gitHash}"
-    }
-}()
-
+version = vd.lastTag
 
 sourceCompatibility = 1.8
 targetCompatibility = 1.8
