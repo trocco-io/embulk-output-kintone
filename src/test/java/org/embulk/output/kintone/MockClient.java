@@ -42,6 +42,7 @@ public class MockClient {
   private final List<String> fields;
   private final String query;
   private final RecordClient mockRecordClient;
+  private final KintoneClientBuilder mockKintoneClientBuilder;
 
   public MockClient(String domain, List<Record> records, List<String> fields, String query) {
     this.domain = domain;
@@ -49,10 +50,15 @@ public class MockClient {
     this.fields = fields;
     this.query = query;
     mockRecordClient = mock(RecordClient.class);
+    mockKintoneClientBuilder = mock(KintoneClientBuilder.class);
   }
 
   public RecordClient getMockRecordClient() {
     return mockRecordClient;
+  }
+
+  public KintoneClientBuilder getMockKintoneClientBuilder() {
+    return mockKintoneClientBuilder;
   }
 
   public void run(Runnable runnable) throws Exception {
@@ -95,7 +101,6 @@ public class MockClient {
     com.kintone.client.KintoneClient mockKintoneClient = mock(KintoneClient.class);
     when(mockKintoneClient.app()).thenReturn(mockAppClient);
     when(mockKintoneClient.record()).thenReturn(mockRecordClient);
-    KintoneClientBuilder mockKintoneClientBuilder = mock(KintoneClientBuilder.class);
     when(mockKintoneClientBuilder.authByApiToken(eq("token"))).thenReturn(mockKintoneClientBuilder);
     when(mockKintoneClientBuilder.build()).thenReturn(mockKintoneClient);
     try (MockedStatic<KintoneClientBuilder> mocked = mockStatic(KintoneClientBuilder.class)) {

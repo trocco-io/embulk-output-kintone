@@ -2,10 +2,15 @@ package org.embulk.output.kintone;
 
 import com.kintone.client.KintoneClientBuilder;
 import com.kintone.client.RecordClient;
+import com.kintone.client.exception.KintoneRuntimeException;
 import com.kintone.client.model.app.field.FieldProperty;
 import com.kintone.client.model.app.field.SubtableFieldProperty;
 import com.kintone.client.model.record.FieldType;
 import java.io.IOException;
+import java.nio.file.Files;
+import java.nio.file.InvalidPathException;
+import java.nio.file.Path;
+import java.nio.file.Paths;
 import java.util.LinkedHashMap;
 import java.util.Map;
 import java.util.function.Supplier;
@@ -49,6 +54,7 @@ public class KintoneClient implements AutoCloseable {
     } else {
       throw new ConfigException("Username and password or token must be configured.");
     }
+    configureClientCertificate(builder, task);
     client = builder.build();
     fields = client.app().getFormFields(task.getAppId());
     Map<String, FieldProperty> fieldVisitor = new LinkedHashMap<>();
@@ -56,6 +62,37 @@ public class KintoneClient implements AutoCloseable {
         (field, fieldProperty) -> KintoneClient.addSubTableFields(fieldVisitor, fieldProperty));
     fields.putAll(fieldVisitor);
     KintoneMode.of(task).validate(task, this);
+  }
+
+  private static void configureClientCertificate(KintoneClientBuilder builder, PluginTask task) {
+    if (task.getClientCertificatePath().isPresent()
+        != task.getClientCertificatePassword().isPresent()) {
+      throw new ConfigException(
+          "Client certificate and client certificate password must be provided together.");
+    }
+    if (!task.getClientCertificatePath().isPresent()) {
+      return;
+    }
+    String path = task.getClientCertificatePath().get();
+    Path certificate;
+    try {
+      certificate = Paths.get(path);
+    } catch (InvalidPathException e) {
+      throw new ConfigException("Invalid client certificate path: " + path, e);
+    }
+    if (!Files.isRegularFile(certificate) || !Files.isReadable(certificate)) {
+      throw new ConfigException("Client certificate file not found or not readable: " + path);
+    }
+    try {
+      builder.withClientCertificate(certificate, task.getClientCertificatePassword().get());
+    } catch (KintoneRuntimeException e) {
+      // Do not include the password in the message.
+      throw new ConfigException(
+          "Failed to load client certificate '"
+              + path
+              + "'. Make sure the file is a valid PKCS#12 (.pfx) and the password is correct.",
+          e);
+    }
   }
 
   private static void addSubTableFields(
