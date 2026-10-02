@@ -2,6 +2,7 @@ package org.embulk.output.kintone;
 
 import static org.hamcrest.MatcherAssert.assertThat;
 import static org.hamcrest.Matchers.is;
+import static org.hamcrest.Matchers.sameInstance;
 import static org.junit.Assert.assertFalse;
 import static org.junit.Assert.assertThrows;
 import static org.junit.Assert.assertTrue;
@@ -10,6 +11,8 @@ import static org.mockito.ArgumentMatchers.eq;
 import static org.mockito.Mockito.never;
 import static org.mockito.Mockito.verify;
 
+import com.kintone.client.exception.KintoneApiRuntimeException;
+import com.kintone.client.exception.KintoneRuntimeException;
 import java.io.File;
 import java.io.FileOutputStream;
 import java.io.IOException;
@@ -21,6 +24,8 @@ import java.nio.file.Paths;
 import java.security.GeneralSecurityException;
 import java.security.KeyStore;
 import java.util.Collections;
+import java.util.concurrent.atomic.AtomicReference;
+import javax.net.ssl.SSLHandshakeException;
 import org.embulk.config.ConfigException;
 import org.embulk.config.ConfigSource;
 import org.embulk.output.kintone.util.Lazy;
@@ -175,6 +180,113 @@ public class KintoneClientTest extends TestKintoneOutputPlugin {
             "Failed to load client certificate '" + notPkcs12.getAbsolutePath() + "'."));
   }
 
+  @Test
+  public void testClientCertificateRejectedByServer() {
+    String path = clientCertificatePath();
+    config.set("client_certificate_path", path);
+    config.set("client_certificate_password", CLIENT_CERTIFICATE_PASSWORD);
+    String message =
+        assertClientGetThrows(ConfigException.class, sslHandshakeFailure()).getMessage();
+    assertThat(
+        message,
+        is(
+            "TLS handshake with https://client failed while using client certificate '"
+                + path
+                + "'. Check that the certificate was issued for this domain and is not expired or revoked."));
+    assertFalse(message.contains(CLIENT_CERTIFICATE_PASSWORD));
+  }
+
+  @Test
+  public void testNoCertResponseWithoutClientCertificate() {
+    config.set("domain", "example.s.cybozu.com");
+    ConfigException e =
+        assertClientGetThrows(ConfigException.class, htmlErrorResponse(400, NO_CERT_HTML));
+    assertThat(
+        e.getMessage(),
+        is(
+            "kintone at https://example.s.cybozu.com rejected the request with HTTP 400 \"No Cert\". This domain requires client_certificate_path and client_certificate_password."));
+    assertFalse(e.getCause().getMessage().contains("<html"));
+  }
+
+  @Test
+  public void testNoCertResponseWithClientCertificate() {
+    String path = clientCertificatePath();
+    config.set("client_certificate_path", path);
+    config.set("client_certificate_password", CLIENT_CERTIFICATE_PASSWORD);
+    assertThat(
+        assertClientGetThrows(ConfigException.class, htmlErrorResponse(400, NO_CERT_HTML))
+            .getMessage(),
+        is(
+            "kintone at https://client rejected the request with HTTP 400 \"No Cert\" even though client_certificate_path '"
+                + path
+                + "' is set. Check that the certificate was issued for this domain."));
+  }
+
+  @Test
+  public void testHtmlErrorResponseIsSummarized() {
+    RuntimeException e =
+        assertClientGetThrows(
+            RuntimeException.class,
+            htmlErrorResponse(
+                503, "<html><head><title>Service Unavailable</title></head><body>x</body></html>"));
+    assertThat(
+        e.getMessage(), is("HTTP error status 503 from https://client: Service Unavailable"));
+    assertThat(
+        e.getCause().getMessage(), is("HTTP error status 503, HTML page \"Service Unavailable\""));
+  }
+
+  @Test
+  public void testJsonApiErrorIsUnchanged() {
+    KintoneApiRuntimeException failure =
+        htmlErrorResponse(404, "{\"code\":\"GAIA_CN01\",\"message\":\"cursor\"}");
+    assertThat(
+        assertClientGetThrows(KintoneApiRuntimeException.class, failure),
+        is(sameInstance(failure)));
+  }
+
+  @Test
+  public void testSslErrorWithoutClientCertificateIsNotRewritten() {
+    KintoneRuntimeException failure = sslHandshakeFailure();
+    assertThat(
+        assertClientGetThrows(KintoneRuntimeException.class, failure), is(sameInstance(failure)));
+  }
+
+  @Test
+  public void testNonSslRequestErrorIsNotRewritten() {
+    config.set("client_certificate_path", clientCertificatePath());
+    config.set("client_certificate_password", CLIENT_CERTIFICATE_PASSWORD);
+    KintoneRuntimeException failure =
+        new KintoneRuntimeException("Failed to request", new IOException("Connection reset"));
+    assertThat(
+        assertClientGetThrows(KintoneRuntimeException.class, failure), is(sameInstance(failure)));
+  }
+
+  // kintone Secure Access answers a request without a client certificate with this page (body
+  // abbreviated).
+  static final String NO_CERT_HTML =
+      "<!DOCTYPE html>\n<html>\n<head>\n<meta charset=\"utf-8\">\n<title>No Cert</title>\n"
+          + "<style>body { background: url(data:image/png;base64,iVBORw0KGgo=); }</style>"
+          + "</head><body></body></html>";
+
+  static KintoneApiRuntimeException htmlErrorResponse(int status, String html) {
+    return new KintoneApiRuntimeException(status, Collections.emptyMap(), html);
+  }
+
+  private static KintoneRuntimeException sslHandshakeFailure() {
+    return new KintoneRuntimeException(
+        "Failed to request", new SSLHandshakeException("Received fatal alert: handshake_failure"));
+  }
+
+  // Runs KintoneClient against a MockClient whose getFormFields throws formFieldsFailure and
+  // returns the exception that escaped from Lazy#get.
+  private <T extends RuntimeException> T assertClientGetThrows(
+      Class<T> type, RuntimeException formFieldsFailure) {
+    AtomicReference<T> thrown = new AtomicReference<>();
+    runWithMockClient(
+        client -> thrown.set(assertThrows(type, client::get)), builder(), formFieldsFailure);
+    return thrown.get();
+  }
+
   // Writes a PKCS#12 keystore protected by CLIENT_CERTIFICATE_PASSWORD into a temporary folder.
   // It is generated at test time so that no key material is committed to the repository.
   private String clientCertificatePath() {
@@ -218,12 +330,20 @@ public class KintoneClientTest extends TestKintoneOutputPlugin {
 
   private MockClient runWithMockClient(
       Consumer<Lazy<KintoneClient>> consumer, Schema.Builder builder) {
+    return runWithMockClient(consumer, builder, null);
+  }
+
+  private MockClient runWithMockClient(
+      Consumer<Lazy<KintoneClient>> consumer,
+      Schema.Builder builder,
+      RuntimeException formFieldsFailure) {
     MockClient mockClient =
         new MockClient(
-            config.get(String.class, "domain"),
-            Collections.emptyList(),
-            Collections.emptyList(),
-            "");
+                config.get(String.class, "domain"),
+                Collections.emptyList(),
+                Collections.emptyList(),
+                "")
+            .failGetFormFieldsWith(formFieldsFailure);
     try (Lazy<KintoneClient> client = KintoneClient.lazy(this::task, schema(builder))) {
       mockClient.run(() -> consumer.accept(client));
     } catch (Exception e) {

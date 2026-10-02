@@ -34,6 +34,8 @@ public class KintoneOutputPlugin implements OutputPlugin {
   public ConfigDiff transaction(
       ConfigSource config, Schema schema, int taskCount, OutputPlugin.Control control) {
     PluginTask task = CONFIG_MAPPER.map(config, PluginTask.class);
+    task.getClientCertificatePath()
+        .ifPresent(path -> LOGGER.info("Using client certificate: {}", path));
     task.setDerivedColumns(Collections.emptySet());
     List<TaskReport> taskReports = control.run(task.dump());
     return task.getReduceKeyName().isPresent()

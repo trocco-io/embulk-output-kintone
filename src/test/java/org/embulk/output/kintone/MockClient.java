@@ -43,6 +43,7 @@ public class MockClient {
   private final String query;
   private final RecordClient mockRecordClient;
   private final KintoneClientBuilder mockKintoneClientBuilder;
+  private RuntimeException formFieldsFailure;
 
   public MockClient(String domain, List<Record> records, List<String> fields, String query) {
     this.domain = domain;
@@ -59,6 +60,13 @@ public class MockClient {
 
   public KintoneClientBuilder getMockKintoneClientBuilder() {
     return mockKintoneClientBuilder;
+  }
+
+  // Makes AppClient#getFormFields throw the given exception instead of returning the mocked fields.
+  // Passing null restores the default behaviour.
+  public MockClient failGetFormFieldsWith(RuntimeException failure) {
+    this.formFieldsFailure = failure;
+    return this;
   }
 
   public void run(Runnable runnable) throws Exception {
@@ -88,7 +96,11 @@ public class MockClient {
     when(mockFormFields.get(matches("^.*_file$"))).thenReturn(new FileFieldProperty());
     when(mockFormFields.get(matches("^.*_subtable$"))).thenReturn(new SubtableFieldProperty());
     AppClient mockAppClient = mock(AppClient.class);
-    when(mockAppClient.getFormFields(eq(0L))).thenReturn(mockFormFields);
+    if (formFieldsFailure != null) {
+      when(mockAppClient.getFormFields(eq(0L))).thenThrow(formFieldsFailure);
+    } else {
+      when(mockAppClient.getFormFields(eq(0L))).thenReturn(mockFormFields);
+    }
     GetRecordsByCursorResponseBody mockGetRecordsByCursorResponseBody =
         mock(GetRecordsByCursorResponseBody.class);
     when(mockGetRecordsByCursorResponseBody.getRecords()).thenReturn(records);

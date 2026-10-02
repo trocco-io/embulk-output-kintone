@@ -2,6 +2,7 @@ package org.embulk.output.kintone;
 
 import com.kintone.client.KintoneClientBuilder;
 import com.kintone.client.RecordClient;
+import com.kintone.client.exception.KintoneApiRuntimeException;
 import com.kintone.client.exception.KintoneRuntimeException;
 import com.kintone.client.model.app.field.FieldProperty;
 import com.kintone.client.model.app.field.SubtableFieldProperty;
@@ -14,6 +15,9 @@ import java.nio.file.Paths;
 import java.util.LinkedHashMap;
 import java.util.Map;
 import java.util.function.Supplier;
+import java.util.regex.Matcher;
+import java.util.regex.Pattern;
+import javax.net.ssl.SSLException;
 import org.embulk.config.ConfigException;
 import org.embulk.output.kintone.record.Id;
 import org.embulk.output.kintone.util.Lazy;
@@ -23,6 +27,8 @@ import org.embulk.spi.type.Type;
 import org.embulk.spi.type.Types;
 
 public class KintoneClient implements AutoCloseable {
+  private static final Pattern HTML_TITLE =
+      Pattern.compile("<title>(.*?)</title>", Pattern.CASE_INSENSITIVE | Pattern.DOTALL);
   private final PluginTask task;
   private final Schema schema;
   private final com.kintone.client.KintoneClient client;
@@ -56,7 +62,11 @@ public class KintoneClient implements AutoCloseable {
     }
     configureClientCertificate(builder, task);
     client = builder.build();
-    fields = client.app().getFormFields(task.getAppId());
+    try {
+      fields = client.app().getFormFields(task.getAppId());
+    } catch (KintoneRuntimeException e) {
+      throw withClientCertificateHint(e, task);
+    }
     Map<String, FieldProperty> fieldVisitor = new LinkedHashMap<>();
     fields.forEach(
         (field, fieldProperty) -> KintoneClient.addSubTableFields(fieldVisitor, fieldProperty));
@@ -93,6 +103,79 @@ public class KintoneClient implements AutoCloseable {
               + "'. Make sure the file is a valid PKCS#12 (.pfx) and the password is correct.",
           e);
     }
+  }
+
+  // Explains failures that involve the client certificate as configuration problems; anything
+  // else is returned as is.
+  // - kintone Secure Access answers a request without a client certificate with HTTP 400 and an
+  //   HTML page titled "No Cert" (the TLS handshake itself succeeds).
+  // - kintone-java-client wraps I/O failures (including SSLHandshakeException) as
+  //   KintoneRuntimeException("Failed to request", cause).
+  // HTML error pages are also summarized to their <title> so that the page body is kept out of
+  // the log.
+  static RuntimeException withClientCertificateHint(KintoneRuntimeException e, PluginTask task) {
+    if (e instanceof KintoneApiRuntimeException) {
+      return describeHtmlErrorResponse((KintoneApiRuntimeException) e, task);
+    }
+    if (hasSslCause(e) && task.getClientCertificatePath().isPresent()) {
+      return new ConfigException(
+          "TLS handshake with https://"
+              + task.getDomain()
+              + " failed while using client certificate '"
+              + task.getClientCertificatePath().get()
+              + "'. Check that the certificate was issued for this domain and is not expired or revoked.",
+          e);
+    }
+    return e;
+  }
+
+  private static RuntimeException describeHtmlErrorResponse(
+      KintoneApiRuntimeException e, PluginTask task) {
+    String title = htmlTitle(e.getContent());
+    if (title == null) {
+      return e;
+    }
+    // Keep the HTML body (which can embed images) out of the message and the stack trace.
+    KintoneApiRuntimeException summary =
+        new KintoneApiRuntimeException(
+            e.getStatusCode(), e.getHeaders(), "HTML page \"" + title + "\"");
+    String domain = task.getDomain();
+    if (e.getStatusCode() == 400 && "No Cert".equals(title)) {
+      if (task.getClientCertificatePath().isPresent()) {
+        return new ConfigException(
+            "kintone at https://"
+                + domain
+                + " rejected the request with HTTP 400 \"No Cert\" even though client_certificate_path '"
+                + task.getClientCertificatePath().get()
+                + "' is set. Check that the certificate was issued for this domain.",
+            summary);
+      }
+      return new ConfigException(
+          "kintone at https://"
+              + domain
+              + " rejected the request with HTTP 400 \"No Cert\". This domain requires client_certificate_path and client_certificate_password.",
+          summary);
+    }
+    return new RuntimeException(
+        "HTTP error status " + e.getStatusCode() + " from https://" + domain + ": " + title,
+        summary);
+  }
+
+  private static String htmlTitle(String content) {
+    if (content == null || !content.trim().startsWith("<")) {
+      return null;
+    }
+    Matcher matcher = HTML_TITLE.matcher(content);
+    return matcher.find() ? matcher.group(1).trim() : "";
+  }
+
+  private static boolean hasSslCause(Throwable e) {
+    for (Throwable cause = e.getCause(); cause != null; cause = cause.getCause()) {
+      if (cause instanceof SSLException) {
+        return true;
+      }
+    }
+    return false;
   }
 
   private static void addSubTableFields(
