@@ -7,6 +7,7 @@ import com.fasterxml.jackson.databind.ObjectMapper;
 import com.google.common.collect.Maps;
 import com.kintone.client.api.record.GetRecordsByCursorResponseBody;
 import com.kintone.client.exception.KintoneApiRuntimeException;
+import com.kintone.client.exception.KintoneRuntimeException;
 import com.kintone.client.model.record.CheckBoxFieldValue;
 import com.kintone.client.model.record.DateFieldValue;
 import com.kintone.client.model.record.DateTimeFieldValue;
@@ -41,6 +42,7 @@ import java.util.function.Function;
 import java.util.function.Supplier;
 import java.util.stream.Collectors;
 import org.apache.commons.lang3.tuple.Pair;
+import org.embulk.config.ConfigException;
 import org.embulk.config.TaskReport;
 import org.embulk.output.kintone.record.Id;
 import org.embulk.output.kintone.record.IdOrUpdateKey;
@@ -112,7 +114,12 @@ public class KintonePageOutput implements TransactionalPageOutput {
       }
     }
 
-    client.get().close();
+    try {
+      // Lazy#close only closes a client that was actually created; do not create one here.
+      client.close();
+    } catch (Exception e) {
+      throw new RuntimeException("kintone throw exception", e);
+    }
   }
 
   @Override
@@ -167,18 +174,7 @@ public class KintonePageOutput implements TransactionalPageOutput {
 
                 @Override
                 public boolean isRetryableException(Exception exception) {
-                  if (!(exception instanceof KintoneApiRuntimeException)) {
-                    return false;
-                  }
-                  try {
-                    ObjectMapper mapper = new ObjectMapper();
-                    JsonNode content =
-                        mapper.readTree(((KintoneApiRuntimeException) exception).getContent());
-                    String code = content.get("code").textValue();
-                    return RETRYABLE_ERROR_CODES.contains(code);
-                  } catch (IOException e) {
-                    throw new RuntimeException(e);
-                  }
+                  return isRetryableApiError(exception);
                 }
 
                 @Override
@@ -198,9 +194,44 @@ public class KintonePageOutput implements TransactionalPageOutput {
                 @Override
                 public void onGiveup(Exception firstException, Exception lastException) {}
               });
-    } catch (RetryGiveupException | InterruptedException e) {
+    } catch (RetryGiveupException e) {
+      throw unwrapRetryFailure(e, task);
+    } catch (InterruptedException e) {
       throw new RuntimeException("kintone throw exception", e);
     }
+  }
+
+  // Only kintone API errors with one of RETRYABLE_ERROR_CODES are retried. A response that is not
+  // JSON (for example an HTML error page) carries no error code and is therefore not retryable.
+  static boolean isRetryableApiError(Exception exception) {
+    if (!(exception instanceof KintoneApiRuntimeException)) {
+      return false;
+    }
+    try {
+      JsonNode content =
+          new ObjectMapper().readTree(((KintoneApiRuntimeException) exception).getContent());
+      JsonNode code = content == null ? null : content.get("code");
+      return code != null && RETRYABLE_ERROR_CODES.contains(code.textValue());
+    } catch (IOException e) {
+      return false;
+    }
+  }
+
+  // Surfaces configuration problems (including the client certificate hints) from the retry loop
+  // instead of burying them under "kintone throw exception".
+  static RuntimeException unwrapRetryFailure(RetryGiveupException e, PluginTask task) {
+    Throwable cause = e.getCause();
+    if (cause instanceof ConfigException) {
+      return (ConfigException) cause;
+    }
+    if (cause instanceof KintoneRuntimeException) {
+      RuntimeException hinted =
+          KintoneClient.withClientCertificateHint((KintoneRuntimeException) cause, task);
+      if (hinted != cause) {
+        return hinted;
+      }
+    }
+    return new RuntimeException("kintone throw exception", e);
   }
 
   public void insertPage(Page page) {
@@ -549,7 +580,11 @@ public class KintonePageOutput implements TransactionalPageOutput {
             });
       }
     } catch (IOException ex) {
-      LOGGER.error("Failed to parse Kintone API error response", ex);
+      // Not a JSON error response (for example an HTML error page): there are no per-record
+      // errors to write. The response itself is reported by the exception that follows.
+      LOGGER.warn(
+          "Kintone returned a non-JSON error response (HTTP {}); no per-record errors to log",
+          e.getStatusCode());
     }
   }
 

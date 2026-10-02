@@ -2,9 +2,30 @@ package org.embulk.output.kintone;
 
 import static org.hamcrest.MatcherAssert.assertThat;
 import static org.hamcrest.Matchers.is;
+import static org.hamcrest.Matchers.sameInstance;
+import static org.junit.Assert.assertFalse;
 import static org.junit.Assert.assertThrows;
+import static org.junit.Assert.assertTrue;
+import static org.mockito.ArgumentMatchers.any;
+import static org.mockito.ArgumentMatchers.eq;
+import static org.mockito.Mockito.never;
+import static org.mockito.Mockito.verify;
 
+import com.kintone.client.exception.KintoneApiRuntimeException;
+import com.kintone.client.exception.KintoneRuntimeException;
+import java.io.File;
+import java.io.FileOutputStream;
+import java.io.IOException;
+import java.io.OutputStream;
+import java.nio.charset.StandardCharsets;
+import java.nio.file.Files;
+import java.nio.file.Path;
+import java.nio.file.Paths;
+import java.security.GeneralSecurityException;
+import java.security.KeyStore;
 import java.util.Collections;
+import java.util.concurrent.atomic.AtomicReference;
+import javax.net.ssl.SSLHandshakeException;
 import org.embulk.config.ConfigException;
 import org.embulk.config.ConfigSource;
 import org.embulk.output.kintone.util.Lazy;
@@ -14,12 +35,17 @@ import org.embulk.spi.type.Types;
 import org.embulk.util.config.ConfigMapper;
 import org.embulk.util.config.ConfigMapperFactory;
 import org.junit.Before;
+import org.junit.Rule;
 import org.junit.Test;
+import org.junit.rules.TemporaryFolder;
 
 public class KintoneClientTest extends TestKintoneOutputPlugin {
   private static final ConfigMapperFactory CONFIG_MAPPER_FACTORY =
       ConfigMapperFactory.builder().addDefaultModules().build();
   private static final ConfigMapper CONFIG_MAPPER = CONFIG_MAPPER_FACTORY.createConfigMapper();
+  private static final String CLIENT_CERTIFICATE_PASSWORD = "password";
+
+  @Rule public final TemporaryFolder temporaryFolder = new TemporaryFolder();
 
   private ConfigSource config;
 
@@ -85,6 +111,208 @@ public class KintoneClientTest extends TestKintoneOutputPlugin {
     assertConfigException("The id column must be 'long'.", id(Types.STRING));
   }
 
+  @Test
+  public void testClientCertificateLackingPassword() {
+    config.set("client_certificate_path", clientCertificatePath());
+    assertConfigException(
+        "Client certificate and client certificate password must be provided together.");
+  }
+
+  @Test
+  public void testClientCertificateLackingPath() {
+    config.set("client_certificate_password", CLIENT_CERTIFICATE_PASSWORD);
+    assertConfigException(
+        "Client certificate and client certificate password must be provided together.");
+  }
+
+  @Test
+  public void testClientCertificateInvalidPath() {
+    config.set("client_certificate_path", "client\u0000.pfx");
+    config.set("client_certificate_password", CLIENT_CERTIFICATE_PASSWORD);
+    assertConfigException("Invalid client certificate path: client\u0000.pfx");
+  }
+
+  @Test
+  public void testClientCertificateFileNotFound() {
+    config.set("client_certificate_path", "/nonexistent/client.pfx");
+    config.set("client_certificate_password", CLIENT_CERTIFICATE_PASSWORD);
+    assertConfigException(
+        "Client certificate file not found or not readable: /nonexistent/client.pfx");
+  }
+
+  @Test
+  public void testClientCertificate() {
+    String path = clientCertificatePath();
+    config.set("client_certificate_path", path);
+    config.set("client_certificate_password", CLIENT_CERTIFICATE_PASSWORD);
+    MockClient mockClient = runWithMockClient(Lazy::get, builder());
+    verify(mockClient.getMockKintoneClientBuilder())
+        .withClientCertificate(eq(Paths.get(path)), eq(CLIENT_CERTIFICATE_PASSWORD));
+  }
+
+  @Test
+  public void testWithoutClientCertificate() {
+    MockClient mockClient = runWithMockClient(Lazy::get, builder());
+    verify(mockClient.getMockKintoneClientBuilder(), never())
+        .withClientCertificate(any(Path.class), any(String.class));
+  }
+
+  @Test
+  public void testClientCertificateWrongPassword() {
+    String path = clientCertificatePath();
+    config.set("client_certificate_path", path);
+    config.set("client_certificate_password", "wrong-password");
+    // Use the real KintoneClientBuilder: it loads the PKCS#12 before build(), so no network access.
+    String message = assertConfigExceptionWithRealBuilder();
+    assertTrue(message.startsWith("Failed to load client certificate '" + path + "'."));
+    assertFalse(message.contains("wrong-password"));
+  }
+
+  @Test
+  public void testClientCertificateNotPkcs12() throws IOException {
+    File notPkcs12 = temporaryFolder.newFile("not-a-certificate.pfx");
+    Files.write(notPkcs12.toPath(), "not a PKCS#12 file".getBytes(StandardCharsets.UTF_8));
+    config.set("client_certificate_path", notPkcs12.getAbsolutePath());
+    config.set("client_certificate_password", CLIENT_CERTIFICATE_PASSWORD);
+    String message = assertConfigExceptionWithRealBuilder();
+    assertTrue(
+        message.startsWith(
+            "Failed to load client certificate '" + notPkcs12.getAbsolutePath() + "'."));
+  }
+
+  @Test
+  public void testClientCertificateRejectedByServer() {
+    String path = clientCertificatePath();
+    config.set("client_certificate_path", path);
+    config.set("client_certificate_password", CLIENT_CERTIFICATE_PASSWORD);
+    String message =
+        assertClientGetThrows(ConfigException.class, sslHandshakeFailure()).getMessage();
+    assertThat(
+        message,
+        is(
+            "TLS handshake with https://client failed while using client certificate '"
+                + path
+                + "'. Check that the certificate was issued for this domain and is not expired or revoked."));
+    assertFalse(message.contains(CLIENT_CERTIFICATE_PASSWORD));
+  }
+
+  @Test
+  public void testNoCertResponseWithoutClientCertificate() {
+    config.set("domain", "example.s.cybozu.com");
+    ConfigException e =
+        assertClientGetThrows(ConfigException.class, htmlErrorResponse(400, NO_CERT_HTML));
+    assertThat(
+        e.getMessage(),
+        is(
+            "kintone at https://example.s.cybozu.com rejected the request with HTTP 400 \"No Cert\". This domain requires client_certificate_path and client_certificate_password."));
+    assertFalse(e.getCause().getMessage().contains("<html"));
+  }
+
+  @Test
+  public void testNoCertResponseWithClientCertificate() {
+    String path = clientCertificatePath();
+    config.set("client_certificate_path", path);
+    config.set("client_certificate_password", CLIENT_CERTIFICATE_PASSWORD);
+    assertThat(
+        assertClientGetThrows(ConfigException.class, htmlErrorResponse(400, NO_CERT_HTML))
+            .getMessage(),
+        is(
+            "kintone at https://client rejected the request with HTTP 400 \"No Cert\" even though client_certificate_path '"
+                + path
+                + "' is set. Check that the certificate was issued for this domain."));
+  }
+
+  @Test
+  public void testHtmlErrorResponseIsSummarized() {
+    RuntimeException e =
+        assertClientGetThrows(
+            RuntimeException.class,
+            htmlErrorResponse(
+                503, "<html><head><title>Service Unavailable</title></head><body>x</body></html>"));
+    assertThat(
+        e.getMessage(), is("HTTP error status 503 from https://client: Service Unavailable"));
+    assertThat(
+        e.getCause().getMessage(), is("HTTP error status 503, HTML page \"Service Unavailable\""));
+  }
+
+  @Test
+  public void testJsonApiErrorIsUnchanged() {
+    KintoneApiRuntimeException failure =
+        htmlErrorResponse(404, "{\"code\":\"GAIA_CN01\",\"message\":\"cursor\"}");
+    assertThat(
+        assertClientGetThrows(KintoneApiRuntimeException.class, failure),
+        is(sameInstance(failure)));
+  }
+
+  @Test
+  public void testSslErrorWithoutClientCertificateIsNotRewritten() {
+    KintoneRuntimeException failure = sslHandshakeFailure();
+    assertThat(
+        assertClientGetThrows(KintoneRuntimeException.class, failure), is(sameInstance(failure)));
+  }
+
+  @Test
+  public void testNonSslRequestErrorIsNotRewritten() {
+    config.set("client_certificate_path", clientCertificatePath());
+    config.set("client_certificate_password", CLIENT_CERTIFICATE_PASSWORD);
+    KintoneRuntimeException failure =
+        new KintoneRuntimeException("Failed to request", new IOException("Connection reset"));
+    assertThat(
+        assertClientGetThrows(KintoneRuntimeException.class, failure), is(sameInstance(failure)));
+  }
+
+  // kintone Secure Access answers a request without a client certificate with this page (body
+  // abbreviated).
+  static final String NO_CERT_HTML =
+      "<!DOCTYPE html>\n<html>\n<head>\n<meta charset=\"utf-8\">\n<title>No Cert</title>\n"
+          + "<style>body { background: url(data:image/png;base64,iVBORw0KGgo=); }</style>"
+          + "</head><body></body></html>";
+
+  static KintoneApiRuntimeException htmlErrorResponse(int status, String html) {
+    return new KintoneApiRuntimeException(status, Collections.emptyMap(), html);
+  }
+
+  private static KintoneRuntimeException sslHandshakeFailure() {
+    return new KintoneRuntimeException(
+        "Failed to request", new SSLHandshakeException("Received fatal alert: handshake_failure"));
+  }
+
+  // Runs KintoneClient against a MockClient whose getFormFields throws formFieldsFailure and
+  // returns the exception that escaped from Lazy#get.
+  private <T extends RuntimeException> T assertClientGetThrows(
+      Class<T> type, RuntimeException formFieldsFailure) {
+    AtomicReference<T> thrown = new AtomicReference<>();
+    runWithMockClient(
+        client -> thrown.set(assertThrows(type, client::get)), builder(), formFieldsFailure);
+    return thrown.get();
+  }
+
+  // Writes a PKCS#12 keystore protected by CLIENT_CERTIFICATE_PASSWORD into a temporary folder.
+  // It is generated at test time so that no key material is committed to the repository.
+  private String clientCertificatePath() {
+    try {
+      File file = new File(temporaryFolder.getRoot(), "client.pfx");
+      if (!file.exists()) {
+        KeyStore keyStore = KeyStore.getInstance("PKCS12");
+        keyStore.load(null, null);
+        try (OutputStream out = new FileOutputStream(file)) {
+          keyStore.store(out, CLIENT_CERTIFICATE_PASSWORD.toCharArray());
+        }
+      }
+      return file.getAbsolutePath();
+    } catch (IOException | GeneralSecurityException e) {
+      throw new RuntimeException(e);
+    }
+  }
+
+  private String assertConfigExceptionWithRealBuilder() {
+    try (Lazy<KintoneClient> client = KintoneClient.lazy(this::task, schema(builder()))) {
+      return assertThrows(ConfigException.class, client::get).getMessage();
+    } catch (Exception e) {
+      throw new RuntimeException(e);
+    }
+  }
+
   private void assertConfigException(String message) {
     assertConfigException(message, builder());
   }
@@ -100,18 +328,28 @@ public class KintoneClientTest extends TestKintoneOutputPlugin {
     runWithMockClient(consumer, builder());
   }
 
-  private void runWithMockClient(Consumer<Lazy<KintoneClient>> consumer, Schema.Builder builder) {
+  private MockClient runWithMockClient(
+      Consumer<Lazy<KintoneClient>> consumer, Schema.Builder builder) {
+    return runWithMockClient(consumer, builder, null);
+  }
+
+  private MockClient runWithMockClient(
+      Consumer<Lazy<KintoneClient>> consumer,
+      Schema.Builder builder,
+      RuntimeException formFieldsFailure) {
     MockClient mockClient =
         new MockClient(
-            config.get(String.class, "domain"),
-            Collections.emptyList(),
-            Collections.emptyList(),
-            "");
+                config.get(String.class, "domain"),
+                Collections.emptyList(),
+                Collections.emptyList(),
+                "")
+            .failGetFormFieldsWith(formFieldsFailure);
     try (Lazy<KintoneClient> client = KintoneClient.lazy(this::task, schema(builder))) {
       mockClient.run(() -> consumer.accept(client));
     } catch (Exception e) {
       throw new RuntimeException(e);
     }
+    return mockClient;
   }
 
   private void merge(ConfigSource config) {

@@ -10,3 +10,10 @@ build/
 /.metadata/
 .classpath
 .project
+
+# Certificates and keys (never commit key material)
+*.p12
+*.pfx
+*.pkcs12
+*.pem
+*.key
