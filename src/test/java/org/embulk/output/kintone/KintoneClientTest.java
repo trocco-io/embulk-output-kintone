@@ -9,6 +9,7 @@ import static org.junit.Assert.assertTrue;
 import static org.mockito.ArgumentMatchers.any;
 import static org.mockito.ArgumentMatchers.eq;
 import static org.mockito.Mockito.never;
+import static org.mockito.Mockito.times;
 import static org.mockito.Mockito.verify;
 
 import com.kintone.client.exception.KintoneApiRuntimeException;
@@ -109,6 +110,33 @@ public class KintoneClientTest extends TestKintoneOutputPlugin {
     runWithMockClient(Lazy::get, id(Types.LONG));
     merge(config("update_key: null"));
     assertConfigException("The id column must be 'long'.", id(Types.STRING));
+  }
+
+  @Test
+  public void testClientIsClosedWhenGetFormFieldsFails() throws IOException {
+    MockClient mockClient =
+        runWithMockClient(
+            client -> assertThrows(RuntimeException.class, client::get),
+            builder(),
+            htmlErrorResponse(503, "<html><head><title>Service Unavailable</title></head></html>"));
+    // Lazy#close does nothing because no client was created; the constructor closed it itself.
+    verify(mockClient.getMockKintoneClient(), times(1)).close();
+  }
+
+  @Test
+  public void testClientIsClosedWhenValidationFails() throws IOException {
+    merge(config("mode: insert"));
+    merge(config("update_key: long_number"));
+    MockClient mockClient =
+        runWithMockClient(client -> assertThrows(ConfigException.class, client::get), builder());
+    verify(mockClient.getMockKintoneClient(), times(1)).close();
+  }
+
+  @Test
+  public void testClientIsClosedOnce() throws IOException {
+    // Created successfully: closed once by Lazy#close, not again by the constructor.
+    MockClient mockClient = runWithMockClient(Lazy::get, builder());
+    verify(mockClient.getMockKintoneClient(), times(1)).close();
   }
 
   @Test

@@ -43,6 +43,7 @@ public class MockClient {
   private final String query;
   private final RecordClient mockRecordClient;
   private final KintoneClientBuilder mockKintoneClientBuilder;
+  private final KintoneClient mockKintoneClient;
   private RuntimeException formFieldsFailure;
 
   public MockClient(String domain, List<Record> records, List<String> fields, String query) {
@@ -52,6 +53,7 @@ public class MockClient {
     this.query = query;
     mockRecordClient = mock(RecordClient.class);
     mockKintoneClientBuilder = mock(KintoneClientBuilder.class);
+    mockKintoneClient = mock(KintoneClient.class);
   }
 
   public RecordClient getMockRecordClient() {
@@ -60,6 +62,11 @@ public class MockClient {
 
   public KintoneClientBuilder getMockKintoneClientBuilder() {
     return mockKintoneClientBuilder;
+  }
+
+  // The client returned by the mocked builder; use it to verify that it was closed.
+  public KintoneClient getMockKintoneClient() {
+    return mockKintoneClient;
   }
 
   // Makes AppClient#getFormFields throw the given exception instead of returning the mocked fields.
@@ -110,7 +117,6 @@ public class MockClient {
         .thenReturn(mockGetRecordsByCursorResponseBody);
     when(mockRecordClient.addRecords(eq(0L), anyList())).thenReturn(Collections.emptyList());
     when(mockRecordClient.updateRecords(eq(0L), anyList())).thenReturn(Collections.emptyList());
-    com.kintone.client.KintoneClient mockKintoneClient = mock(KintoneClient.class);
     when(mockKintoneClient.app()).thenReturn(mockAppClient);
     when(mockKintoneClient.record()).thenReturn(mockRecordClient);
     when(mockKintoneClientBuilder.authByApiToken(eq("token"))).thenReturn(mockKintoneClientBuilder);

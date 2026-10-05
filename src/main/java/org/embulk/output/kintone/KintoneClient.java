@@ -61,17 +61,37 @@ public class KintoneClient implements AutoCloseable {
       throw new ConfigException("Username and password or token must be configured.");
     }
     configureClientCertificate(builder, task);
-    client = builder.build();
+    com.kintone.client.KintoneClient client = builder.build();
     try {
-      fields = client.app().getFormFields(task.getAppId());
+      fields = getFormFields(client, task);
+      Map<String, FieldProperty> fieldVisitor = new LinkedHashMap<>();
+      fields.forEach(
+          (field, fieldProperty) -> KintoneClient.addSubTableFields(fieldVisitor, fieldProperty));
+      fields.putAll(fieldVisitor);
+      KintoneMode.of(task).validate(task, this);
+    } catch (RuntimeException e) {
+      // The client is already built; do not leak it when the rest of the initialization fails.
+      closeQuietly(client, e);
+      throw e;
+    }
+    this.client = client;
+  }
+
+  private static Map<String, FieldProperty> getFormFields(
+      com.kintone.client.KintoneClient client, PluginTask task) {
+    try {
+      return client.app().getFormFields(task.getAppId());
     } catch (KintoneRuntimeException e) {
       throw withClientCertificateHint(e, task);
     }
-    Map<String, FieldProperty> fieldVisitor = new LinkedHashMap<>();
-    fields.forEach(
-        (field, fieldProperty) -> KintoneClient.addSubTableFields(fieldVisitor, fieldProperty));
-    fields.putAll(fieldVisitor);
-    KintoneMode.of(task).validate(task, this);
+  }
+
+  private static void closeQuietly(com.kintone.client.KintoneClient client, Throwable failure) {
+    try {
+      client.close();
+    } catch (IOException | RuntimeException e) {
+      failure.addSuppressed(e);
+    }
   }
 
   private static void configureClientCertificate(KintoneClientBuilder builder, PluginTask task) {
