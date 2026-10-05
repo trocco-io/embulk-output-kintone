@@ -266,6 +266,22 @@ public class KintoneClientTest extends TestKintoneOutputPlugin {
   }
 
   @Test
+  public void testLongHtmlTitleIsTruncated() {
+    String padding = String.join("", Collections.nCopies(300, "x"));
+    RuntimeException e =
+        assertClientGetThrows(
+            RuntimeException.class,
+            htmlErrorResponse(
+                503,
+                "<html><head><title>Service\n  Unavailable "
+                    + padding
+                    + "</title></head><body>huge</body></html>"));
+    String expectedTitle = ("Service Unavailable " + padding).substring(0, 200) + "...";
+    assertThat(e.getMessage(), is("HTTP error status 503 from https://client: " + expectedTitle));
+    assertFalse(e.getMessage().contains("\n"));
+  }
+
+  @Test
   public void testJsonApiErrorIsUnchanged() {
     KintoneApiRuntimeException failure =
         htmlErrorResponse(404, "{\"code\":\"GAIA_CN01\",\"message\":\"cursor\"}");

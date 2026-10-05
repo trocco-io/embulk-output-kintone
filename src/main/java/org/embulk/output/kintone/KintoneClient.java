@@ -29,6 +29,7 @@ import org.embulk.spi.type.Types;
 public class KintoneClient implements AutoCloseable {
   private static final Pattern HTML_TITLE =
       Pattern.compile("<title>(.*?)</title>", Pattern.CASE_INSENSITIVE | Pattern.DOTALL);
+  private static final int HTML_TITLE_MAX_LENGTH = 200;
   private final PluginTask task;
   private final Schema schema;
   private final com.kintone.client.KintoneClient client;
@@ -189,7 +190,15 @@ public class KintoneClient implements AutoCloseable {
       return null;
     }
     Matcher matcher = HTML_TITLE.matcher(content);
-    return matcher.find() ? matcher.group(1).trim() : "";
+    if (!matcher.find()) {
+      return "";
+    }
+    // The title can span lines and has no length limit; keep the message and the log to one short
+    // line.
+    String title = matcher.group(1).replaceAll("\\s+", " ").trim();
+    return title.length() <= HTML_TITLE_MAX_LENGTH
+        ? title
+        : title.substring(0, HTML_TITLE_MAX_LENGTH) + "...";
   }
 
   private static boolean hasSslHandshakeCause(Throwable e) {
