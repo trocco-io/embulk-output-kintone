@@ -95,11 +95,12 @@ public class KintoneClient implements AutoCloseable {
     }
   }
 
-  private static void configureClientCertificate(KintoneClientBuilder builder, PluginTask task) {
-    if (task.getClientCertificatePath().isPresent()
-        != task.getClientCertificatePassword().isPresent()) {
-      throw new ConfigException(
-          "Client certificate and client certificate password must be provided together.");
+  // Package-private so that loading a PKCS#12 can be tested with the real builder (it reads the
+  // file before build(), so no network access is involved).
+  static void configureClientCertificate(KintoneClientBuilder builder, PluginTask task) {
+    if (task.getClientCertificatePassword().isPresent()
+        && !task.getClientCertificatePath().isPresent()) {
+      throw new ConfigException("client_certificate_password requires client_certificate_path.");
     }
     if (!task.getClientCertificatePath().isPresent()) {
       return;
@@ -115,7 +116,9 @@ public class KintoneClient implements AutoCloseable {
       throw new ConfigException("Client certificate file not found or not readable: " + path);
     }
     try {
-      builder.withClientCertificate(certificate, task.getClientCertificatePassword().get());
+      // A certificate without a password is configured by omitting client_certificate_password or
+      // by setting it to ""; both are treated the same.
+      builder.withClientCertificate(certificate, task.getClientCertificatePassword().orElse(""));
     } catch (KintoneRuntimeException e) {
       // Do not include the password in the message.
       throw new ConfigException(

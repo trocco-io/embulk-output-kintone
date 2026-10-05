@@ -12,6 +12,7 @@ import static org.mockito.Mockito.never;
 import static org.mockito.Mockito.times;
 import static org.mockito.Mockito.verify;
 
+import com.kintone.client.KintoneClientBuilder;
 import com.kintone.client.exception.KintoneApiRuntimeException;
 import com.kintone.client.exception.KintoneRuntimeException;
 import java.io.File;
@@ -140,18 +141,37 @@ public class KintoneClientTest extends TestKintoneOutputPlugin {
     verify(mockClient.getMockKintoneClient(), times(1)).close();
   }
 
+  // Omitting client_certificate_password and setting it to "" are the same thing.
   @Test
-  public void testClientCertificateLackingPassword() {
-    config.set("client_certificate_path", clientCertificatePath());
-    assertConfigException(
-        "Client certificate and client certificate password must be provided together.");
+  public void testClientCertificateWithoutPassword() {
+    String path = clientCertificatePath();
+    config.set("client_certificate_path", path);
+    MockClient mockClient = runWithMockClient(Lazy::get, builder());
+    verify(mockClient.getMockKintoneClientBuilder())
+        .withClientCertificate(eq(Paths.get(path)), eq(""));
+  }
+
+  @Test
+  public void testClientCertificateWithEmptyPassword() {
+    String path = clientCertificatePath();
+    config.set("client_certificate_path", path);
+    config.set("client_certificate_password", "");
+    MockClient mockClient = runWithMockClient(Lazy::get, builder());
+    verify(mockClient.getMockKintoneClientBuilder())
+        .withClientCertificate(eq(Paths.get(path)), eq(""));
+  }
+
+  @Test
+  public void testPasswordlessClientCertificate() {
+    config.set("client_certificate_path", passwordlessClientCertificatePath());
+    // Use the real KintoneClientBuilder: it loads the PKCS#12 before build(), so no network access.
+    KintoneClient.configureClientCertificate(KintoneClientBuilder.create("https://client"), task());
   }
 
   @Test
   public void testClientCertificateLackingPath() {
     config.set("client_certificate_password", CLIENT_CERTIFICATE_PASSWORD);
-    assertConfigException(
-        "Client certificate and client certificate password must be provided together.");
+    assertConfigException("client_certificate_password requires client_certificate_path.");
   }
 
   @Test
@@ -348,13 +368,22 @@ public class KintoneClientTest extends TestKintoneOutputPlugin {
   // Writes a PKCS#12 keystore protected by CLIENT_CERTIFICATE_PASSWORD into a temporary folder.
   // It is generated at test time so that no key material is committed to the repository.
   private String clientCertificatePath() {
+    return clientCertificatePath("client.pfx", CLIENT_CERTIFICATE_PASSWORD);
+  }
+
+  // Same as clientCertificatePath(), but the keystore has an empty password.
+  private String passwordlessClientCertificatePath() {
+    return clientCertificatePath("client-no-password.pfx", "");
+  }
+
+  private String clientCertificatePath(String name, String password) {
     try {
-      File file = new File(temporaryFolder.getRoot(), "client.pfx");
+      File file = new File(temporaryFolder.getRoot(), name);
       if (!file.exists()) {
         KeyStore keyStore = KeyStore.getInstance("PKCS12");
         keyStore.load(null, null);
         try (OutputStream out = new FileOutputStream(file)) {
-          keyStore.store(out, CLIENT_CERTIFICATE_PASSWORD.toCharArray());
+          keyStore.store(out, password.toCharArray());
         }
       }
       return file.getAbsolutePath();
