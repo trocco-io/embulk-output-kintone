@@ -26,6 +26,7 @@ import java.security.GeneralSecurityException;
 import java.security.KeyStore;
 import java.util.Collections;
 import java.util.concurrent.atomic.AtomicReference;
+import javax.net.ssl.SSLException;
 import javax.net.ssl.SSLHandshakeException;
 import org.embulk.config.ConfigException;
 import org.embulk.config.ConfigSource;
@@ -220,7 +221,8 @@ public class KintoneClientTest extends TestKintoneOutputPlugin {
         is(
             "TLS handshake with https://client failed while using client certificate '"
                 + path
-                + "'. Check that the certificate was issued for this domain and is not expired or revoked."));
+                + "'. Check that the certificate was issued for this domain and is not expired or revoked,"
+                + " or whether another TLS problem (for example a proxy or trust store) is the cause."));
     assertFalse(message.contains(CLIENT_CERTIFICATE_PASSWORD));
   }
 
@@ -275,6 +277,18 @@ public class KintoneClientTest extends TestKintoneOutputPlugin {
   @Test
   public void testSslErrorWithoutClientCertificateIsNotRewritten() {
     KintoneRuntimeException failure = sslHandshakeFailure();
+    assertThat(
+        assertClientGetThrows(KintoneRuntimeException.class, failure), is(sameInstance(failure)));
+  }
+
+  @Test
+  public void testNonHandshakeSslErrorIsNotRewritten() {
+    config.set("client_certificate_path", clientCertificatePath());
+    config.set("client_certificate_password", CLIENT_CERTIFICATE_PASSWORD);
+    // A TLS error after the handshake (for example a reset connection) can be transient and is
+    // not a certificate problem.
+    KintoneRuntimeException failure =
+        new KintoneRuntimeException("Failed to request", new SSLException("Connection reset"));
     assertThat(
         assertClientGetThrows(KintoneRuntimeException.class, failure), is(sameInstance(failure)));
   }

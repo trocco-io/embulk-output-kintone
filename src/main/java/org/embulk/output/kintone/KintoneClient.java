@@ -17,7 +17,7 @@ import java.util.Map;
 import java.util.function.Supplier;
 import java.util.regex.Matcher;
 import java.util.regex.Pattern;
-import javax.net.ssl.SSLException;
+import javax.net.ssl.SSLHandshakeException;
 import org.embulk.config.ConfigException;
 import org.embulk.output.kintone.record.Id;
 import org.embulk.output.kintone.util.Lazy;
@@ -130,20 +130,23 @@ public class KintoneClient implements AutoCloseable {
   // - kintone Secure Access answers a request without a client certificate with HTTP 400 and an
   //   HTML page titled "No Cert" (the TLS handshake itself succeeds).
   // - kintone-java-client wraps I/O failures (including SSLHandshakeException) as
-  //   KintoneRuntimeException("Failed to request", cause).
+  //   KintoneRuntimeException("Failed to request", cause). Only a failed handshake is treated as
+  //   a certificate problem; other TLS errors (for example a connection reset after the
+  //   handshake) can be transient and are returned as is.
   // HTML error pages are also summarized to their <title> so that the page body is kept out of
   // the log.
   static RuntimeException withClientCertificateHint(KintoneRuntimeException e, PluginTask task) {
     if (e instanceof KintoneApiRuntimeException) {
       return describeHtmlErrorResponse((KintoneApiRuntimeException) e, task);
     }
-    if (hasSslCause(e) && task.getClientCertificatePath().isPresent()) {
+    if (hasSslHandshakeCause(e) && task.getClientCertificatePath().isPresent()) {
       return new ConfigException(
           "TLS handshake with https://"
               + task.getDomain()
               + " failed while using client certificate '"
               + task.getClientCertificatePath().get()
-              + "'. Check that the certificate was issued for this domain and is not expired or revoked.",
+              + "'. Check that the certificate was issued for this domain and is not expired or revoked,"
+              + " or whether another TLS problem (for example a proxy or trust store) is the cause.",
           e);
     }
     return e;
@@ -189,9 +192,9 @@ public class KintoneClient implements AutoCloseable {
     return matcher.find() ? matcher.group(1).trim() : "";
   }
 
-  private static boolean hasSslCause(Throwable e) {
+  private static boolean hasSslHandshakeCause(Throwable e) {
     for (Throwable cause = e.getCause(); cause != null; cause = cause.getCause()) {
-      if (cause instanceof SSLException) {
+      if (cause instanceof SSLHandshakeException) {
         return true;
       }
     }
