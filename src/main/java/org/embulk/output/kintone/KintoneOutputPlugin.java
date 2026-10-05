@@ -14,6 +14,7 @@ import org.embulk.config.TaskReport;
 import org.embulk.config.TaskSource;
 import org.embulk.output.kintone.reducer.ReducedPageOutput;
 import org.embulk.output.kintone.reducer.Reducer;
+import org.embulk.output.kintone.util.Lazy;
 import org.embulk.spi.OutputPlugin;
 import org.embulk.spi.Schema;
 import org.embulk.spi.TransactionalPageOutput;
@@ -37,11 +38,26 @@ public class KintoneOutputPlugin implements OutputPlugin {
     task.getClientCertificatePath()
         .ifPresent(path -> LOGGER.info("Using client certificate: {}", path));
     task.setDerivedColumns(Collections.emptySet());
+    validateConfig(task, schema);
     List<TaskReport> taskReports = control.run(task.dump());
     return task.getReduceKeyName().isPresent()
         ? new Reducer(task, schema)
             .reduce(taskReports, schema.lookupColumn(task.getReduceKeyName().get()))
         : CONFIG_MAPPER_FACTORY.newConfigDiff();
+  }
+
+  // Creates a client once per job so that the authentication, the client certificate, the app and
+  // the update key are checked before any task runs, even when no record reaches the output tasks
+  // (a task creates its client only when it receives records). Tasks still create their own
+  // clients. Protected so that tests can wrap the call with a mocked kintone client.
+  protected void validateConfig(PluginTask task, Schema schema) {
+    try (Lazy<KintoneClient> client = KintoneClient.lazy(() -> task, schema)) {
+      client.get();
+    } catch (RuntimeException e) {
+      throw e;
+    } catch (Exception e) {
+      throw new RuntimeException("kintone throw exception", e);
+    }
   }
 
   @Override

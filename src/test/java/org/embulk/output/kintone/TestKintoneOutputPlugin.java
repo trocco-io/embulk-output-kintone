@@ -40,6 +40,7 @@ import org.msgpack.value.Value;
 
 public class TestKintoneOutputPlugin extends KintoneOutputPlugin {
   private static final JsonParser PARSER = new JsonParser();
+  private RuntimeException transactionFormFieldsFailure;
 
   @Rule
   public final TestingEmbulk embulk =
@@ -55,6 +56,32 @@ public class TestKintoneOutputPlugin extends KintoneOutputPlugin {
     return config.get(String.class, "reduce_key", null) == null
         ? super.transaction(config, schema, taskCount, control)
         : transactionWithVerifier(config, schema, taskCount, control);
+  }
+
+  // The validation in transaction() talks to kintone, so it runs against a MockClient. In reduce
+  // mode transactionWithVerifier already runs the whole transaction inside a mock, and a second
+  // static mock on the same thread would fail, so the call is made directly there.
+  @Override
+  protected void validateConfig(PluginTask task, Schema schema) {
+    if (task.getReduceKeyName().isPresent()) {
+      super.validateConfig(task, schema);
+      return;
+    }
+    MockClient mockClient =
+        new MockClient(task.getDomain(), Collections.emptyList(), Collections.emptyList(), "")
+            .failGetFormFieldsWith(transactionFormFieldsFailure);
+    try {
+      mockClient.run(() -> super.validateConfig(task, schema));
+    } catch (RuntimeException e) {
+      throw e;
+    } catch (Exception e) {
+      throw new RuntimeException(e);
+    }
+  }
+
+  // Makes getFormFields fail during the validation in transaction() (non-reduce mode only).
+  protected void failTransactionFormFieldsWith(RuntimeException failure) {
+    transactionFormFieldsFailure = failure;
   }
 
   @Override
