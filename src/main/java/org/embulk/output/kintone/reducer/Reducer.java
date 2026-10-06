@@ -73,6 +73,11 @@ public class Reducer {
     this.client = KintoneClient.lazy(() -> task, schema);
   }
 
+  // The schema the reducer writes to kintone with: the input columns plus the derived ones.
+  public Schema getSchema() {
+    return schema;
+  }
+
   public ConfigDiff reduce(List<TaskReport> taskReports, Column column) {
     File merged = file(".merged");
     merge(taskReports, merged);

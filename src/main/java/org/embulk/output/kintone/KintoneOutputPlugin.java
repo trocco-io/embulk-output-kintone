@@ -38,18 +38,20 @@ public class KintoneOutputPlugin implements OutputPlugin {
     task.getClientCertificatePath()
         .ifPresent(path -> LOGGER.info("Using client certificate: {}", path));
     task.setDerivedColumns(Collections.emptySet());
-    validateConfig(task, schema);
+    Reducer reducer = task.getReduceKeyName().isPresent() ? new Reducer(task, schema) : null;
+    validateConfig(task, reducer != null ? reducer.getSchema() : schema);
     List<TaskReport> taskReports = control.run(task.dump());
-    return task.getReduceKeyName().isPresent()
-        ? new Reducer(task, schema)
-            .reduce(taskReports, schema.lookupColumn(task.getReduceKeyName().get()))
+    return reducer != null
+        ? reducer.reduce(taskReports, schema.lookupColumn(task.getReduceKeyName().get()))
         : CONFIG_MAPPER_FACTORY.newConfigDiff();
   }
 
   // Creates a client once per job so that the authentication, the client certificate, the app and
   // the update key are checked before any task runs, even when no record reaches the output tasks
   // (a task creates its client only when it receives records). Tasks still create their own
-  // clients. Protected so that tests can wrap the call with a mocked kintone client.
+  // clients. In reduce mode the reducer's schema is used, the one it actually writes with, so that
+  // an update_key naming a derived column passes. Protected so that tests can wrap the call with
+  // a mocked kintone client.
   protected void validateConfig(PluginTask task, Schema schema) {
     try (Lazy<KintoneClient> client = KintoneClient.lazy(() -> task, schema)) {
       client.get();
