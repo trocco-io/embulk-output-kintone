@@ -15,6 +15,8 @@ kintone output plugin for Embulk stores app records from kintone.
 - **app_id**: kintone app id (integer, required)
 - **basic_auth_username**: kintone basic auth username Please see kintone basic auth [here](https://jp.cybozu.help/general/en/admin/list_security/list_ip_basic/basic_auth.html) (string, optional)
 - **basic_auth_password**: kintone basic auth password (string, optional)
+- **client_certificate_path**: Path to a PKCS#12 (.pfx) client certificate file for kintone Secure Access. This is used in addition to username/password or token authentication, not instead of it. If the file does not exist or cannot be loaded, the plugin fails with a ConfigException. If kintone answers with HTTP 400 "No Cert" (the domain requires a client certificate but none was presented) or rejects the certificate during the TLS handshake, the plugin fails with a ConfigException that names the domain and, when set, the certificate path. (string, optional)
+- **client_certificate_password**: Password for the PKCS#12 client certificate. For a certificate without a password, omit it or set it to an empty string (both are treated the same). Setting it without `client_certificate_path` is a configuration error. (string, optional)
 - **guest_space_id**: kintone app belongs to guest space, guest space id is required. (integer, optional)
 - **mode**: kintone mode (string, required)
 - **update_key**: Column name to set update key (string, required if mode is update or upsert)
@@ -64,6 +66,20 @@ out:
     number: {field_code: "num", type: "NUMBER"}
     date: {field_code: "date", type: "DATE"}
     date_time: {field_code: "datetime", type: "DATETIME"}
+```
+
+### Client certificate (kintone Secure Access)
+
+```yaml
+out:
+  type: kintone
+  domain: example.s.cybozu.com
+  username: username
+  password: password
+  client_certificate_path: /path/to/client.pfx
+  client_certificate_password: certificate-password
+  app_id: 1
+  mode: insert
 ```
 
 ### For reduce expanded SUBTABLE

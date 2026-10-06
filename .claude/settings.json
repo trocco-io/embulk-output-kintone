@@ -1,0 +1,16 @@
+{
+  "permissions": {
+    "deny": [
+      "Read(**/*.pfx)",
+      "Read(**/*.p12)",
+      "Read(**/*.pkcs12)",
+      "Read(**/*.pem)",
+      "Read(**/*.key)"
+    ]
+  },
+  "sandbox": {
+    "filesystem": {
+      "denyRead": ["**/*.pfx", "**/*.p12", "**/*.pkcs12", "**/*.pem", "**/*.key"]
+    }
+  }
+}

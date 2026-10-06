@@ -2,13 +2,22 @@ package org.embulk.output.kintone;
 
 import com.kintone.client.KintoneClientBuilder;
 import com.kintone.client.RecordClient;
+import com.kintone.client.exception.KintoneApiRuntimeException;
+import com.kintone.client.exception.KintoneRuntimeException;
 import com.kintone.client.model.app.field.FieldProperty;
 import com.kintone.client.model.app.field.SubtableFieldProperty;
 import com.kintone.client.model.record.FieldType;
 import java.io.IOException;
+import java.nio.file.Files;
+import java.nio.file.InvalidPathException;
+import java.nio.file.Path;
+import java.nio.file.Paths;
 import java.util.LinkedHashMap;
 import java.util.Map;
 import java.util.function.Supplier;
+import java.util.regex.Matcher;
+import java.util.regex.Pattern;
+import javax.net.ssl.SSLHandshakeException;
 import org.embulk.config.ConfigException;
 import org.embulk.output.kintone.record.Id;
 import org.embulk.output.kintone.util.Lazy;
@@ -18,6 +27,9 @@ import org.embulk.spi.type.Type;
 import org.embulk.spi.type.Types;
 
 public class KintoneClient implements AutoCloseable {
+  private static final Pattern HTML_TITLE =
+      Pattern.compile("<title>(.*?)</title>", Pattern.CASE_INSENSITIVE | Pattern.DOTALL);
+  private static final int HTML_TITLE_MAX_LENGTH = 200;
   private final PluginTask task;
   private final Schema schema;
   private final com.kintone.client.KintoneClient client;
@@ -49,13 +61,156 @@ public class KintoneClient implements AutoCloseable {
     } else {
       throw new ConfigException("Username and password or token must be configured.");
     }
-    client = builder.build();
-    fields = client.app().getFormFields(task.getAppId());
-    Map<String, FieldProperty> fieldVisitor = new LinkedHashMap<>();
-    fields.forEach(
-        (field, fieldProperty) -> KintoneClient.addSubTableFields(fieldVisitor, fieldProperty));
-    fields.putAll(fieldVisitor);
-    KintoneMode.of(task).validate(task, this);
+    configureClientCertificate(builder, task);
+    com.kintone.client.KintoneClient client = builder.build();
+    try {
+      fields = getFormFields(client, task);
+      Map<String, FieldProperty> fieldVisitor = new LinkedHashMap<>();
+      fields.forEach(
+          (field, fieldProperty) -> KintoneClient.addSubTableFields(fieldVisitor, fieldProperty));
+      fields.putAll(fieldVisitor);
+      KintoneMode.of(task).validate(task, this);
+    } catch (RuntimeException e) {
+      // The client is already built; do not leak it when the rest of the initialization fails.
+      closeQuietly(client, e);
+      throw e;
+    }
+    this.client = client;
+  }
+
+  private static Map<String, FieldProperty> getFormFields(
+      com.kintone.client.KintoneClient client, PluginTask task) {
+    try {
+      return client.app().getFormFields(task.getAppId());
+    } catch (KintoneRuntimeException e) {
+      throw withClientCertificateHint(e, task);
+    }
+  }
+
+  private static void closeQuietly(com.kintone.client.KintoneClient client, Throwable failure) {
+    try {
+      client.close();
+    } catch (IOException | RuntimeException e) {
+      failure.addSuppressed(e);
+    }
+  }
+
+  // Package-private so that loading a PKCS#12 can be tested with the real builder (it reads the
+  // file before build(), so no network access is involved).
+  static void configureClientCertificate(KintoneClientBuilder builder, PluginTask task) {
+    if (task.getClientCertificatePassword().isPresent()
+        && !task.getClientCertificatePath().isPresent()) {
+      throw new ConfigException("client_certificate_password requires client_certificate_path.");
+    }
+    if (!task.getClientCertificatePath().isPresent()) {
+      return;
+    }
+    String path = task.getClientCertificatePath().get();
+    Path certificate;
+    try {
+      certificate = Paths.get(path);
+    } catch (InvalidPathException e) {
+      throw new ConfigException("Invalid client certificate path: " + path, e);
+    }
+    if (!Files.isRegularFile(certificate) || !Files.isReadable(certificate)) {
+      throw new ConfigException("Client certificate file not found or not readable: " + path);
+    }
+    try {
+      // A certificate without a password is configured by omitting client_certificate_password or
+      // by setting it to ""; both are treated the same.
+      builder.withClientCertificate(certificate, task.getClientCertificatePassword().orElse(""));
+    } catch (KintoneRuntimeException e) {
+      // Do not include the password in the message.
+      throw new ConfigException(
+          "Failed to load client certificate '"
+              + path
+              + "'. Make sure the file is a valid PKCS#12 (.pfx) and the password is correct.",
+          e);
+    }
+  }
+
+  // Explains failures that involve the client certificate as configuration problems; anything
+  // else is returned as is.
+  // - kintone Secure Access answers a request without a client certificate with HTTP 400 and an
+  //   HTML page titled "No Cert" (the TLS handshake itself succeeds).
+  // - kintone-java-client wraps I/O failures (including SSLHandshakeException) as
+  //   KintoneRuntimeException("Failed to request", cause). Only a failed handshake is treated as
+  //   a certificate problem; other TLS errors (for example a connection reset after the
+  //   handshake) can be transient and are returned as is.
+  // HTML error pages are also summarized to their <title> so that the page body is kept out of
+  // the log.
+  static RuntimeException withClientCertificateHint(KintoneRuntimeException e, PluginTask task) {
+    if (e instanceof KintoneApiRuntimeException) {
+      return describeHtmlErrorResponse((KintoneApiRuntimeException) e, task);
+    }
+    if (hasSslHandshakeCause(e) && task.getClientCertificatePath().isPresent()) {
+      return new ConfigException(
+          "TLS handshake with https://"
+              + task.getDomain()
+              + " failed while using client certificate '"
+              + task.getClientCertificatePath().get()
+              + "'. Check that the certificate was issued for this domain and is not expired or revoked,"
+              + " or whether another TLS problem (for example a proxy or trust store) is the cause.",
+          e);
+    }
+    return e;
+  }
+
+  private static RuntimeException describeHtmlErrorResponse(
+      KintoneApiRuntimeException e, PluginTask task) {
+    String title = htmlTitle(e.getContent());
+    if (title == null) {
+      return e;
+    }
+    // Keep the HTML body (which can embed images) out of the message and the stack trace.
+    KintoneApiRuntimeException summary =
+        new KintoneApiRuntimeException(
+            e.getStatusCode(), e.getHeaders(), "HTML page \"" + title + "\"");
+    String domain = task.getDomain();
+    if (e.getStatusCode() == 400 && "No Cert".equals(title)) {
+      if (task.getClientCertificatePath().isPresent()) {
+        return new ConfigException(
+            "kintone at https://"
+                + domain
+                + " rejected the request with HTTP 400 \"No Cert\" even though client_certificate_path '"
+                + task.getClientCertificatePath().get()
+                + "' is set. Check that the certificate was issued for this domain.",
+            summary);
+      }
+      return new ConfigException(
+          "kintone at https://"
+              + domain
+              + " rejected the request with HTTP 400 \"No Cert\". This domain requires client_certificate_path and client_certificate_password.",
+          summary);
+    }
+    return new RuntimeException(
+        "HTTP error status " + e.getStatusCode() + " from https://" + domain + ": " + title,
+        summary);
+  }
+
+  private static String htmlTitle(String content) {
+    if (content == null || !content.trim().startsWith("<")) {
+      return null;
+    }
+    Matcher matcher = HTML_TITLE.matcher(content);
+    if (!matcher.find()) {
+      return "";
+    }
+    // The title can span lines and has no length limit; keep the message and the log to one short
+    // line.
+    String title = matcher.group(1).replaceAll("\\s+", " ").trim();
+    return title.length() <= HTML_TITLE_MAX_LENGTH
+        ? title
+        : title.substring(0, HTML_TITLE_MAX_LENGTH) + "...";
+  }
+
+  private static boolean hasSslHandshakeCause(Throwable e) {
+    for (Throwable cause = e.getCause(); cause != null; cause = cause.getCause()) {
+      if (cause instanceof SSLHandshakeException) {
+        return true;
+      }
+    }
+    return false;
   }
 
   private static void addSubTableFields(
